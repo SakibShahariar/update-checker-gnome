@@ -84,45 +84,94 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         // --- Sources group ---
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'One "Name|command" per line. Each command\'s stdout line-count becomes that source\'s update count. See the README for ready-made snippets (cargo, npm, pipx, uv...).',
+            description: 'Each row runs a shell command; the number of non-empty lines it prints on stdout becomes that source\'s update count. Use "Add Source" below instead of editing text by hand. See the README for ready-made commands (cargo, npm, pipx, uv...).',
         });
         page.add(sourcesGroup);
 
-        const textView = new Gtk.TextView({
-            wrap_mode: Gtk.WrapMode.NONE,
-            top_margin: 8, bottom_margin: 8, left_margin: 8, right_margin: 8,
-        });
-        const buffer = textView.get_buffer();
-        buffer.set_text(settings.get_strv('sources').join('\n'), -1);
+        const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 6});
+        const sourceRows = [];
+
+        const saveSources = () => {
+            const values = sourceRows
+                .map(r => ({name: r.nameEntry.get_text().trim(), command: r.cmdEntry.get_text().trim()}))
+                .filter(r => r.name && r.command)
+                .map(r => `${r.name}|${r.command}`);
+            settings.set_strv('sources', values);
+        };
+
+        const addSourceRow = (name = '', command = '') => {
+            const row = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, spacing: 6});
+
+            const nameEntry = new Gtk.Entry({
+                placeholder_text: 'Name',
+                text: name,
+                width_chars: 12,
+                hexpand: false,
+            });
+            const cmdEntry = new Gtk.Entry({
+                placeholder_text: 'Shell command',
+                text: command,
+                hexpand: true,
+            });
+            const removeButton = new Gtk.Button({
+                icon_name: 'list-remove-symbolic',
+                tooltip_text: 'Remove this source',
+                valign: Gtk.Align.CENTER,
+                css_classes: ['flat', 'circular'],
+            });
+
+            row.append(nameEntry);
+            row.append(cmdEntry);
+            row.append(removeButton);
+            rowsBox.append(row);
+
+            const entry = {row, nameEntry, cmdEntry};
+            sourceRows.push(entry);
+
+            nameEntry.connect('activate', saveSources);
+            cmdEntry.connect('activate', saveSources);
+            nameEntry.connect('notify::has-focus', w => { if (!w.has_focus) saveSources(); });
+            cmdEntry.connect('notify::has-focus', w => { if (!w.has_focus) saveSources(); });
+
+            removeButton.connect('clicked', () => {
+                rowsBox.remove(row);
+                const idx = sourceRows.indexOf(entry);
+                if (idx !== -1)
+                    sourceRows.splice(idx, 1);
+                saveSources();
+            });
+
+            return entry;
+        };
+
+        for (const entry of settings.get_strv('sources')) {
+            const idx = entry.indexOf('|');
+            if (idx === -1)
+                continue;
+            addSourceRow(entry.slice(0, idx).trim(), entry.slice(idx + 1).trim());
+        }
 
         const scroller = new Gtk.ScrolledWindow({
-            min_content_height: 180,
+            min_content_height: Math.min(220, Math.max(60, sourceRows.length * 44 + 12)),
             hexpand: true,
         });
-        scroller.set_child(textView);
+        scroller.set_child(rowsBox);
 
         const frame = new Gtk.Frame();
         frame.set_child(scroller);
 
-        const sourcesRow = new Adw.ActionRow();
-        sourcesRow.set_activatable(false);
-        sourcesRow.add_css_class('sources-editor-row');
-
-        const applyButton = new Gtk.Button({
-            label: 'Save Sources',
-            valign: Gtk.Align.CENTER,
-            css_classes: ['suggested-action'],
+        const addButton = new Gtk.Button({
+            label: '+ Add Source',
+            halign: Gtk.Align.START,
         });
-        applyButton.connect('clicked', () => {
-            const [ok, start, end] = [true, buffer.get_start_iter(), buffer.get_end_iter()];
-            const text = buffer.get_text(start, end, false);
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            settings.set_strv('sources', lines);
+        addButton.connect('clicked', () => {
+            const entry = addSourceRow('', '');
+            entry.nameEntry.grab_focus();
         });
 
         const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
         box.append(frame);
-        box.append(applyButton);
+        box.append(addButton);
 
         sourcesGroup.add(box);
     }
