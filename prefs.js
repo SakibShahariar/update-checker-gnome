@@ -147,6 +147,20 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('terminal-command', terminalRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         scriptGroup.add(terminalRow);
 
+        // --- Per-source update behavior ---
+        const backgroundGroup = new Adw.PreferencesGroup({
+            title: 'Per-Source Updates',
+            description: 'How clicking a source (e.g. "Flatpak: 3") in the panel menu runs its update command. Only applies to per-source updates below, not "Run Update Script" above.',
+        });
+        page.add(backgroundGroup);
+
+        const backgroundRow = new Adw.SwitchRow({
+            title: 'Run in background instead of a terminal',
+            subtitle: 'Uses a graphical password prompt (pkexec) for any doas/sudo command, no terminal window',
+        });
+        settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        backgroundGroup.add(backgroundRow);
+
         // --- Sources group ---
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',

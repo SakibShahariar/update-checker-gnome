@@ -148,6 +148,28 @@ Like "Run Update Script" below, the terminal closes as soon as the
 command finishes — append `; read` to a custom command if you want the
 window to stay open so you can see the output.
 
+### Running without a terminal
+
+Preferences → Per-Source Updates has a **"Run in background instead of
+a terminal"** toggle. With it on, clicking a source's update:
+
+- Strips any `doas`/`sudo` from the command and re-runs the whole thing
+  through `pkexec` instead, which shows a normal graphical password
+  prompt — no terminal window at all. This also handles chained
+  commands like `doas dnf update -y && doas dnf autoremove -y`
+  correctly (both `doas` calls are stripped, and the entire chain runs
+  under one `pkexec`-elevated shell).
+- Commands with no `doas`/`sudo` (cargo, pipx, uv, etc.) just run
+  directly in the background, no prompt needed.
+- A notification reports success or failure when it's done; on success,
+  the extension automatically re-checks so the count updates.
+
+Requires `pkexec` (part of polkit, installed by default on Fedora
+Workstation). This only affects per-source updates — "Run Update
+Script" always opens a terminal, since an external script's contents
+can't be safely rewritten to swap `doas` for `pkexec` line-by-line, and
+it's usually written to show its own progress anyway.
+
 ## Run Update Script
 
 Set **Preferences → Update Script → Script path** to your fish script

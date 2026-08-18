@@ -175,6 +175,50 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
+    // Run a source's update command without a terminal. If it contains
+    // doas/sudo, those are stripped and the whole command is re-run
+    // through pkexec instead, which shows its own graphical password
+    // prompt - covers multi-command lines like "doas a && doas b" too,
+    // since running doas a second time *inside* an already-root pkexec
+    // shell would just fail.
+    _runInBackground(command, label) {
+        const hasPrivilege = /\b(?:doas|sudo)\s+/.test(command);
+        const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
+        const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
+
+        Main.notify(`Updating ${label}...`, 'Running in background.');
+        try {
+            const proc = Gio.Subprocess.new(
+                argv, Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+            proc.communicate_utf8_async(null, null, (proc_, res) => {
+                let ok = false, stderr = '';
+                try {
+                    const [, , errOut] = proc_.communicate_utf8_finish(res);
+                    stderr = errOut ?? '';
+                    ok = proc_.get_exit_status() === 0;
+                } catch (e) {
+                    stderr = String(e);
+                }
+                if (ok) {
+                    Main.notify(`${label} updated`, 'Finished successfully.');
+                    this.checkNow();
+                } else {
+                    Main.notifyError(
+                        `${label} update failed`, stderr.trim().split('\n')[0] || 'Unknown error');
+                }
+            });
+        } catch (e) {
+            Main.notifyError('Update Checker', `Could not run update: ${e.message}`);
+        }
+    }
+
+    _runSourceUpdate(command, label) {
+        if (this._settings.get_boolean('background-updates'))
+            this._runInBackground(command, label);
+        else
+            this._runInTerminal(command);
+    }
+
     _runUpdateScript() {
         const path = this._settings.get_string('update-script-path');
         if (!path)
@@ -259,7 +303,7 @@ class Indicator extends PanelMenu.Button {
                         icon_size: 14,
                     });
                     item.add_child(runIcon);
-                    item.connect('activate', () => this._runInTerminal(updateCommand));
+                    item.connect('activate', () => this._runSourceUpdate(updateCommand, src.name));
                 }
             }
             this._resultsSection.addMenuItem(item);
