@@ -48,12 +48,20 @@ configured source command via `sh -c`, captures stdout, and counts
 non-empty lines. That count is treated as "updates available" for that
 source. Nothing is ever installed automatically — it's read-only checking.
 
-The default DNF source (`dnf check-update -q --refresh`) forces a real
-metadata refresh from the network on every check, so the count is always
-accurate rather than bound by DNF's own cache expiry. That means each
-check takes a few seconds instead of being near-instant — if you'd
-rather trade accuracy for speed, drop `--refresh` in Preferences → Update
-Sources and DNF will just read whatever it already has cached.
+The default DNF source is:
+
+```
+dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
+```
+
+`--refresh` forces a real metadata refresh from the network on every
+check, so the count is always accurate rather than bound by DNF's own
+cache expiry - each check takes a few seconds instead of being
+near-instant as a result. The `grep` filters output down to actual
+package lines (`name.arch  version  repo`); dnf5's `check-update`
+prints a category header line (e.g. "Upgrades (available for
+reinstall, available for upgrade)") even with `-q`, which without
+filtering gets counted as a phantom extra update.
 
 Default sources are DNF and Flatpak. Click **"+ Add Source"** in
 Preferences → Update Sources to pick from ready-made presets — Cargo,

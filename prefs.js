@@ -10,7 +10,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 const PRESET_SOURCES = [
     {
         name: 'DNF',
-        command: 'dnf check-update -q --refresh',
+        command: "dnf check-update -q --refresh | grep -E '^\\S+\\.\\S+\\s'",
         blurb: 'Fedora/RHEL system packages. --refresh forces a real metadata check every run.',
     },
     {

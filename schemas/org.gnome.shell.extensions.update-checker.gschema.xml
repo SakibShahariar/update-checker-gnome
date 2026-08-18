@@ -23,7 +23,7 @@
     </key>
 
     <key name="sources" type="as">
-      <default>['DNF|dnf check-update -q --refresh', 'Flatpak|flatpak remote-ls --updates']</default>
+      <default>['DNF|dnf check-update -q --refresh | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
       <summary>Update sources</summary>
       <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
     </key>
