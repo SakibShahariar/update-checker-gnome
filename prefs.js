@@ -208,6 +208,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const listBox = new Gtk.ListBox({
                 selection_mode: Gtk.SelectionMode.NONE,
                 css_classes: ['boxed-list'],
+                hexpand: true,
             });
 
             for (const preset of PRESET_SOURCES) {
@@ -218,6 +219,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     subtitle_lines: 2,
                     activatable: !already,
                     sensitive: !already,
+                    hexpand: true,
                 });
                 row.add_suffix(new Gtk.Image({
                     icon_name: already ? 'object-select-symbolic' : 'list-add-symbolic',
@@ -236,6 +238,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 title: 'Custom command…',
                 subtitle: 'Add a blank row and write your own name and command',
                 activatable: true,
+                hexpand: true,
             });
             customRow.add_suffix(new Gtk.Image({icon_name: 'list-add-symbolic'}));
             customRow.connect('activated', () => {
@@ -247,9 +250,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             const scrolled = new Gtk.ScrolledWindow({
                 child: listBox,
-                min_content_width: 380,
-                max_content_width: 380,
-                min_content_height: 100,
+                vexpand: false,
+                hexpand: true,
                 max_content_height: 400,
                 propagate_natural_height: true,
                 hscrollbar_policy: Gtk.PolicyType.NEVER,
@@ -259,6 +261,9 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 orientation: Gtk.Orientation.VERTICAL,
                 margin_top: 8, margin_bottom: 8, margin_start: 8, margin_end: 8,
             });
+            // Force a fixed, sane width - ScrolledWindow content-size hints
+            // alone don't make the child (and its wrapped labels) expand to fill it.
+            wrapper.set_size_request(360, -1);
             wrapper.append(scrolled);
 
             return wrapper;
