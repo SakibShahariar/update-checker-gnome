@@ -73,6 +73,30 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
+        // --- Reboot required group ---
+        const rebootGroup = new Adw.PreferencesGroup({
+            title: 'Reboot Required',
+            description: 'A separate check for whether the system needs a reboot to finish applying updates (e.g. after a kernel update) - shown as its own icon in the panel.',
+        });
+        page.add(rebootGroup);
+
+        const rebootEnabledRow = new Adw.SwitchRow({
+            title: 'Check for pending reboot',
+            subtitle: 'Uses `dnf needs-restarting -r` by default (Fedora/RHEL)',
+        });
+        settings.bind('check-reboot-required', rebootEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        rebootGroup.add(rebootEnabledRow);
+
+        const rebootCommandRow = new Adw.EntryRow({title: 'Reboot check command'});
+        settings.bind('reboot-check-command', rebootCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        rebootGroup.add(rebootCommandRow);
+
+        const rebootHintRow = new Adw.ActionRow({
+            title: 'On Ubuntu/Debian, use instead:',
+            subtitle: 'test -f /var/run/reboot-required && echo "Reboot required"',
+        });
+        rebootGroup.add(rebootHintRow);
+
         // --- Update script group ---
         const scriptGroup = new Adw.PreferencesGroup({
             title: 'Update Script',

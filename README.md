@@ -95,6 +95,33 @@ Notes:
   for custom sources — `-c` prints a single summary line (which counts
   as "1"), not one line per update.
 
+## Reboot required
+
+Separately from update counts, the extension can check whether the
+system needs a reboot to fully apply an already-installed update (e.g.
+a new kernel or glibc). When it does, a second icon appears in the
+panel and a "Reboot required" line shows at the top of the dropdown.
+
+The default check wraps `dnf needs-restarting -r`:
+
+```
+dnf needs-restarting -r >/dev/null 2>&1 || echo "Reboot required to finish pending updates"
+```
+
+`needs-restarting -r` uses inverted exit codes (1 = reboot needed, 0 =
+not needed) with no output either way in short form, so the wrapper
+normalizes it to "prints something on stdout only if a reboot is
+needed" — matching how every other source is evaluated.
+
+On Ubuntu/Debian, use this instead (set it in Preferences → Reboot
+Required):
+
+```
+test -f /var/run/reboot-required && echo "Reboot required"
+```
+
+Toggle the check off entirely, or edit the command, from Preferences.
+
 ## Run Update Script
 
 Set **Preferences → Update Script → Script path** to your fish script

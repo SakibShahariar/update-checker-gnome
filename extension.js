@@ -84,6 +84,7 @@ class Indicator extends PanelMenu.Button {
         this._ext = extensionObject;
         this._settings = extensionObject.getSettings();
         this._lastTotal = -1;
+        this._lastRebootRequired = false;
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -96,9 +97,19 @@ class Indicator extends PanelMenu.Button {
             y_align: 2 /* Clutter.ActorAlign.CENTER */,
             style_class: 'update-checker-label',
         });
+        this._rebootIcon = new St.Icon({
+            icon_name: 'system-shutdown-symbolic',
+            style_class: 'system-status-icon update-checker-reboot-icon',
+            visible: false,
+        });
         box.add_child(this._icon);
         box.add_child(this._label);
+        box.add_child(this._rebootIcon);
         this.add_child(box);
+
+        this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: false});
+        this._rebootItem.visible = false;
+        this.menu.addMenuItem(this._rebootItem);
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
         this.menu.addMenuItem(this._resultsSection);
@@ -132,6 +143,8 @@ class Indicator extends PanelMenu.Button {
     _renderEmpty() {
         this._label.set_text('');
         this._statusItem.label.set_text('Not checked yet');
+        this._rebootIcon.visible = false;
+        this._rebootItem.visible = false;
         // Stay hidden until the first check completes and actually finds
         // something, unless the user wants the icon visible regardless.
         this.visible = this._settings.get_boolean('show-zero');
@@ -161,12 +174,31 @@ class Indicator extends PanelMenu.Button {
         let total = 0;
         const failed = [];
         const results = [];
+        let rebootRequired = false;
+        let rebootMessage = '';
 
-        // Run all sources concurrently.
-        await Promise.all(sources.map(async (src) => {
-            const raw = await runShell(src.command);
-            results.push({name: src.name, ...classifyResult(raw)});
-        }));
+        const checkRebootEnabled = this._settings.get_boolean('check-reboot-required');
+        const rebootCommand = this._settings.get_string('reboot-check-command');
+
+        // Run all sources, plus the reboot check, concurrently.
+        await Promise.all([
+            ...sources.map(async (src) => {
+                const raw = await runShell(src.command);
+                results.push({name: src.name, ...classifyResult(raw)});
+            }),
+            (async () => {
+                if (!checkRebootEnabled || !rebootCommand)
+                    return;
+                const raw = await runShell(rebootCommand);
+                const r = classifyResult(raw);
+                if (r.status === 'ok' && r.count > 0) {
+                    rebootRequired = true;
+                    rebootMessage = raw.stdout.trim().split('\n')[0];
+                }
+                // A failed reboot-check command is treated as "unknown" -
+                // we don't claim a reboot is needed on shaky evidence.
+            })(),
+        ]);
 
         // Keep a stable, configured order.
         for (const src of sources) {
@@ -197,8 +229,9 @@ class Indicator extends PanelMenu.Button {
 
         const showZero = this._settings.get_boolean('show-zero');
         const anyFailed = failed.length > 0;
-        this.visible = total > 0 || showZero || anyFailed;
+        this.visible = total > 0 || showZero || anyFailed || rebootRequired;
         this._label.set_text(total > 0 ? `${total}` : (anyFailed ? '!' : ''));
+        this._rebootIcon.visible = rebootRequired;
 
         if (total > 0)
             this._icon.icon_name = 'software-update-urgent-symbolic';
@@ -207,20 +240,29 @@ class Indicator extends PanelMenu.Button {
         else
             this._icon.icon_name = 'software-update-available-symbolic';
 
+        this._rebootItem.visible = rebootRequired;
+        if (rebootRequired)
+            this._rebootItem.label.set_text(`⟳ ${rebootMessage || 'Reboot required'}`);
+
         const now = GLib.DateTime.new_now_local().format('%H:%M');
         let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
         if (anyFailed)
             statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
         this._statusItem.label.set_text(statusText);
 
-        if (this._settings.get_boolean('notify-on-new') &&
-            this._lastTotal !== -1 && total > this._lastTotal) {
-            Main.notify(
-                'Updates available',
-                `${total} update${total === 1 ? '' : 's'} pending (was ${this._lastTotal}).`
-            );
+        if (this._settings.get_boolean('notify-on-new')) {
+            if (this._lastTotal !== -1 && total > this._lastTotal) {
+                Main.notify(
+                    'Updates available',
+                    `${total} update${total === 1 ? '' : 's'} pending (was ${this._lastTotal}).`
+                );
+            }
+            if (rebootRequired && !this._lastRebootRequired) {
+                Main.notify('Reboot required', rebootMessage || 'A reboot is needed to finish applying updates.');
+            }
         }
         this._lastTotal = total;
+        this._lastRebootRequired = rebootRequired;
         this._checking = false;
     }
 });

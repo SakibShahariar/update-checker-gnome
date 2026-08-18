@@ -34,6 +34,18 @@
       <description>Path to a script (e.g. your fish update script) to run when "Run Update Script" is clicked in the menu. Leave empty to disable.</description>
     </key>
 
+    <key name="check-reboot-required" type="b">
+      <default>true</default>
+      <summary>Check whether a reboot is required</summary>
+      <description>Shows a separate icon when the system needs a reboot to finish applying updates (e.g. after a kernel or glibc update).</description>
+    </key>
+
+    <key name="reboot-check-command" type="s">
+      <default>'dnf needs-restarting -r &gt;/dev/null 2&gt;&amp;1 || echo "Reboot required to finish pending updates"'</default>
+      <summary>Reboot check command</summary>
+      <description>A shell command that prints something on stdout if (and only if) a reboot is required, and nothing otherwise. The default wraps `dnf needs-restarting -r`, which uses inverted exit codes (1 = needed), into this simpler "prints something = needed" convention so it matches how update sources are evaluated.</description>
+    </key>
+
     <key name="terminal-command" type="s">
       <default>'gnome-terminal --'</default>
       <summary>Terminal launcher command</summary>
