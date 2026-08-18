@@ -40,6 +40,12 @@
       <description>Shows a separate icon when the system needs a reboot to finish applying updates (e.g. after a kernel or glibc update).</description>
     </key>
 
+    <key name="source-update-commands" type="as">
+      <default>['DNF|doas dnf update --refresh -y &amp;&amp; doas dnf autoremove -y', 'Flatpak|flatpak update -y &amp;&amp; flatpak uninstall --unused -y']</default>
+      <summary>Per-source update commands</summary>
+      <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action.</description>
+    </key>
+
     <key name="reboot-check-command" type="s">
       <default>'dnf needs-restarting -r &gt;/dev/null 2&gt;&amp;1 || echo "Reboot required to finish pending updates"'</default>
       <summary>Reboot check command</summary>

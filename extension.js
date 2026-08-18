@@ -76,6 +76,22 @@ function parseSources(strv) {
     return sources;
 }
 
+// "Name|command" entries, keyed by name, for the optional per-source
+// update commands. Same simple format/parsing as parseSources.
+function parseUpdateCommands(strv) {
+    const map = new Map();
+    for (const entry of strv) {
+        const idx = entry.indexOf('|');
+        if (idx === -1)
+            continue;
+        const name = entry.slice(0, idx).trim();
+        const command = entry.slice(idx + 1).trim();
+        if (name && command)
+            map.set(name, command);
+    }
+    return map;
+}
+
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
     _init(extensionObject) {
@@ -150,6 +166,15 @@ class Indicator extends PanelMenu.Button {
         this.visible = this._settings.get_boolean('show-zero');
     }
 
+    _runInTerminal(command) {
+        const term = this._settings.get_string('terminal-command');
+        try {
+            GLib.spawn_command_line_async(`${term} sh -c ${GLib.shell_quote(command)}`);
+        } catch (e) {
+            Main.notifyError('Update Checker', `Could not launch terminal: ${e.message}`);
+        }
+    }
+
     _runUpdateScript() {
         const path = this._settings.get_string('update-script-path');
         if (!path)
@@ -169,6 +194,7 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text('Checking...');
 
         const sources = parseSources(this._settings.get_strv('sources'));
+        const updateCommands = parseUpdateCommands(this._settings.get_strv('source-update-commands'));
         this._resultsSection.removeAll();
 
         let total = 0;
@@ -205,7 +231,10 @@ class Indicator extends PanelMenu.Button {
             const r = results.find(x => x.name === src.name) ??
                 {status: 'error', count: 0, message: 'no result'};
 
-            const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: r.status === 'error'});
+            const updateCommand = updateCommands.get(src.name);
+            const canUpdate = r.status === 'ok' && r.count > 0 && !!updateCommand;
+            const item = new PopupMenu.PopupMenuItem(
+                `${src.name}`, {reactive: r.status === 'error' || canUpdate});
 
             if (r.status === 'error') {
                 failed.push(src.name);
@@ -223,6 +252,15 @@ class Indicator extends PanelMenu.Button {
                 total += r.count;
                 const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
                 item.add_child(countLabel);
+                if (canUpdate) {
+                    const runIcon = new St.Icon({
+                        icon_name: 'media-playback-start-symbolic',
+                        style_class: 'update-checker-run-icon',
+                        icon_size: 14,
+                    });
+                    item.add_child(runIcon);
+                    item.connect('activate', () => this._runInTerminal(updateCommand));
+                }
             }
             this._resultsSection.addMenuItem(item);
         }

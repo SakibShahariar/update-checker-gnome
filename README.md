@@ -130,6 +130,24 @@ test -f /var/run/reboot-required && echo "Reboot required"
 
 Toggle the check off entirely, or edit the command, from Preferences.
 
+## Updating a single source
+
+Each source in Preferences → Update Sources has an optional second
+**Update** field, separate from its check command. When a source has
+pending updates *and* an update command configured, clicking it in the
+panel dropdown opens a terminal and runs just that command — e.g.
+clicking "Flatpak: 3" runs only `flatpak update`, without touching DNF,
+cargo, or anything else. Sources with no update command configured just
+show their count and aren't clickable.
+
+The built-in presets (DNF, Flatpak, Cargo, npm, pipx, uv) all come with
+matching update commands pre-filled. Leave the field blank for any
+source you'd rather only ever update through your own script.
+
+Like "Run Update Script" below, the terminal closes as soon as the
+command finishes — append `; read` to a custom command if you want the
+window to stay open so you can see the output.
+
 ## Run Update Script
 
 Set **Preferences → Update Script → Script path** to your fish script

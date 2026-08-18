@@ -11,31 +11,37 @@ const PRESET_SOURCES = [
     {
         name: 'DNF',
         command: "dnf check-update -q --refresh | grep -E '^\\S+\\.\\S+\\s'",
+        updateCommand: 'doas dnf update --refresh -y && doas dnf autoremove -y',
         blurb: 'Fedora/RHEL system packages. --refresh forces a real metadata check every run.',
     },
     {
         name: 'Flatpak',
         command: 'flatpak remote-ls --updates',
+        updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
         blurb: 'Checks your default remote (usually flathub). Add one source per extra remote if needed.',
     },
     {
         name: 'Cargo',
         command: "cargo install-update -l -a | awk '$NF==\"Yes\"'",
+        updateCommand: 'cargo install-update -a',
         blurb: 'Rust binaries installed via `cargo install`, using the cargo-update crate.',
     },
     {
         name: 'npm (global)',
         command: 'npm outdated -g --parseable',
+        updateCommand: 'doas npm update -g',
         blurb: 'Global npm packages. --parseable prints one line per outdated package, no header.',
     },
     {
         name: 'pipx',
         command: "pipx list --outdated | grep '^package '",
+        updateCommand: 'pipx upgrade-all',
         blurb: 'Python CLI tools installed via pipx.',
     },
     {
         name: 'uv tools',
         command: "uv tool list --outdated | grep '\\[latest:'",
+        updateCommand: 'uv tool upgrade --all',
         blurb: 'Python tools installed via `uv tool install`. Requires network access to check.',
     },
 ];
@@ -144,24 +150,42 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         // --- Sources group ---
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Each row runs a shell command; the number of non-empty lines it prints on stdout becomes that source\'s update count. Use "Add Source" below instead of editing text by hand. See the README for ready-made commands (cargo, npm, pipx, uv...).',
+            description: 'Each row runs a check command; the number of non-empty lines it prints on stdout becomes that source\'s update count. The optional "update" field is a command to run (in a terminal) when you click that source in the panel menu - leave it blank to just show the count. Use "Add Source" below instead of editing text by hand.',
         });
         page.add(sourcesGroup);
 
-        const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 6});
+        const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 10});
         const sourceRows = [];
 
         const saveSources = () => {
-            const values = sourceRows
-                .map(r => ({name: r.nameEntry.get_text().trim(), command: r.cmdEntry.get_text().trim()}))
-                .filter(r => r.name && r.command)
-                .map(r => `${r.name}|${r.command}`);
-            settings.set_strv('sources', values);
+            const checkValues = [];
+            const updateValues = [];
+            for (const r of sourceRows) {
+                const name = r.nameEntry.get_text().trim();
+                const command = r.cmdEntry.get_text().trim();
+                const updateCommand = r.updateCmdEntry.get_text().trim();
+                if (!name || !command)
+                    continue;
+                checkValues.push(`${name}|${command}`);
+                if (updateCommand)
+                    updateValues.push(`${name}|${updateCommand}`);
+            }
+            settings.set_strv('sources', checkValues);
+            settings.set_strv('source-update-commands', updateValues);
         };
 
-        const addSourceRow = (name = '', command = '') => {
-            const row = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, spacing: 6});
+        const addSourceRow = (name = '', command = '', updateCommand = '') => {
+            const wrapper = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                spacing: 3,
+                css_classes: ['card'],
+                margin_top: 2, margin_bottom: 2,
+            });
 
+            const topRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
+                margin_top: 6, margin_start: 8, margin_end: 8,
+            });
             const nameEntry = new Gtk.Entry({
                 placeholder_text: 'Name',
                 text: name,
@@ -169,7 +193,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 hexpand: false,
             });
             const cmdEntry = new Gtk.Entry({
-                placeholder_text: 'Shell command',
+                placeholder_text: 'Check command',
                 text: command,
                 hexpand: true,
             });
@@ -179,22 +203,39 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat', 'circular'],
             });
+            topRow.append(nameEntry);
+            topRow.append(cmdEntry);
+            topRow.append(removeButton);
 
-            row.append(nameEntry);
-            row.append(cmdEntry);
-            row.append(removeButton);
-            rowsBox.append(row);
+            const bottomRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
+                margin_bottom: 6, margin_start: 8, margin_end: 8,
+            });
+            const updateLabel = new Gtk.Label({
+                label: 'Update:', width_chars: 12, xalign: 0, css_classes: ['dim-label'],
+            });
+            const updateCmdEntry = new Gtk.Entry({
+                placeholder_text: 'Optional - command to run when clicked in the panel menu',
+                text: updateCommand,
+                hexpand: true,
+            });
+            bottomRow.append(updateLabel);
+            bottomRow.append(updateCmdEntry);
 
-            const entry = {row, nameEntry, cmdEntry};
+            wrapper.append(topRow);
+            wrapper.append(bottomRow);
+            rowsBox.append(wrapper);
+
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry};
             sourceRows.push(entry);
 
-            nameEntry.connect('activate', saveSources);
-            cmdEntry.connect('activate', saveSources);
-            nameEntry.connect('notify::has-focus', w => { if (!w.has_focus) saveSources(); });
-            cmdEntry.connect('notify::has-focus', w => { if (!w.has_focus) saveSources(); });
+            for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
+                w.connect('activate', saveSources);
+                w.connect('notify::has-focus', widget => { if (!widget.has_focus) saveSources(); });
+            }
 
             removeButton.connect('clicked', () => {
-                rowsBox.remove(row);
+                rowsBox.remove(wrapper);
                 const idx = sourceRows.indexOf(entry);
                 if (idx !== -1)
                     sourceRows.splice(idx, 1);
@@ -204,15 +245,24 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             return entry;
         };
 
+        const existingUpdateCommands = new Map();
+        for (const entry of settings.get_strv('source-update-commands')) {
+            const idx = entry.indexOf('|');
+            if (idx === -1)
+                continue;
+            existingUpdateCommands.set(entry.slice(0, idx).trim(), entry.slice(idx + 1).trim());
+        }
         for (const entry of settings.get_strv('sources')) {
             const idx = entry.indexOf('|');
             if (idx === -1)
                 continue;
-            addSourceRow(entry.slice(0, idx).trim(), entry.slice(idx + 1).trim());
+            const name = entry.slice(0, idx).trim();
+            const command = entry.slice(idx + 1).trim();
+            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '');
         }
 
         const scroller = new Gtk.ScrolledWindow({
-            min_content_height: Math.min(220, Math.max(60, sourceRows.length * 44 + 12)),
+            min_content_height: Math.min(320, Math.max(90, sourceRows.length * 78 + 12)),
             hexpand: true,
         });
         scroller.set_child(rowsBox);
@@ -250,7 +300,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 }));
                 if (!already) {
                     row.connect('activated', () => {
-                        addSourceRow(preset.name, preset.command);
+                        addSourceRow(preset.name, preset.command, preset.updateCommand ?? '');
                         saveSources();
                         popover.popdown();
                     });
