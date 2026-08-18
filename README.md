@@ -48,6 +48,13 @@ configured source command via `sh -c`, captures stdout, and counts
 non-empty lines. That count is treated as "updates available" for that
 source. Nothing is ever installed automatically — it's read-only checking.
 
+The default DNF source (`dnf check-update -q --refresh`) forces a real
+metadata refresh from the network on every check, so the count is always
+accurate rather than bound by DNF's own cache expiry. That means each
+check takes a few seconds instead of being near-instant — if you'd
+rather trade accuracy for speed, drop `--refresh` in Preferences → Update
+Sources and DNF will just read whatever it already has cached.
+
 Default sources are DNF and Flatpak. Add more from Preferences → Update
 Sources, one `Name|command` per line. Some ready-made ones to paste in,
 matching the tools in your fish script:
