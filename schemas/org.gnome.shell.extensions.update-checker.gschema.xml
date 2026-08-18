@@ -18,8 +18,8 @@
 
     <key name="show-zero" type="b">
       <default>false</default>
-      <summary>Show count label when there are no updates</summary>
-      <description>If disabled, only the icon (no "0" label) is shown when everything is up to date.</description>
+      <summary>Keep the panel icon visible when up to date</summary>
+      <description>By default the icon only appears in the panel when there's at least one update pending. Enable this to keep it visible (with a "0") even when everything is up to date.</description>
     </key>
 
     <key name="sources" type="as">

@@ -106,6 +106,9 @@ class Indicator extends PanelMenu.Button {
     _renderEmpty() {
         this._label.set_text('');
         this._statusItem.label.set_text('Not checked yet');
+        // Stay hidden until the first check completes and actually finds
+        // something, unless the user wants the icon visible regardless.
+        this.visible = this._settings.get_boolean('show-zero');
     }
 
     _runUpdateScript() {
@@ -151,10 +154,8 @@ class Indicator extends PanelMenu.Button {
         }
 
         const showZero = this._settings.get_boolean('show-zero');
-        if (total > 0 || showZero)
-            this._label.set_text(`${total}`);
-        else
-            this._label.set_text('');
+        this.visible = total > 0 || showZero;
+        this._label.set_text(`${total}`);
 
         this._icon.icon_name = total > 0
             ? 'software-update-urgent-symbolic'

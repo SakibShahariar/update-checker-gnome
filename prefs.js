@@ -31,8 +31,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         generalGroup.add(notifyRow);
 
         const showZeroRow = new Adw.SwitchRow({
-            title: 'Show "0" when up to date',
-            subtitle: 'If off, the panel label is hidden when there are no updates',
+            title: 'Keep icon visible when up to date',
+            subtitle: 'Off (default): the panel icon only appears when updates are pending',
         });
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
