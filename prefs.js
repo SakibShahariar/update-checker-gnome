@@ -215,6 +215,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const row = new Adw.ActionRow({
                     title: preset.name,
                     subtitle: preset.blurb,
+                    subtitle_lines: 2,
                     activatable: !already,
                     sensitive: !already,
                 });
@@ -244,7 +245,23 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             });
             listBox.append(customRow);
 
-            return listBox;
+            const scrolled = new Gtk.ScrolledWindow({
+                child: listBox,
+                min_content_width: 380,
+                max_content_width: 380,
+                min_content_height: 100,
+                max_content_height: 400,
+                propagate_natural_height: true,
+                hscrollbar_policy: Gtk.PolicyType.NEVER,
+            });
+
+            const wrapper = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                margin_top: 8, margin_bottom: 8, margin_start: 8, margin_end: 8,
+            });
+            wrapper.append(scrolled);
+
+            return wrapper;
         };
 
         const popover = new Gtk.Popover();
