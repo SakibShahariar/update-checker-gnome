@@ -62,14 +62,26 @@ script, no manual typing needed. Each preset uses a verified check-only
 command:
 
 ```
-Cargo|cargo install-update -l -a 2>/dev/null | awk '$NF=="Yes"'
-npm (global)|npm outdated -g --parseable 2>/dev/null
-pipx|pipx list --outdated 2>/dev/null | grep -c '^package '
-uv tools|uv tool list --outdated 2>/dev/null | grep -c '\[latest:'
+Cargo|cargo install-update -l -a | awk '$NF=="Yes"'
+npm (global)|npm outdated -g --parseable
+pipx|pipx list --outdated | grep '^package '
+uv tools|uv tool list --outdated | grep '\[latest:'
 ```
 
 A "Custom command…" option in the same popover adds a blank row for
 anything not in the preset list.
+
+## Failed checks vs. "up to date"
+
+A source is only counted as "0 updates" if its command actually ran and
+printed nothing. If a command isn't found (e.g. `cargo` isn't on PATH),
+or it exits with an error and prints nothing to stdout (e.g. a network
+failure during `dnf check-update --refresh`), that source is flagged as
+**failed** instead — shown with a warning icon in the dropdown, with the
+error visible if you click it. This keeps a broken check from silently
+looking identical to "nothing pending." If every source fails and there
+are also no updates, the panel icon still appears (with a warning icon)
+so it isn't mistaken for "all clean."
 
 Notes:
 - `gup` (Go binaries) has no built-in "check only" mode, so it's not
@@ -79,7 +91,9 @@ Notes:
   per remote, e.g. `Flatpak (flathub)|flatpak remote-ls --updates flathub`.
 - Parsing is line-count based and "good enough" for a badge, not pixel
   perfect — tune the commands/filters to match your exact tool output if
-  you want precision.
+  you want precision. Prefer `grep 'pattern'` over `grep -c 'pattern'`
+  for custom sources — `-c` prints a single summary line (which counts
+  as "1"), not one line per update.
 
 ## Run Update Script
 

@@ -20,22 +20,22 @@ const PRESET_SOURCES = [
     },
     {
         name: 'Cargo',
-        command: "cargo install-update -l -a 2>/dev/null | awk '$NF==\"Yes\"'",
+        command: "cargo install-update -l -a | awk '$NF==\"Yes\"'",
         blurb: 'Rust binaries installed via `cargo install`, using the cargo-update crate.',
     },
     {
         name: 'npm (global)',
-        command: 'npm outdated -g --parseable 2>/dev/null',
+        command: 'npm outdated -g --parseable',
         blurb: 'Global npm packages. --parseable prints one line per outdated package, no header.',
     },
     {
         name: 'pipx',
-        command: "pipx list --outdated 2>/dev/null | grep -c '^package '",
+        command: "pipx list --outdated | grep '^package '",
         blurb: 'Python CLI tools installed via pipx.',
     },
     {
         name: 'uv tools',
-        command: "uv tool list --outdated 2>/dev/null | grep -c '\\[latest:'",
+        command: "uv tool list --outdated | grep '\\[latest:'",
         blurb: 'Python tools installed via `uv tool install`. Requires network access to check.',
     },
 ];

@@ -8,32 +8,58 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// Run `sh -c command`, return trimmed stdout as a string.
-// Never rejects on non-zero exit (many tools, e.g. `dnf check-update`,
-// exit non-zero simply because updates ARE available).
+// Run `sh -c command`, resolving with stdout, stderr, and the exit
+// status. We never reject on non-zero exit - many tools (e.g. `dnf
+// check-update`) exit non-zero simply because updates ARE available -
+// so the caller decides what a given exit code/output combo means.
 function runShell(command) {
     return new Promise((resolve) => {
         try {
             const proc = Gio.Subprocess.new(
                 ['/bin/sh', '-c', command],
-                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
             );
             proc.communicate_utf8_async(null, null, (proc_, res) => {
                 try {
-                    const [, stdout] = proc_.communicate_utf8_finish(res);
-                    resolve(stdout ?? '');
+                    const [, stdout, stderr] = proc_.communicate_utf8_finish(res);
+                    resolve({
+                        stdout: stdout ?? '',
+                        stderr: stderr ?? '',
+                        exitStatus: proc_.get_exit_status(),
+                        spawnFailed: false,
+                    });
                 } catch (e) {
-                    resolve('');
+                    resolve({stdout: '', stderr: String(e), exitStatus: -1, spawnFailed: true});
                 }
             });
         } catch (e) {
-            resolve('');
+            resolve({stdout: '', stderr: String(e), exitStatus: -1, spawnFailed: true});
         }
     });
 }
 
 function countLines(output) {
     return output.split('\n').filter(line => line.trim().length > 0).length;
+}
+
+// Classify a source's result. We deliberately don't treat "non-zero
+// exit" alone as failure, since plenty of check-only commands (dnf,
+// grep -c, etc.) use non-zero to mean "found something", not "broke".
+// Only two things get flagged as a real error:
+//  - the shell couldn't even run the command (missing binary: exit 127,
+//    or the subprocess failed to spawn at all)
+//  - the command produced no stdout AND wrote to stderr AND exited
+//    non-zero - i.e. it looks like it broke, not like it found nothing
+function classifyResult({stdout, stderr, exitStatus, spawnFailed}) {
+    if (spawnFailed || exitStatus === 127) {
+        const reason = stderr.trim().split('\n')[0] || 'command not found';
+        return {status: 'error', count: 0, message: reason};
+    }
+    if (stdout.trim() === '' && stderr.trim() !== '' && exitStatus !== 0) {
+        const reason = stderr.trim().split('\n')[0];
+        return {status: 'error', count: 0, message: reason};
+    }
+    return {status: 'ok', count: countLines(stdout), message: ''};
 }
 
 function parseSources(strv) {
@@ -133,36 +159,59 @@ class Indicator extends PanelMenu.Button {
         this._resultsSection.removeAll();
 
         let total = 0;
+        const failed = [];
         const results = [];
 
         // Run all sources concurrently.
         await Promise.all(sources.map(async (src) => {
-            const output = await runShell(src.command);
-            const count = countLines(output);
-            results.push({name: src.name, count});
+            const raw = await runShell(src.command);
+            results.push({name: src.name, ...classifyResult(raw)});
         }));
 
         // Keep a stable, configured order.
         for (const src of sources) {
-            const r = results.find(x => x.name === src.name);
-            const count = r ? r.count : 0;
-            total += count;
-            const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: false});
-            const countLabel = new St.Label({text: `${count}`, style_class: 'update-checker-count'});
-            item.add_child(countLabel);
+            const r = results.find(x => x.name === src.name) ??
+                {status: 'error', count: 0, message: 'no result'};
+
+            const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: r.status === 'error'});
+
+            if (r.status === 'error') {
+                failed.push(src.name);
+                const warnIcon = new St.Icon({
+                    icon_name: 'dialog-warning-symbolic',
+                    style_class: 'update-checker-warning-icon',
+                    icon_size: 16,
+                });
+                item.add_child(warnIcon);
+                item.label.set_text(`${src.name} - check failed`);
+                item.connect('activate', () => {
+                    Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error');
+                });
+            } else {
+                total += r.count;
+                const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
+                item.add_child(countLabel);
+            }
             this._resultsSection.addMenuItem(item);
         }
 
         const showZero = this._settings.get_boolean('show-zero');
-        this.visible = total > 0 || showZero;
-        this._label.set_text(`${total}`);
+        const anyFailed = failed.length > 0;
+        this.visible = total > 0 || showZero || anyFailed;
+        this._label.set_text(total > 0 ? `${total}` : (anyFailed ? '!' : ''));
 
-        this._icon.icon_name = total > 0
-            ? 'software-update-urgent-symbolic'
-            : 'software-update-available-symbolic';
+        if (total > 0)
+            this._icon.icon_name = 'software-update-urgent-symbolic';
+        else if (anyFailed)
+            this._icon.icon_name = 'dialog-warning-symbolic';
+        else
+            this._icon.icon_name = 'software-update-available-symbolic';
 
         const now = GLib.DateTime.new_now_local().format('%H:%M');
-        this._statusItem.label.set_text(`Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`);
+        let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
+        if (anyFailed)
+            statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
+        this._statusItem.label.set_text(statusText);
 
         if (this._settings.get_boolean('notify-on-new') &&
             this._lastTotal !== -1 && total > this._lastTotal) {
