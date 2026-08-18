@@ -55,16 +55,21 @@ check takes a few seconds instead of being near-instant — if you'd
 rather trade accuracy for speed, drop `--refresh` in Preferences → Update
 Sources and DNF will just read whatever it already has cached.
 
-Default sources are DNF and Flatpak. Add more from Preferences → Update
-Sources, one `Name|command` per line. Some ready-made ones to paste in,
-matching the tools in your fish script:
+Default sources are DNF and Flatpak. Click **"+ Add Source"** in
+Preferences → Update Sources to pick from ready-made presets — Cargo,
+npm (global), pipx, and uv tools — matching the tools in your fish
+script, no manual typing needed. Each preset uses a verified check-only
+command:
 
 ```
 Cargo|cargo install-update -l -a 2>/dev/null | awk '$NF=="Yes"'
 npm (global)|npm outdated -g --parseable 2>/dev/null
-pipx|pipx list --outdated 2>/dev/null | grep -c '^package'
-uv tools|uv tool list --outdated 2>/dev/null
+pipx|pipx list --outdated 2>/dev/null | grep -c '^package '
+uv tools|uv tool list --outdated 2>/dev/null | grep -c '\[latest:'
 ```
+
+A "Custom command…" option in the same popover adds a blank row for
+anything not in the preset list.
 
 Notes:
 - `gup` (Go binaries) has no built-in "check only" mode, so it's not

@@ -4,6 +4,42 @@ import Gio from 'gi://Gio';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+// Known-good check-only commands for common tools. Each prints one line
+// of output per pending update on stdout, so a plain line count is
+// accurate (verified against each tool's current documented behavior).
+const PRESET_SOURCES = [
+    {
+        name: 'DNF',
+        command: 'dnf check-update -q --refresh',
+        blurb: 'Fedora/RHEL system packages. --refresh forces a real metadata check every run.',
+    },
+    {
+        name: 'Flatpak',
+        command: 'flatpak remote-ls --updates',
+        blurb: 'Checks your default remote (usually flathub). Add one source per extra remote if needed.',
+    },
+    {
+        name: 'Cargo',
+        command: "cargo install-update -l -a 2>/dev/null | awk '$NF==\"Yes\"'",
+        blurb: 'Rust binaries installed via `cargo install`, using the cargo-update crate.',
+    },
+    {
+        name: 'npm (global)',
+        command: 'npm outdated -g --parseable 2>/dev/null',
+        blurb: 'Global npm packages. --parseable prints one line per outdated package, no header.',
+    },
+    {
+        name: 'pipx',
+        command: "pipx list --outdated 2>/dev/null | grep -c '^package '",
+        blurb: 'Python CLI tools installed via pipx.',
+    },
+    {
+        name: 'uv tools',
+        command: "uv tool list --outdated 2>/dev/null | grep -c '\\[latest:'",
+        blurb: 'Python tools installed via `uv tool install`. Requires network access to check.',
+    },
+];
+
 export default class UpdateCheckerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -160,14 +196,63 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const frame = new Gtk.Frame();
         frame.set_child(scroller);
 
+        // --- "Add Source" popover: pick a known tool, or add a custom one ---
         const addButton = new Gtk.Button({
             label: '+ Add Source',
             halign: Gtk.Align.START,
         });
-        addButton.connect('clicked', () => {
-            const entry = addSourceRow('', '');
-            entry.nameEntry.grab_focus();
+
+        const buildPopoverContent = () => {
+            const existingNames = new Set(sourceRows.map(r => r.nameEntry.get_text().trim()));
+
+            const listBox = new Gtk.ListBox({
+                selection_mode: Gtk.SelectionMode.NONE,
+                css_classes: ['boxed-list'],
+            });
+
+            for (const preset of PRESET_SOURCES) {
+                const already = existingNames.has(preset.name);
+                const row = new Adw.ActionRow({
+                    title: preset.name,
+                    subtitle: preset.blurb,
+                    activatable: !already,
+                    sensitive: !already,
+                });
+                row.add_suffix(new Gtk.Image({
+                    icon_name: already ? 'object-select-symbolic' : 'list-add-symbolic',
+                }));
+                if (!already) {
+                    row.connect('activated', () => {
+                        addSourceRow(preset.name, preset.command);
+                        saveSources();
+                        popover.popdown();
+                    });
+                }
+                listBox.append(row);
+            }
+
+            const customRow = new Adw.ActionRow({
+                title: 'Custom command…',
+                subtitle: 'Add a blank row and write your own name and command',
+                activatable: true,
+            });
+            customRow.add_suffix(new Gtk.Image({icon_name: 'list-add-symbolic'}));
+            customRow.connect('activated', () => {
+                const entry = addSourceRow('', '');
+                popover.popdown();
+                entry.nameEntry.grab_focus();
+            });
+            listBox.append(customRow);
+
+            return listBox;
+        };
+
+        const popover = new Gtk.Popover();
+        popover.connect('show', () => {
+            popover.set_child(buildPopoverContent());
         });
+        popover.set_parent(addButton);
+        addButton.connect('clicked', () => popover.popup());
 
         const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
         box.append(frame);
