@@ -8,9 +8,19 @@ your own update script — e.g. the fish script you're already using — so
 
 ## Install
 
+**Option A - from a release:** grab `update-checker@local.zip` from the
+[Releases page](../../releases/latest), then:
+
 ```bash
-mkdir -p ~/.local/share/gnome-shell/extensions
-cp -r update-checker@local ~/.local/share/gnome-shell/extensions/
+unzip update-checker@local.zip -d ~/.local/share/gnome-shell/extensions/
+cd ~/.local/share/gnome-shell/extensions/update-checker@local
+glib-compile-schemas schemas/
+```
+
+**Option B - from a clone:**
+
+```bash
+git clone https://github.com/SakibShahariar/update-checker-gnome.git ~/.local/share/gnome-shell/extensions/update-checker@local
 cd ~/.local/share/gnome-shell/extensions/update-checker@local
 glib-compile-schemas schemas/
 ```
