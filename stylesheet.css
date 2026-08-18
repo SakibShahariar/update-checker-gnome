@@ -1,0 +1,13 @@
+.update-checker-box {
+    spacing: 4px;
+}
+
+.update-checker-label {
+    padding-left: 2px;
+    font-weight: bold;
+}
+
+.update-checker-count {
+    font-weight: bold;
+    padding-left: 12px;
+}

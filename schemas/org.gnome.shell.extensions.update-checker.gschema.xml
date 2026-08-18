@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="update-checker">
+
+  <schema id="org.gnome.shell.extensions.update-checker" path="/org/gnome/shell/extensions/update-checker/">
+
+    <key name="check-interval-minutes" type="i">
+      <range min="5" max="1440"/>
+      <default>60</default>
+      <summary>Check interval (minutes)</summary>
+      <description>How often to run the update checks, in minutes.</description>
+    </key>
+
+    <key name="notify-on-new" type="b">
+      <default>true</default>
+      <summary>Notify when new updates appear</summary>
+      <description>Show a desktop notification when the total update count goes up.</description>
+    </key>
+
+    <key name="show-zero" type="b">
+      <default>false</default>
+      <summary>Show count label when there are no updates</summary>
+      <description>If disabled, only the icon (no "0" label) is shown when everything is up to date.</description>
+    </key>
+
+    <key name="sources" type="as">
+      <default>['DNF|dnf check-update -q', 'Flatpak|flatpak remote-ls --updates']</default>
+      <summary>Update sources</summary>
+      <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
+    </key>
+
+    <key name="update-script-path" type="s">
+      <default>''</default>
+      <summary>Update script path</summary>
+      <description>Path to a script (e.g. your fish update script) to run when "Run Update Script" is clicked in the menu. Leave empty to disable.</description>
+    </key>
+
+    <key name="terminal-command" type="s">
+      <default>'gnome-terminal --'</default>
+      <summary>Terminal launcher command</summary>
+      <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
+    </key>
+
+  </schema>
+</schemalist>

@@ -1,0 +1,9 @@
+{
+  "uuid": "update-checker@local",
+  "name": "Update Checker",
+  "description": "Periodically checks for pending system updates (DNF, Flatpak, and any other sources you configure) and shows the count in the top panel. Click the icon for a breakdown, or to launch your own update script.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "",
+  "version": 1,
+  "settings-schema": "org.gnome.shell.extensions.update-checker"
+}
