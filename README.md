@@ -113,13 +113,17 @@ panel and a "Reboot required" line shows at the top of the dropdown.
 The default check wraps `dnf needs-restarting -r`:
 
 ```
-dnf needs-restarting -r >/dev/null 2>&1 || echo "Reboot required to finish pending updates"
+err=$(dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
 ```
 
-`needs-restarting -r` uses inverted exit codes (1 = reboot needed, 0 =
-not needed) with no output either way in short form, so the wrapper
-normalizes it to "prints something on stdout only if a reboot is
-needed" — matching how every other source is evaluated.
+`needs-restarting -r` exits `1` specifically when a reboot is needed and
+`0` when it isn't. The wrapper checks for exactly that `1`, rather than
+"any non-zero exit" — an earlier version used `command || echo ...`,
+which fired on *any* failure (a transient error, a lock conflict,
+anything), producing a false "reboot required" whenever the underlying
+command broke for unrelated reasons. Any exit code other than `0` or `1`
+is now treated as a genuine failure: it surfaces as **"⚠ Reboot check
+failed: ..."** in the dropdown instead of being misread as "needed."
 
 On Ubuntu/Debian, use this instead (set it in Preferences → Reboot
 Required):

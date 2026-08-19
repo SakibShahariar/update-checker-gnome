@@ -246,6 +246,7 @@ class Indicator extends PanelMenu.Button {
         const results = [];
         let rebootRequired = false;
         let rebootMessage = '';
+        let rebootCheckFailed = false;
 
         const checkRebootEnabled = this._settings.get_boolean('check-reboot-required');
         const rebootCommand = this._settings.get_string('reboot-check-command');
@@ -264,9 +265,13 @@ class Indicator extends PanelMenu.Button {
                 if (r.status === 'ok' && r.count > 0) {
                     rebootRequired = true;
                     rebootMessage = raw.stdout.trim().split('\n')[0];
+                } else if (r.status === 'error') {
+                    // Visible instead of silent: a failed reboot-check
+                    // command is "unknown", not "not needed" - and the
+                    // person should be able to tell the difference.
+                    rebootCheckFailed = true;
+                    rebootMessage = r.message;
                 }
-                // A failed reboot-check command is treated as "unknown" -
-                // we don't claim a reboot is needed on shaky evidence.
             })(),
         ]);
 
@@ -322,14 +327,20 @@ class Indicator extends PanelMenu.Button {
         else
             this._icon.icon_name = 'software-update-available-symbolic';
 
-        this._rebootItem.visible = rebootRequired;
-        if (rebootRequired)
+        this._rebootItem.visible = rebootRequired || rebootCheckFailed;
+        if (rebootRequired) {
             this._rebootItem.label.set_text(`⟳ ${rebootMessage || 'Reboot required'}`);
+        } else if (rebootCheckFailed) {
+            const reason = (rebootMessage || 'unknown error').slice(0, 60);
+            this._rebootItem.label.set_text(`⚠ Reboot check failed: ${reason}`);
+        }
 
         const now = GLib.DateTime.new_now_local().format('%H:%M');
         let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
         if (anyFailed)
             statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
+        if (rebootCheckFailed)
+            statusText += ' (reboot check failed)';
         this._statusItem.label.set_text(statusText);
 
         if (this._settings.get_boolean('notify-on-new')) {
