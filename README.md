@@ -51,7 +51,7 @@ source. Nothing is ever installed automatically — it's read-only checking.
 The default DNF source is:
 
 ```
-dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
+doas dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
 ```
 
 `--refresh` forces a real metadata refresh from the network on every
@@ -62,6 +62,20 @@ package lines (`name.arch  version  repo`); dnf5's `check-update`
 prints a category header line (e.g. "Upgrades (available for
 reinstall, available for upgrade)") even with `-q`, which without
 filtering gets counted as a phantom extra update.
+
+**`doas` requires passwordless configuration** (a `nopass` rule for
+your user in `/etc/doas.conf`, e.g. `permit nopass yourname as root`)
+for this to work. Checks run silently in the background with no
+terminal attached — if `doas` (or `sudo`) tries to prompt for a
+password, there's nowhere for that prompt to go, and the check just
+fails. `doas` is used here (rather than running everything as your own
+user) because some systems put restrictive, root-only permissions on
+DNF's own state files under `/usr/lib/sysimage/libdnf5/` — root can
+read those regardless; a regular user sometimes can't. If you don't
+have passwordless `doas`/`sudo` set up, drop it from the DNF and
+security-check commands in Preferences and the checks will run as your
+normal user instead - just possibly hitting that same permission error
+if your system has it.
 
 Default sources are DNF and Flatpak. Click **"+ Add Source"** in
 Preferences → Update Sources to pick from ready-made presets — Cargo,
@@ -115,13 +129,14 @@ pending"**, alongside the normal count.
 The default check:
 
 ```
-dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
+doas dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
 ```
 
-Same header-stripping filter as the regular DNF source (see "How it
-works" above), just with `--security` added. Requires network like the
-main sources, so it's skipped while offline along with them — the last
-known count stays visible rather than disappearing.
+Same header-stripping filter and `doas` requirement as the regular DNF
+source (see "How it works" above), just with `--security` added.
+Requires network like the main sources, so it's skipped while offline
+along with them — the last known count stays visible rather than
+disappearing.
 
 Toggle it off, or edit the command for other distros, in Preferences →
 Security Updates.
@@ -157,7 +172,7 @@ panel and a "Reboot required" line shows at the top of the dropdown.
 The default check wraps `dnf needs-restarting -r`:
 
 ```
-err=$(dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
+err=$(doas dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
 ```
 
 `needs-restarting -r` exits `1` specifically when a reboot is needed and

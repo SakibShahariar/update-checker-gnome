@@ -16,6 +16,26 @@
       <description>Show a desktop notification when the total update count goes up.</description>
     </key>
 
+    <key name="quiet-hours-enabled" type="b">
+      <default>false</default>
+      <summary>Suppress notifications during quiet hours</summary>
+      <description>When enabled, the "updates available" and "reboot required" notifications are skipped during the configured hour range. The panel icon, count, and dropdown still update normally either way - only the popup notification is suppressed.</description>
+    </key>
+
+    <key name="quiet-hours-start" type="i">
+      <range min="0" max="23"/>
+      <default>23</default>
+      <summary>Quiet hours start (24h)</summary>
+      <description>Hour (0-23) quiet hours begin. If later than the end hour, the window wraps past midnight (e.g. 23 to 8 means 11pm-8am).</description>
+    </key>
+
+    <key name="quiet-hours-end" type="i">
+      <range min="0" max="23"/>
+      <default>8</default>
+      <summary>Quiet hours end (24h)</summary>
+      <description>Hour (0-23) quiet hours end.</description>
+    </key>
+
     <key name="show-zero" type="b">
       <default>false</default>
       <summary>Keep the panel icon visible when up to date</summary>
@@ -23,7 +43,7 @@
     </key>
 
     <key name="sources" type="as">
-      <default>['DNF|dnf check-update -q --refresh | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
+      <default>['DNF|doas dnf check-update -q --refresh | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
       <summary>Update sources</summary>
       <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
     </key>
@@ -59,13 +79,13 @@
     </key>
 
     <key name="security-check-command" type="s">
-      <default>'dnf check-update -q --refresh --security | grep -E \'^\\S+\\.\\S+\\s\''</default>
+      <default>'doas dnf check-update -q --refresh --security | grep -E \'^\\S+\\.\\S+\\s\''</default>
       <summary>Security update check command</summary>
       <description>A shell command whose stdout line count is the number of pending security updates specifically (a subset of the main sources' total, not added on top of it). The default filters DNF's --security flag through the same header-stripping pattern used for the main DNF source.</description>
     </key>
 
     <key name="reboot-check-command" type="s">
-      <default>'err=$(dnf needs-restarting -r 2&gt;&amp;1 1&gt;/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" &gt;&amp;2; exit 1; fi'</default>
+      <default>'err=$(doas dnf needs-restarting -r 2&gt;&amp;1 1&gt;/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" &gt;&amp;2; exit 1; fi'</default>
       <summary>Reboot check command</summary>
       <description>A shell command that prints something on stdout if (and only if) a reboot is required, and nothing otherwise - matching how update sources are evaluated. The default wraps `dnf needs-restarting -r`, checking specifically for its documented exit code 1 ("reboot needed"); any other non-zero exit is treated as a real command failure, not a reboot signal, and surfaces via stderr like any other source error instead of being misread as "needed".</description>
     </key>
