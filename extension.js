@@ -100,7 +100,10 @@ class Indicator extends PanelMenu.Button {
         this._ext = extensionObject;
         this._settings = extensionObject.getSettings();
         this._lastTotal = -1;
+        this._lastAnyFailed = false;
         this._lastRebootRequired = false;
+        this._lastNotifiedTotal = -1;
+        this._lastNotifiedReboot = false;
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -156,6 +159,16 @@ class Indicator extends PanelMenu.Button {
         this._runScriptItem.visible = !!path;
     }
 
+    // Recomputes panel visibility from the last-known check results and
+    // the current show-zero setting. Called after every check, AND
+    // whenever show-zero itself changes, so toggling it in Preferences
+    // takes effect immediately instead of waiting for the next check.
+    _updateVisibility() {
+        const showZero = this._settings.get_boolean('show-zero');
+        this.visible = this._lastTotal > 0 || showZero ||
+            this._lastAnyFailed || this._lastRebootRequired;
+    }
+
     _renderEmpty() {
         this._label.set_text('');
         this._statusItem.label.set_text('Not checked yet');
@@ -163,7 +176,7 @@ class Indicator extends PanelMenu.Button {
         this._rebootItem.visible = false;
         // Stay hidden until the first check completes and actually finds
         // something, unless the user wants the icon visible regardless.
-        this.visible = this._settings.get_boolean('show-zero');
+        this._updateVisibility();
     }
 
     _runInTerminal(command) {
@@ -314,9 +327,11 @@ class Indicator extends PanelMenu.Button {
             this._resultsSection.addMenuItem(item);
         }
 
-        const showZero = this._settings.get_boolean('show-zero');
         const anyFailed = failed.length > 0;
-        this.visible = total > 0 || showZero || anyFailed || rebootRequired;
+        this._lastTotal = total;
+        this._lastAnyFailed = anyFailed;
+        this._lastRebootRequired = rebootRequired;
+        this._updateVisibility();
         this._label.set_text(total > 0 ? `${total}` : (anyFailed ? '!' : ''));
         this._rebootIcon.visible = rebootRequired;
 
@@ -344,18 +359,18 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text(statusText);
 
         if (this._settings.get_boolean('notify-on-new')) {
-            if (this._lastTotal !== -1 && total > this._lastTotal) {
+            if (this._lastNotifiedTotal !== -1 && total > this._lastNotifiedTotal) {
                 Main.notify(
                     'Updates available',
-                    `${total} update${total === 1 ? '' : 's'} pending (was ${this._lastTotal}).`
+                    `${total} update${total === 1 ? '' : 's'} pending.`
                 );
             }
-            if (rebootRequired && !this._lastRebootRequired) {
+            if (rebootRequired && !this._lastNotifiedReboot) {
                 Main.notify('Reboot required', rebootMessage || 'A reboot is needed to finish applying updates.');
             }
         }
-        this._lastTotal = total;
-        this._lastRebootRequired = rebootRequired;
+        this._lastNotifiedTotal = total;
+        this._lastNotifiedReboot = rebootRequired;
         this._checking = false;
     }
 });
@@ -371,6 +386,9 @@ export default class UpdateCheckerExtension extends Extension {
         this._scheduleTimer();
         this._settingsChangedId = this._settings.connect(
             'changed::check-interval-minutes', () => this._scheduleTimer()
+        );
+        this._showZeroChangedId = this._settings.connect(
+            'changed::show-zero', () => this._indicator._updateVisibility()
         );
 
         // Kick off an initial check shortly after enabling, so the panel
@@ -408,6 +426,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = null;
+        }
+        if (this._showZeroChangedId) {
+            this._settings.disconnect(this._showZeroChangedId);
+            this._showZeroChangedId = null;
         }
         this._settings = null;
 
