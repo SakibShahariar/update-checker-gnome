@@ -104,6 +104,8 @@ class Indicator extends PanelMenu.Button {
         this._lastRebootRequired = false;
         this._lastNotifiedTotal = -1;
         this._lastNotifiedReboot = false;
+        this._lastCheckTimeStr = null;
+        this._lastOffline = false;
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -121,10 +123,20 @@ class Indicator extends PanelMenu.Button {
             style_class: 'system-status-icon update-checker-reboot-icon',
             visible: false,
         });
+        this._offlineIcon = new St.Icon({
+            icon_name: 'network-offline-symbolic',
+            style_class: 'system-status-icon update-checker-offline-icon',
+            visible: false,
+        });
         box.add_child(this._icon);
         box.add_child(this._label);
         box.add_child(this._rebootIcon);
+        box.add_child(this._offlineIcon);
         this.add_child(box);
+
+        this._offlineItem = new PopupMenu.PopupMenuItem('Offline', {reactive: false});
+        this._offlineItem.visible = false;
+        this.menu.addMenuItem(this._offlineItem);
 
         this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: false});
         this._rebootItem.visible = false;
@@ -166,7 +178,7 @@ class Indicator extends PanelMenu.Button {
     _updateVisibility() {
         const showZero = this._settings.get_boolean('show-zero');
         this.visible = this._lastTotal > 0 || showZero ||
-            this._lastAnyFailed || this._lastRebootRequired;
+            this._lastAnyFailed || this._lastRebootRequired || this._lastOffline;
     }
 
     _renderEmpty() {
@@ -174,6 +186,8 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text('Not checked yet');
         this._rebootIcon.visible = false;
         this._rebootItem.visible = false;
+        this._offlineIcon.visible = false;
+        this._offlineItem.visible = false;
         // Stay hidden until the first check completes and actually finds
         // something, unless the user wants the icon visible regardless.
         this._updateVisibility();
@@ -244,10 +258,82 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
+    // Runs the reboot-required check on its own (local-only, works
+    // offline). Updates the reboot icon/menu item/notification, and
+    // returns whether the check itself failed (as opposed to "not
+    // needed") - state otherwise lives on the instance so both the
+    // normal and offline-shortcut paths in checkNow() can share this.
+    async _checkReboot() {
+        const checkRebootEnabled = this._settings.get_boolean('check-reboot-required');
+        const rebootCommand = this._settings.get_string('reboot-check-command');
+
+        let rebootRequired = false;
+        let rebootCheckFailed = false;
+        let rebootMessage = '';
+
+        if (checkRebootEnabled && rebootCommand) {
+            const raw = await runShell(rebootCommand);
+            const r = classifyResult(raw);
+            if (r.status === 'ok' && r.count > 0) {
+                rebootRequired = true;
+                rebootMessage = raw.stdout.trim().split('\n')[0];
+            } else if (r.status === 'error') {
+                // Visible instead of silent: a failed reboot-check
+                // command is "unknown", not "not needed" - and the
+                // person should be able to tell the difference.
+                rebootCheckFailed = true;
+                rebootMessage = r.message;
+            }
+        }
+
+        this._lastRebootRequired = rebootRequired;
+        this._rebootIcon.visible = rebootRequired;
+        this._rebootItem.visible = rebootRequired || rebootCheckFailed;
+        if (rebootRequired) {
+            this._rebootItem.label.set_text(`⟳ ${rebootMessage || 'Reboot required'}`);
+        } else if (rebootCheckFailed) {
+            const reason = (rebootMessage || 'unknown error').slice(0, 60);
+            this._rebootItem.label.set_text(`⚠ Reboot check failed: ${reason}`);
+        }
+
+        if (this._settings.get_boolean('notify-on-new') &&
+            rebootRequired && !this._lastNotifiedReboot) {
+            Main.notify('Reboot required', rebootMessage || 'A reboot is needed to finish applying updates.');
+        }
+        this._lastNotifiedReboot = rebootRequired;
+        this._updateVisibility();
+
+        return rebootCheckFailed;
+    }
+
     async checkNow() {
         if (this._checking)
             return;
         this._checking = true;
+
+        const isOnline = Gio.NetworkMonitor.get_default().get_network_available();
+        this._lastOffline = !isOnline;
+        this._offlineIcon.visible = !isOnline;
+
+        if (!isOnline) {
+            // Skip network-dependent source checks entirely rather than
+            // let them fail one by one - no point spawning commands we
+            // already know can't succeed, and it avoids a wall of
+            // per-source warning icons that aren't a real problem, just
+            // a disconnected network. Leave the last-known counts and
+            // per-source breakdown exactly as they were; they're not
+            // wrong, just possibly stale. The reboot check is local-only
+            // so it still runs and stays fully live even offline.
+            this._offlineItem.visible = true;
+            await this._checkReboot();
+            const when = this._lastCheckTimeStr ?? 'last check';
+            const countPart = this._lastTotal >= 0 ? ` (${this._lastTotal} update${this._lastTotal === 1 ? '' : 's'})` : '';
+            this._statusItem.label.set_text(`Offline - showing results from ${when}${countPart}`);
+            this._checking = false;
+            return;
+        }
+
+        this._offlineItem.visible = false;
         this._statusItem.label.set_text('Checking...');
 
         const sources = parseSources(this._settings.get_strv('sources'));
@@ -257,35 +343,14 @@ class Indicator extends PanelMenu.Button {
         let total = 0;
         const failed = [];
         const results = [];
-        let rebootRequired = false;
-        let rebootMessage = '';
-        let rebootCheckFailed = false;
 
-        const checkRebootEnabled = this._settings.get_boolean('check-reboot-required');
-        const rebootCommand = this._settings.get_string('reboot-check-command');
-
-        // Run all sources, plus the reboot check, concurrently.
-        await Promise.all([
-            ...sources.map(async (src) => {
+        // Run all sources and the reboot check concurrently.
+        const [, rebootCheckFailed] = await Promise.all([
+            Promise.all(sources.map(async (src) => {
                 const raw = await runShell(src.command);
                 results.push({name: src.name, ...classifyResult(raw)});
-            }),
-            (async () => {
-                if (!checkRebootEnabled || !rebootCommand)
-                    return;
-                const raw = await runShell(rebootCommand);
-                const r = classifyResult(raw);
-                if (r.status === 'ok' && r.count > 0) {
-                    rebootRequired = true;
-                    rebootMessage = raw.stdout.trim().split('\n')[0];
-                } else if (r.status === 'error') {
-                    // Visible instead of silent: a failed reboot-check
-                    // command is "unknown", not "not needed" - and the
-                    // person should be able to tell the difference.
-                    rebootCheckFailed = true;
-                    rebootMessage = r.message;
-                }
-            })(),
+            })),
+            this._checkReboot(),
         ]);
 
         // Keep a stable, configured order.
@@ -330,10 +395,8 @@ class Indicator extends PanelMenu.Button {
         const anyFailed = failed.length > 0;
         this._lastTotal = total;
         this._lastAnyFailed = anyFailed;
-        this._lastRebootRequired = rebootRequired;
         this._updateVisibility();
         this._label.set_text(total > 0 ? `${total}` : (anyFailed ? '!' : ''));
-        this._rebootIcon.visible = rebootRequired;
 
         if (total > 0)
             this._icon.icon_name = 'software-update-urgent-symbolic';
@@ -342,15 +405,8 @@ class Indicator extends PanelMenu.Button {
         else
             this._icon.icon_name = 'software-update-available-symbolic';
 
-        this._rebootItem.visible = rebootRequired || rebootCheckFailed;
-        if (rebootRequired) {
-            this._rebootItem.label.set_text(`⟳ ${rebootMessage || 'Reboot required'}`);
-        } else if (rebootCheckFailed) {
-            const reason = (rebootMessage || 'unknown error').slice(0, 60);
-            this._rebootItem.label.set_text(`⚠ Reboot check failed: ${reason}`);
-        }
-
         const now = GLib.DateTime.new_now_local().format('%H:%M');
+        this._lastCheckTimeStr = now;
         let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
         if (anyFailed)
             statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
@@ -358,19 +414,14 @@ class Indicator extends PanelMenu.Button {
             statusText += ' (reboot check failed)';
         this._statusItem.label.set_text(statusText);
 
-        if (this._settings.get_boolean('notify-on-new')) {
-            if (this._lastNotifiedTotal !== -1 && total > this._lastNotifiedTotal) {
-                Main.notify(
-                    'Updates available',
-                    `${total} update${total === 1 ? '' : 's'} pending.`
-                );
-            }
-            if (rebootRequired && !this._lastNotifiedReboot) {
-                Main.notify('Reboot required', rebootMessage || 'A reboot is needed to finish applying updates.');
-            }
+        if (this._settings.get_boolean('notify-on-new') &&
+            this._lastNotifiedTotal !== -1 && total > this._lastNotifiedTotal) {
+            Main.notify(
+                'Updates available',
+                `${total} update${total === 1 ? '' : 's'} pending.`
+            );
         }
         this._lastNotifiedTotal = total;
-        this._lastNotifiedReboot = rebootRequired;
         this._checking = false;
     }
 });
@@ -389,6 +440,18 @@ export default class UpdateCheckerExtension extends Extension {
         );
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
+        );
+
+        // When connectivity comes back after being offline, refresh
+        // right away instead of waiting for the next scheduled check -
+        // this is the natural counterpart to skipping checks while
+        // offline in the first place.
+        this._networkMonitor = Gio.NetworkMonitor.get_default();
+        this._networkChangedId = this._networkMonitor.connect(
+            'network-changed', (monitor, available) => {
+                if (available)
+                    this._indicator.checkNow();
+            }
         );
 
         // Kick off an initial check shortly after enabling, so the panel
@@ -430,6 +493,11 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._showZeroChangedId) {
             this._settings.disconnect(this._showZeroChangedId);
             this._showZeroChangedId = null;
+        }
+        if (this._networkChangedId) {
+            this._networkMonitor.disconnect(this._networkChangedId);
+            this._networkChangedId = null;
+            this._networkMonitor = null;
         }
         this._settings = null;
 

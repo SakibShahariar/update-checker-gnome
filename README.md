@@ -103,6 +103,27 @@ Notes:
   for custom sources — `-c` prints a single summary line (which counts
   as "1"), not one line per update.
 
+## Offline handling
+
+Before running any checks, the extension asks GNOME's own network
+monitor whether there's a connection at all — no guessing via a failed
+command first. If there isn't one:
+
+- Network-dependent source checks (DNF, Flatpak, cargo, npm, pipx, uv)
+  are skipped entirely, rather than run and left to fail one by one.
+  This avoids a wall of per-source warning icons for something that
+  isn't really a problem with any of those tools — just no connection.
+- The reboot-required check keeps running as normal; it only reads the
+  local RPM database and boot time, no network needed.
+- The panel keeps showing the last-known count and per-source
+  breakdown rather than going blank or flagging it as an error — the
+  numbers aren't wrong, just possibly a little stale. A small greyed-out
+  offline icon appears next to them, and the dropdown's status line
+  switches to "Offline - showing results from HH:MM (N updates)" so
+  it's clear the snapshot isn't live.
+- The moment connectivity returns, a check runs automatically — no
+  need to wait for the next scheduled interval or click "Check Now."
+
 ## Reboot required
 
 Separately from update counts, the extension can check whether the
