@@ -102,6 +102,7 @@ class Indicator extends PanelMenu.Button {
         this._lastTotal = -1;
         this._lastAnyFailed = false;
         this._lastRebootRequired = false;
+        this._lastSecurityCount = 0;
         this._lastNotifiedTotal = -1;
         this._lastNotifiedReboot = false;
         this._lastCheckTimeStr = null;
@@ -118,6 +119,11 @@ class Indicator extends PanelMenu.Button {
             y_align: 2 /* Clutter.ActorAlign.CENTER */,
             style_class: 'update-checker-label',
         });
+        this._securityIcon = new St.Icon({
+            icon_name: 'security-high-symbolic',
+            style_class: 'system-status-icon update-checker-security-icon',
+            visible: false,
+        });
         this._rebootIcon = new St.Icon({
             icon_name: 'system-shutdown-symbolic',
             style_class: 'system-status-icon update-checker-reboot-icon',
@@ -130,6 +136,7 @@ class Indicator extends PanelMenu.Button {
         });
         box.add_child(this._icon);
         box.add_child(this._label);
+        box.add_child(this._securityIcon);
         box.add_child(this._rebootIcon);
         box.add_child(this._offlineIcon);
         this.add_child(box);
@@ -137,6 +144,10 @@ class Indicator extends PanelMenu.Button {
         this._offlineItem = new PopupMenu.PopupMenuItem('Offline', {reactive: false});
         this._offlineItem.visible = false;
         this.menu.addMenuItem(this._offlineItem);
+
+        this._securityItem = new PopupMenu.PopupMenuItem('Security updates', {reactive: false});
+        this._securityItem.visible = false;
+        this.menu.addMenuItem(this._securityItem);
 
         this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: false});
         this._rebootItem.visible = false;
@@ -186,6 +197,8 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text('Not checked yet');
         this._rebootIcon.visible = false;
         this._rebootItem.visible = false;
+        this._securityIcon.visible = false;
+        this._securityItem.visible = false;
         this._offlineIcon.visible = false;
         this._offlineItem.visible = false;
         // Stay hidden until the first check completes and actually finds
@@ -306,6 +319,44 @@ class Indicator extends PanelMenu.Button {
         return rebootCheckFailed;
     }
 
+    // Runs the security-update check. Network-dependent (like the main
+    // sources), so this is only ever called from checkNow()'s online
+    // path - never while offline. The count is informational only and
+    // deliberately NOT added to the main total, since security updates
+    // are already included in it (this is a subset, not an addition).
+    async _checkSecurity() {
+        const enabled = this._settings.get_boolean('check-security-updates');
+        const command = this._settings.get_string('security-check-command');
+
+        let count = 0;
+        let failed = false;
+        let message = '';
+
+        if (enabled && command) {
+            const raw = await runShell(command);
+            const r = classifyResult(raw);
+            if (r.status === 'ok') {
+                count = r.count;
+            } else {
+                failed = true;
+                message = r.message;
+            }
+        }
+
+        this._lastSecurityCount = count;
+        this._securityIcon.visible = count > 0;
+        this._securityItem.visible = count > 0 || failed;
+        if (count > 0) {
+            this._securityItem.label.set_text(
+                `🛡 ${count} security update${count === 1 ? '' : 's'} pending`);
+        } else if (failed) {
+            const reason = (message || 'unknown error').slice(0, 60);
+            this._securityItem.label.set_text(`⚠ Security check failed: ${reason}`);
+        }
+
+        return failed;
+    }
+
     async checkNow() {
         if (this._checking)
             return;
@@ -327,7 +378,11 @@ class Indicator extends PanelMenu.Button {
             this._offlineItem.visible = true;
             await this._checkReboot();
             const when = this._lastCheckTimeStr ?? 'last check';
-            const countPart = this._lastTotal >= 0 ? ` (${this._lastTotal} update${this._lastTotal === 1 ? '' : 's'})` : '';
+            let countPart = this._lastTotal >= 0 ? ` (${this._lastTotal} update${this._lastTotal === 1 ? '' : 's'}` : '';
+            if (this._lastTotal >= 0 && this._lastSecurityCount > 0)
+                countPart += `, ${this._lastSecurityCount} security`;
+            if (countPart)
+                countPart += ')';
             this._statusItem.label.set_text(`Offline - showing results from ${when}${countPart}`);
             this._checking = false;
             return;
@@ -344,13 +399,15 @@ class Indicator extends PanelMenu.Button {
         const failed = [];
         const results = [];
 
-        // Run all sources and the reboot check concurrently.
-        const [, rebootCheckFailed] = await Promise.all([
+        // Run all sources, the reboot check, and the security check
+        // concurrently.
+        const [, rebootCheckFailed, securityCheckFailed] = await Promise.all([
             Promise.all(sources.map(async (src) => {
                 const raw = await runShell(src.command);
                 results.push({name: src.name, ...classifyResult(raw)});
             })),
             this._checkReboot(),
+            this._checkSecurity(),
         ]);
 
         // Keep a stable, configured order.
@@ -408,10 +465,14 @@ class Indicator extends PanelMenu.Button {
         const now = GLib.DateTime.new_now_local().format('%H:%M');
         this._lastCheckTimeStr = now;
         let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
+        if (this._lastSecurityCount > 0)
+            statusText += ` (${this._lastSecurityCount} security)`;
         if (anyFailed)
             statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
         if (rebootCheckFailed)
             statusText += ' (reboot check failed)';
+        if (securityCheckFailed)
+            statusText += ' (security check failed)';
         this._statusItem.label.set_text(statusText);
 
         if (this._settings.get_boolean('notify-on-new') &&

@@ -103,6 +103,29 @@ Notes:
   for custom sources — `-c` prints a single summary line (which counts
   as "1"), not one line per update.
 
+## Security updates
+
+Separately from the main update count, the extension can flag how many
+pending updates are security-related. This is **not** added on top of
+the main total — security updates are already counted there, so a
+second, additive count would double-count them. Instead it's shown as
+its own icon and dropdown line, e.g. **"🛡 1 security update
+pending"**, alongside the normal count.
+
+The default check:
+
+```
+dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
+```
+
+Same header-stripping filter as the regular DNF source (see "How it
+works" above), just with `--security` added. Requires network like the
+main sources, so it's skipped while offline along with them — the last
+known count stays visible rather than disappearing.
+
+Toggle it off, or edit the command for other distros, in Preferences →
+Security Updates.
+
 ## Offline handling
 
 Before running any checks, the extension asks GNOME's own network

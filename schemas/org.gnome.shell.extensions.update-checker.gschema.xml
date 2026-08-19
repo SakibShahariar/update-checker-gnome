@@ -52,6 +52,18 @@
       <description>When enabled, clicking a source's update in the panel menu runs it in the background instead of opening a terminal. Any "doas"/"sudo" in the command is stripped and the whole command is re-run through pkexec, which shows a graphical password prompt instead. A notification reports success or failure. This only affects per-source update commands, not "Run Update Script" - an external script's contents can't be safely rewritten this way.</description>
     </key>
 
+    <key name="check-security-updates" type="b">
+      <default>true</default>
+      <summary>Separately flag security updates</summary>
+      <description>Shows how many of the pending updates are security-related, without double-counting them into the main total (they're already included there). Requires network, like the main sources, so this is skipped while offline.</description>
+    </key>
+
+    <key name="security-check-command" type="s">
+      <default>'dnf check-update -q --refresh --security | grep -E \'^\\S+\\.\\S+\\s\''</default>
+      <summary>Security update check command</summary>
+      <description>A shell command whose stdout line count is the number of pending security updates specifically (a subset of the main sources' total, not added on top of it). The default filters DNF's --security flag through the same header-stripping pattern used for the main DNF source.</description>
+    </key>
+
     <key name="reboot-check-command" type="s">
       <default>'err=$(dnf needs-restarting -r 2&gt;&amp;1 1&gt;/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" &gt;&amp;2; exit 1; fi'</default>
       <summary>Reboot check command</summary>

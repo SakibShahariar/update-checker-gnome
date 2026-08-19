@@ -103,6 +103,24 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         rebootGroup.add(rebootHintRow);
 
+        // --- Security updates group ---
+        const securityGroup = new Adw.PreferencesGroup({
+            title: 'Security Updates',
+            description: 'Separately flags how many pending updates are security-related, without double-counting them into the main total - they\'re already included there. Requires network, so it\'s skipped while offline, same as the main sources.',
+        });
+        page.add(securityGroup);
+
+        const securityEnabledRow = new Adw.SwitchRow({
+            title: 'Flag security updates separately',
+            subtitle: 'Uses `dnf check-update --security` by default (Fedora/RHEL)',
+        });
+        settings.bind('check-security-updates', securityEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(securityEnabledRow);
+
+        const securityCommandRow = new Adw.EntryRow({title: 'Security check command'});
+        settings.bind('security-check-command', securityCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(securityCommandRow);
+
         // --- Update script group ---
         const scriptGroup = new Adw.PreferencesGroup({
             title: 'Update Script',
