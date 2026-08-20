@@ -73,6 +73,35 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
+        // --- Quiet hours group ---
+        const quietGroup = new Adw.PreferencesGroup({
+            title: 'Quiet Hours',
+            description: 'Suppresses the "updates available" and "reboot required" popup notifications during this hour range. The panel icon and count still update normally either way - only the popup is skipped.',
+        });
+        page.add(quietGroup);
+
+        const quietEnabledRow = new Adw.SwitchRow({
+            title: 'Suppress notifications during quiet hours',
+        });
+        settings.bind('quiet-hours-enabled', quietEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        quietGroup.add(quietEnabledRow);
+
+        const quietStartRow = new Adw.SpinRow({
+            title: 'Start (24h)',
+            subtitle: 'Hour quiet hours begin, e.g. 23 for 11pm',
+            adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
+        });
+        settings.bind('quiet-hours-start', quietStartRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        quietGroup.add(quietStartRow);
+
+        const quietEndRow = new Adw.SpinRow({
+            title: 'End (24h)',
+            subtitle: 'Hour quiet hours end, e.g. 8 for 8am. If earlier than start, wraps past midnight.',
+            adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
+        });
+        settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        quietGroup.add(quietEndRow);
+
         // --- Reboot required group ---
         const rebootGroup = new Adw.PreferencesGroup({
             title: 'Reboot Required',

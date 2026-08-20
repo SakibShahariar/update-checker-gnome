@@ -446,7 +446,8 @@ class Indicator extends PanelMenu.Button {
                     icon_size: 16,
                 });
                 item.add_child(warnIcon);
-                item.label.set_text(`${src.name} - check failed`);
+                const reason = (r.message || 'unknown error').slice(0, 50);
+                item.label.set_text(`${src.name} - failed: ${reason}`);
                 item.connect('activate', () => {
                     Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error');
                 });

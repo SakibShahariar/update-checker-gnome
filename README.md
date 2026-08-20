@@ -99,11 +99,12 @@ A source is only counted as "0 updates" if its command actually ran and
 printed nothing. If a command isn't found (e.g. `cargo` isn't on PATH),
 or it exits with an error and prints nothing to stdout (e.g. a network
 failure during `dnf check-update --refresh`), that source is flagged as
-**failed** instead — shown with a warning icon in the dropdown, with the
-error visible if you click it. This keeps a broken check from silently
-looking identical to "nothing pending." If every source fails and there
-are also no updates, the panel icon still appears (with a warning icon)
-so it isn't mistaken for "all clean."
+**failed** instead — shown with a warning icon and a truncated reason
+right in the dropdown (e.g. "DNF - failed: Permission denied..."), with
+the full error available on click. This keeps a broken check from
+silently looking identical to "nothing pending." If every source fails
+and there are also no updates, the panel icon still appears (with a
+warning icon) so it isn't mistaken for "all clean."
 
 Notes:
 - `gup` (Go binaries) and `pipx` both lack a "check only, don't touch
@@ -244,6 +245,16 @@ Workstation). This only affects per-source updates — "Run Update
 Script" always opens a terminal, since an external script's contents
 can't be safely rewritten to swap `doas` for `pkexec` line-by-line, and
 it's usually written to show its own progress anyway.
+
+## Quiet hours
+
+Preferences → Quiet Hours can suppress the two background popup
+notifications ("updates available" and "reboot required") during a
+configured hour range — e.g. 23 to 8 for 11pm–8am. The panel icon and
+count still update completely normally either way; only the popup
+itself is skipped. Notifications from something you directly triggered
+(like a per-source update finishing) are unaffected — quiet hours only
+apply to the passive, periodic ones.
 
 ## Run Update Script
 
