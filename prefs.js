@@ -10,7 +10,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 const PRESET_SOURCES = [
     {
         name: 'DNF',
-        command: "doas dnf check-update -q --refresh | grep -E '^\\S+\\.\\S+\\s'",
+        command: "dnf check-update -q --refresh | grep -E '^\\S+\\.\\S+\\s'",
         updateCommand: 'doas dnf update --refresh -y && doas dnf autoremove -y',
         blurb: 'Fedora/RHEL system packages. --refresh forces a real metadata check every run.',
     },
@@ -31,12 +31,6 @@ const PRESET_SOURCES = [
         command: 'npm outdated -g --parseable',
         updateCommand: 'doas npm update -g',
         blurb: 'Global npm packages. --parseable prints one line per outdated package, no header.',
-    },
-    {
-        name: 'pipx',
-        command: "pipx list --outdated | grep '^package '",
-        updateCommand: 'pipx upgrade-all',
-        blurb: 'Python CLI tools installed via pipx.',
     },
     {
         name: 'uv tools',

@@ -51,7 +51,7 @@ source. Nothing is ever installed automatically — it's read-only checking.
 The default DNF source is:
 
 ```
-doas dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
+dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
 ```
 
 `--refresh` forces a real metadata refresh from the network on every
@@ -63,30 +63,30 @@ prints a category header line (e.g. "Upgrades (available for
 reinstall, available for upgrade)") even with `-q`, which without
 filtering gets counted as a phantom extra update.
 
-**`doas` requires passwordless configuration** (a `nopass` rule for
-your user in `/etc/doas.conf`, e.g. `permit nopass yourname as root`)
-for this to work. Checks run silently in the background with no
-terminal attached — if `doas` (or `sudo`) tries to prompt for a
-password, there's nowhere for that prompt to go, and the check just
-fails. `doas` is used here (rather than running everything as your own
-user) because some systems put restrictive, root-only permissions on
-DNF's own state files under `/usr/lib/sysimage/libdnf5/` — root can
-read those regardless; a regular user sometimes can't. If you don't
-have passwordless `doas`/`sudo` set up, drop it from the DNF and
-security-check commands in Preferences and the checks will run as your
-normal user instead - just possibly hitting that same permission error
-if your system has it.
+`check-update` doesn't need root — as a regular user it just falls back
+to a per-user cache under `~/.cache/dnf` instead of the system one, so
+this should work as-is for most people. **If it fails with a permission
+error** (e.g. `Unable to access configuration file ...: Permission
+denied`, or errors loading `/usr/lib/sysimage/libdnf5/*.toml`), that
+means something on your system has put root-only permissions on files
+DNF needs to read even for a plain check — check with `ls -l` on the
+file named in the error and `chmod 644` it if so. If you can't track
+down the root cause and have **passwordless** `doas`/`sudo` configured
+(a `nopass` rule in `/etc/doas.conf`, e.g. `permit nopass yourname as
+root`), prefixing the check command with `doas`/`sudo` in Preferences
+works around it, since root can read those files regardless of
+permissions — but this isn't the shipped default, since checks run with
+no terminal attached, and a `doas`/`sudo` call that isn't passwordless
+has nowhere to prompt and just fails outright.
 
 Default sources are DNF and Flatpak. Click **"+ Add Source"** in
 Preferences → Update Sources to pick from ready-made presets — Cargo,
-npm (global), pipx, and uv tools — matching the tools in your fish
-script, no manual typing needed. Each preset uses a verified check-only
-command:
+npm (global), and uv tools — matching the tools in your fish script, no
+manual typing needed. Each preset uses a verified check-only command:
 
 ```
 Cargo|cargo install-update -l -a | awk '$NF=="Yes"'
 npm (global)|npm outdated -g --parseable
-pipx|pipx list --outdated | grep '^package '
 uv tools|uv tool list --outdated | grep '\[latest:'
 ```
 
@@ -106,8 +106,14 @@ are also no updates, the panel icon still appears (with a warning icon)
 so it isn't mistaken for "all clean."
 
 Notes:
-- `gup` (Go binaries) has no built-in "check only" mode, so it's not
-  included by default — there's nothing to safely dry-run.
+- `gup` (Go binaries) and `pipx` both lack a "check only, don't touch
+  anything" mode — `gup` has no dry-run at all, and pipx's `list`
+  command has no `--outdated` flag despite what some docs suggest
+  (confirmed against pipx 1.15.0's own `--help` output). Neither is
+  included as a preset for that reason; `pipx upgrade-all` is
+  idempotent (safe to run even with nothing outdated), so it's a
+  reasonable thing to run periodically via "Run Update Script" instead
+  of trying to check it first.
 - `flatpak remote-ls --updates` checks against the default remote
   (usually `flathub`). If you use multiple remotes, add one source line
   per remote, e.g. `Flatpak (flathub)|flatpak remote-ls --updates flathub`.
@@ -129,14 +135,13 @@ pending"**, alongside the normal count.
 The default check:
 
 ```
-doas dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
+dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
 ```
 
-Same header-stripping filter and `doas` requirement as the regular DNF
-source (see "How it works" above), just with `--security` added.
-Requires network like the main sources, so it's skipped while offline
-along with them — the last known count stays visible rather than
-disappearing.
+Same header-stripping filter as the regular DNF source (see "How it
+works" above), just with `--security` added. Requires network like the
+main sources, so it's skipped while offline along with them — the last
+known count stays visible rather than disappearing.
 
 Toggle it off, or edit the command for other distros, in Preferences →
 Security Updates.
@@ -147,7 +152,7 @@ Before running any checks, the extension asks GNOME's own network
 monitor whether there's a connection at all — no guessing via a failed
 command first. If there isn't one:
 
-- Network-dependent source checks (DNF, Flatpak, cargo, npm, pipx, uv)
+- Network-dependent source checks (DNF, Flatpak, cargo, npm, uv)
   are skipped entirely, rather than run and left to fail one by one.
   This avoids a wall of per-source warning icons for something that
   isn't really a problem with any of those tools — just no connection.
@@ -172,7 +177,7 @@ panel and a "Reboot required" line shows at the top of the dropdown.
 The default check wraps `dnf needs-restarting -r`:
 
 ```
-err=$(doas dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
+err=$(dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
 ```
 
 `needs-restarting -r` exits `1` specifically when a reboot is needed and
@@ -203,7 +208,7 @@ clicking "Flatpak: 3" runs only `flatpak update`, without touching DNF,
 cargo, or anything else. Sources with no update command configured just
 show their count and aren't clickable.
 
-The built-in presets (DNF, Flatpak, Cargo, npm, pipx, uv) all come with
+The built-in presets (DNF, Flatpak, Cargo, npm, uv) all come with
 matching update commands pre-filled. Leave the field blank for any
 source you'd rather only ever update through your own script.
 
@@ -222,7 +227,7 @@ a terminal"** toggle. With it on, clicking a source's update:
   commands like `doas dnf update -y && doas dnf autoremove -y`
   correctly (both `doas` calls are stripped, and the entire chain runs
   under one `pkexec`-elevated shell).
-- Commands with no `doas`/`sudo` (cargo, pipx, uv, etc.) just run
+- Commands with no `doas`/`sudo` (cargo, uv, etc.) just run
   directly in the background, no prompt needed.
 - A notification reports success or failure when it's done; on success,
   the extension automatically re-checks so the count updates.
