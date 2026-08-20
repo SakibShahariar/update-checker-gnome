@@ -85,9 +85,9 @@
     </key>
 
     <key name="reboot-check-command" type="s">
-      <default>'err=$(dnf needs-restarting -r 2&gt;&amp;1 1&gt;/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" &gt;&amp;2; exit 1; fi'</default>
+      <default>'out=$(dnf needs-restarting -r 2&gt;&amp;1); code=$?; if [ "$code" = "1" ] &amp;&amp; printf "%s" "$out" | grep -qi reboot; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$out" &gt;&amp;2; exit 1; fi'</default>
       <summary>Reboot check command</summary>
-      <description>A shell command that prints something on stdout if (and only if) a reboot is required, and nothing otherwise - matching how update sources are evaluated. The default wraps `dnf needs-restarting -r`, checking specifically for its documented exit code 1 ("reboot needed"); any other non-zero exit is treated as a real command failure, not a reboot signal, and surfaces via stderr like any other source error instead of being misread as "needed".</description>
+      <description>A shell command that prints something on stdout if (and only if) a reboot is required, and nothing otherwise - matching how update sources are evaluated. The default wraps `dnf needs-restarting -r`, checking for its documented exit code 1 ("reboot needed") AND that the actual output mentions "reboot" - dnf5's generic error handler can also exit 1 for unrelated failures, so exit code alone isn't trusted. Anything that doesn't clear both checks is treated as a real command failure, surfacing via stderr like any other source error, instead of being misread as "needed".</description>
     </key>
 
     <key name="terminal-command" type="s">

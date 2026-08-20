@@ -192,6 +192,24 @@ class Indicator extends PanelMenu.Button {
             this._lastAnyFailed || this._lastRebootRequired || this._lastOffline;
     }
 
+    // Whether background notifications ("updates available", "reboot
+    // required") should be suppressed right now. Only applies to those
+    // two passive/periodic notifications - anything the person directly
+    // triggered (clicking a source's update, etc.) still notifies
+    // regardless, since they're actively at the computer asking for it.
+    _inQuietHours() {
+        if (!this._settings.get_boolean('quiet-hours-enabled'))
+            return false;
+        const start = this._settings.get_int('quiet-hours-start');
+        const end = this._settings.get_int('quiet-hours-end');
+        if (start === end)
+            return false;
+        const hour = GLib.DateTime.new_now_local().get_hour();
+        return start < end
+            ? (hour >= start && hour < end)
+            : (hour >= start || hour < end); // wraps past midnight
+    }
+
     _renderEmpty() {
         this._label.set_text('');
         this._statusItem.label.set_text('Not checked yet');
@@ -309,7 +327,7 @@ class Indicator extends PanelMenu.Button {
             this._rebootItem.label.set_text(`⚠ Reboot check failed: ${reason}`);
         }
 
-        if (this._settings.get_boolean('notify-on-new') &&
+        if (this._settings.get_boolean('notify-on-new') && !this._inQuietHours() &&
             rebootRequired && !this._lastNotifiedReboot) {
             Main.notify('Reboot required', rebootMessage || 'A reboot is needed to finish applying updates.');
         }
@@ -475,7 +493,7 @@ class Indicator extends PanelMenu.Button {
             statusText += ' (security check failed)';
         this._statusItem.label.set_text(statusText);
 
-        if (this._settings.get_boolean('notify-on-new') &&
+        if (this._settings.get_boolean('notify-on-new') && !this._inQuietHours() &&
             this._lastNotifiedTotal !== -1 && total > this._lastNotifiedTotal) {
             Main.notify(
                 'Updates available',
@@ -504,14 +522,31 @@ export default class UpdateCheckerExtension extends Extension {
         );
 
         // When connectivity comes back after being offline, refresh
-        // right away instead of waiting for the next scheduled check -
-        // this is the natural counterpart to skipping checks while
-        // offline in the first place.
+        // automatically - but not instantly. The interface can report
+        // "available" a moment before DNS/routing actually work (right
+        // after reconnecting), so checking immediately can produce a
+        // real but misleading "failed to download metadata" error. Wait
+        // a few seconds for things to settle first, and if it flaps
+        // offline again before that timer fires, cancel rather than
+        // check on a connection that's already gone again.
         this._networkMonitor = Gio.NetworkMonitor.get_default();
+        this._networkDebounceId = null;
         this._networkChangedId = this._networkMonitor.connect(
             'network-changed', (monitor, available) => {
-                if (available)
-                    this._indicator.checkNow();
+                if (this._networkDebounceId) {
+                    GLib.source_remove(this._networkDebounceId);
+                    this._networkDebounceId = null;
+                }
+                if (!available)
+                    return;
+                this._networkDebounceId = GLib.timeout_add_seconds(
+                    GLib.PRIORITY_DEFAULT, 5, () => {
+                        this._networkDebounceId = null;
+                        if (this._networkMonitor.get_network_available())
+                            this._indicator.checkNow();
+                        return GLib.SOURCE_REMOVE;
+                    }
+                );
             }
         );
 
@@ -558,8 +593,12 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._networkChangedId) {
             this._networkMonitor.disconnect(this._networkChangedId);
             this._networkChangedId = null;
-            this._networkMonitor = null;
         }
+        if (this._networkDebounceId) {
+            GLib.source_remove(this._networkDebounceId);
+            this._networkDebounceId = null;
+        }
+        this._networkMonitor = null;
         this._settings = null;
 
         this._indicator?.destroy();

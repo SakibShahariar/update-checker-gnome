@@ -164,8 +164,13 @@ command first. If there isn't one:
   offline icon appears next to them, and the dropdown's status line
   switches to "Offline - showing results from HH:MM (N updates)" so
   it's clear the snapshot isn't live.
-- The moment connectivity returns, a check runs automatically — no
-  need to wait for the next scheduled interval or click "Check Now."
+- The moment connectivity returns, a check runs automatically — after
+  a short (5 second) delay, not instantly. The interface can report
+  "available" a moment before DNS/routing are actually working again
+  right after reconnecting, so checking immediately risks a real but
+  misleading "failed to download metadata" error. If it drops offline
+  again before that delay is up, the pending check is cancelled rather
+  than run against a connection that's already gone.
 
 ## Reboot required
 
@@ -177,17 +182,19 @@ panel and a "Reboot required" line shows at the top of the dropdown.
 The default check wraps `dnf needs-restarting -r`:
 
 ```
-err=$(dnf needs-restarting -r 2>&1 1>/dev/null); code=$?; if [ "$code" = "1" ]; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$err" >&2; exit 1; fi
+out=$(dnf needs-restarting -r 2>&1); code=$?; if [ "$code" = "1" ] && printf "%s" "$out" | grep -qi reboot; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$out" >&2; exit 1; fi
 ```
 
-`needs-restarting -r` exits `1` specifically when a reboot is needed and
-`0` when it isn't. The wrapper checks for exactly that `1`, rather than
-"any non-zero exit" — an earlier version used `command || echo ...`,
-which fired on *any* failure (a transient error, a lock conflict,
-anything), producing a false "reboot required" whenever the underlying
-command broke for unrelated reasons. Any exit code other than `0` or `1`
-is now treated as a genuine failure: it surfaces as **"⚠ Reboot check
-failed: ..."** in the dropdown instead of being misread as "needed."
+`needs-restarting -r` exits `1` specifically when a reboot is needed
+and `0` when it isn't — but that exit code alone isn't fully reliable:
+dnf5's generic error handler can *also* exit `1` for unrelated failures
+(a transient error, a lock conflict), which would otherwise get
+misread as "reboot needed" purely by coincidence. The wrapper requires
+*both* exit code `1` **and** the actual command output mentioning
+"reboot" before treating it as a genuine signal. Anything that doesn't
+clear both checks — including a real crash that happens to share the
+same exit code — surfaces as **"⚠ Reboot check failed: ..."** instead
+of being misread as "needed."
 
 On Ubuntu/Debian, use this instead (set it in Preferences → Reboot
 Required):
