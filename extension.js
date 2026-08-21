@@ -169,6 +169,7 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         this._statusItem = new PopupMenu.PopupMenuItem('Checking...', {reactive: false});
+        this._statusItem.label.add_style_class_name('update-checker-status-line');
         this.menu.addMenuItem(this._statusItem);
 
         const checkNowItem = new PopupMenu.PopupMenuItem('Check Now');
@@ -409,7 +410,8 @@ class Indicator extends PanelMenu.Button {
                 countPart += `, ${this._lastSecurityCount} security`;
             if (countPart)
                 countPart += ')';
-            this._statusItem.label.set_text(`Offline - showing results from ${when}${countPart}`);
+            this._statusItem.label.set_text(
+                truncate(`Offline - showing results from ${when}${countPart}`, 55));
             this._checking = false;
             return;
         }
@@ -551,16 +553,20 @@ class Indicator extends PanelMenu.Button {
 
         const now = GLib.DateTime.new_now_local().format('%H:%M');
         this._lastCheckTimeStr = now;
-        let statusText = `Last checked ${now} - ${total} update${total === 1 ? '' : 's'}`;
+        let statusText = `${now} - ${total} update${total === 1 ? '' : 's'}`;
         if (this._lastSecurityCount > 0)
-            statusText += ` (${this._lastSecurityCount} security)`;
+            statusText += ` · ${this._lastSecurityCount} security`;
         if (anyFailed)
-            statusText += ` (${failed.length} source${failed.length === 1 ? '' : 's'} failed)`;
+            statusText += ` · ${failed.length} failed`;
         if (rebootCheckFailed)
-            statusText += ' (reboot check failed)';
+            statusText += ' · reboot ⚠';
         if (securityCheckFailed)
-            statusText += ' (security check failed)';
-        this._statusItem.label.set_text(statusText);
+            statusText += ' · security ⚠';
+        // Hard cap regardless of phrasing - however many of the above
+        // are true at once, this can never be the thing that stretches
+        // the popup wide. Full detail is always one click away on the
+        // individual failed items anyway.
+        this._statusItem.label.set_text(truncate(statusText, 55));
 
         if (this._settings.get_boolean('notify-on-new') && !this._inQuietHours() &&
             this._lastNotifiedTotal !== -1 && total > this._lastNotifiedTotal) {
