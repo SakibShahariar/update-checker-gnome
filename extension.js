@@ -48,14 +48,14 @@ function runShell(command) {
 //    non-zero - i.e. it looks like it broke, not like it found nothing
 function classifyResult({stdout, stderr, exitStatus, spawnFailed}) {
     if (spawnFailed || exitStatus === 127) {
-        const reason = stderr.trim().split('\n')[0] || 'command not found';
+        const reason = stripAnsi(stderr).trim().split('\n')[0] || 'command not found';
         return {status: 'error', count: 0, message: reason, lines: []};
     }
     if (stdout.trim() === '' && stderr.trim() !== '' && exitStatus !== 0) {
-        const reason = stderr.trim().split('\n')[0];
+        const reason = stripAnsi(stderr).trim().split('\n')[0];
         return {status: 'error', count: 0, message: reason, lines: []};
     }
-    const lines = stdout.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = stripAnsi(stdout).split('\n').map(l => l.trim()).filter(l => l.length > 0);
     return {status: 'ok', count: lines.length, message: '', lines};
 }
 
@@ -87,6 +87,16 @@ function parseUpdateCommands(strv) {
             map.set(name, command);
     }
     return map;
+}
+
+// Some tools (dnf5 in particular) emit ANSI color escape codes even
+// when their output is piped rather than going to a real terminal.
+// St.Label has no concept of terminal colors, so those bytes would
+// otherwise show up as literal garbage text. Strip them generically so
+// this is fixed for every source, not just the ones we know about.
+function stripAnsi(str) {
+    // eslint-disable-next-line no-control-regex
+    return (str || '').replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
 }
 
 // Truncates with an ellipsis, consistently, everywhere a message could
@@ -506,11 +516,15 @@ class Indicator extends PanelMenu.Button {
             }
 
             for (const line of r.lines) {
-                // Truncate rather than rely on native ellipsis rendering
-                // for a long COPR repo name etc. - guaranteed to fit
-                // regardless of popup width, at the cost of not being
-                // able to see the full line without widening the window.
-                const displayLine = truncate(line, 55);
+                // Most check commands print "name.arch  version  repo"
+                // (or similar column layouts) - the first token is the
+                // package name, which is what people actually want to
+                // see here, not the full row. Falls back to the whole
+                // (still truncated) line for formats with no whitespace
+                // to split on, like npm --parseable's colon-separated
+                // output.
+                const packageName = line.split(/\s+/)[0] || line;
+                const displayLine = truncate(packageName, 55);
                 item.menu.addMenuItem(
                     new PopupMenu.PopupMenuItem(
                         displayLine, {reactive: false, style_class: 'update-checker-package-line'})

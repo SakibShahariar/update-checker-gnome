@@ -49,7 +49,7 @@
     </key>
 
     <key name="sources" type="as">
-      <default>['DNF|dnf check-update -q --refresh | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
+      <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
       <summary>Update sources</summary>
       <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
     </key>
@@ -85,7 +85,7 @@
     </key>
 
     <key name="security-check-command" type="s">
-      <default>'dnf check-update -q --refresh --security | grep -E \'^\\S+\\.\\S+\\s\''</default>
+      <default>'dnf check-update -q --refresh --security --color=never | grep -E \'^\\S+\\.\\S+\\s\''</default>
       <summary>Security update check command</summary>
       <description>A shell command whose stdout line count is the number of pending security updates specifically (a subset of the main sources' total, not added on top of it). The default filters DNF's --security flag through the same header-stripping pattern used for the main DNF source.</description>
     </key>

@@ -51,7 +51,7 @@ source. Nothing is ever installed automatically — it's read-only checking.
 The default DNF source is:
 
 ```
-dnf check-update -q --refresh | grep -E '^\S+\.\S+\s'
+dnf check-update -q --refresh --color=never | grep -E '^\S+\.\S+\s'
 ```
 
 `--refresh` forces a real metadata refresh from the network on every
@@ -136,7 +136,7 @@ pending"**, alongside the normal count.
 The default check:
 
 ```
-dnf check-update -q --refresh --security | grep -E '^\S+\.\S+\s'
+dnf check-update -q --refresh --security --color=never | grep -E '^\S+\.\S+\s'
 ```
 
 Same header-stripping filter as the regular DNF source (see "How it
@@ -209,13 +209,17 @@ Toggle the check off entirely, or edit the command, from Preferences.
 ## Seeing which packages are pending
 
 Any source with pending updates (e.g. "DNF: 3") expands right in the
-dropdown when clicked — showing the actual output lines for that
-source, exactly as the underlying tool printed them (`name.arch
-version repo` for DNF, one path per outdated package for npm, etc.).
-Click the source name again to collapse it. This is read-only — the
-listed lines aren't individually clickable, only the source-level
+dropdown when clicked — showing just the package name for each pending
+update (the first whitespace-separated token of each output line, e.g.
+`firefox-nightly.x86_64` rather than the full `name.arch version repo`
+row). Click the source name again to collapse it. This is read-only —
+the listed names aren't individually clickable, only the source-level
 "run update" button (if configured) still is, positioned as its own
 small button so it doesn't conflict with expanding/collapsing.
+
+Any ANSI color codes a tool emits (some, like dnf5, print them even
+when piped rather than going to a real terminal) are stripped before
+display, generically, for every source — not just DNF.
 
 ## Updating a single source
 
