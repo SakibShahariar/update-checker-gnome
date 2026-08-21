@@ -104,6 +104,7 @@ class Indicator extends PanelMenu.Button {
         this._lastNotifiedReboot = false;
         this._lastCheckTimeStr = null;
         this._lastOffline = false;
+        this._expandedSources = new Set();
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -410,6 +411,12 @@ class Indicator extends PanelMenu.Button {
         const updateCommands = parseUpdateCommands(this._settings.get_strv('source-update-commands'));
         this._resultsSection.removeAll();
 
+        const currentNames = new Set(sources.map(s => s.name));
+        for (const name of this._expandedSources) {
+            if (!currentNames.has(name))
+                this._expandedSources.delete(name);
+        }
+
         let total = 0;
         const failed = [];
         const results = [];
@@ -468,10 +475,14 @@ class Indicator extends PanelMenu.Button {
             // and run-button are separate child widgets so they don't
             // fight with that - the run-button specifically uses
             // St.Button so its own click is handled distinctly and
-            // doesn't also toggle the submenu.
+            // doesn't also toggle the submenu. Appended with add_child
+            // rather than inserted at a guessed index, so this doesn't
+            // depend on assumptions about the submenu widget's internal
+            // child order - they'll always land after the arrow icon,
+            // but never in the wrong place or error out.
             const item = new PopupMenu.PopupSubMenuMenuItem(`${src.name}`, false);
             const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
-            item.insert_child_at_index(countLabel, Math.max(0, item.get_n_children() - 1));
+            item.add_child(countLabel);
 
             if (canUpdate) {
                 const runButton = new St.Button({
@@ -479,14 +490,38 @@ class Indicator extends PanelMenu.Button {
                     child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
                 });
                 runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
-                item.insert_child_at_index(runButton, Math.max(0, item.get_n_children() - 1));
+                item.add_child(runButton);
             }
 
             for (const line of r.lines) {
+                // Truncate rather than rely on native ellipsis rendering
+                // for a long COPR repo name etc. - guaranteed to fit
+                // regardless of popup width, at the cost of not being
+                // able to see the full line without widening the window.
+                const displayLine = line.length > 70 ? `${line.slice(0, 69)}…` : line;
                 item.menu.addMenuItem(
-                    new PopupMenu.PopupMenuItem(line, {reactive: false, style_class: 'update-checker-package-line'})
+                    new PopupMenu.PopupMenuItem(
+                        displayLine, {reactive: false, style_class: 'update-checker-package-line'})
                 );
             }
+
+            // Re-expand if this source was open before this rebuild -
+            // otherwise every check (including the new instant-refresh
+            // watcher) would silently collapse anything you had open.
+            if (this._expandedSources.has(src.name)) {
+                try {
+                    item.menu.open(false);
+                } catch (e) {
+                    // Best-effort - if this ever fails, it just stays
+                    // collapsed rather than breaking the check.
+                }
+            }
+            item.menu.connect('open-state-changed', (menu, isOpen) => {
+                if (isOpen)
+                    this._expandedSources.add(src.name);
+                else
+                    this._expandedSources.delete(src.name);
+            });
 
             this._resultsSection.addMenuItem(item);
         }
