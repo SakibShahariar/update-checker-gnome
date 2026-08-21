@@ -41,4 +41,9 @@
     font-size: 90%;
     opacity: 0.75;
     padding-left: 24px;
+    max-width: 340px;
+}
+
+.update-checker-status-line {
+    max-width: 340px;
 }

@@ -89,6 +89,16 @@ function parseUpdateCommands(strv) {
     return map;
 }
 
+// Truncates with an ellipsis, consistently, everywhere a message could
+// otherwise be long enough to stretch the whole popup menu wide. Keep
+// this short - it's the character budget for the WHOLE displayed
+// string, not just this piece, so callers should account for any
+// prefix (icon glyph, "source name - failed:", etc.) they add on top.
+function truncate(str, max) {
+    const s = (str || '').trim();
+    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
     _init(extensionObject) {
@@ -144,10 +154,12 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(this._offlineItem);
 
         this._securityItem = new PopupMenu.PopupMenuItem('Security updates', {reactive: false});
+        this._securityItem.label.add_style_class_name('update-checker-status-line');
         this._securityItem.visible = false;
         this.menu.addMenuItem(this._securityItem);
 
         this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: false});
+        this._rebootItem.label.add_style_class_name('update-checker-status-line');
         this._rebootItem.visible = false;
         this.menu.addMenuItem(this._rebootItem);
 
@@ -319,10 +331,9 @@ class Indicator extends PanelMenu.Button {
         this._rebootIcon.visible = rebootRequired;
         this._rebootItem.visible = rebootRequired || rebootCheckFailed;
         if (rebootRequired) {
-            this._rebootItem.label.set_text(`⟳ ${rebootMessage || 'Reboot required'}`);
+            this._rebootItem.label.set_text(`⟳ ${truncate(rebootMessage || 'Reboot required', 55)}`);
         } else if (rebootCheckFailed) {
-            const reason = (rebootMessage || 'unknown error').slice(0, 60);
-            this._rebootItem.label.set_text(`⚠ Reboot check failed: ${reason}`);
+            this._rebootItem.label.set_text(`⚠ Reboot check failed: ${truncate(rebootMessage, 35)}`);
         }
 
         if (this._settings.get_boolean('notify-on-new') && !this._inQuietHours() &&
@@ -366,8 +377,7 @@ class Indicator extends PanelMenu.Button {
             this._securityItem.label.set_text(
                 `🛡 ${count} security update${count === 1 ? '' : 's'} pending`);
         } else if (failed) {
-            const reason = (message || 'unknown error').slice(0, 60);
-            this._securityItem.label.set_text(`⚠ Security check failed: ${reason}`);
+            this._securityItem.label.set_text(`⚠ Security check failed: ${truncate(message, 35)}`);
         }
 
         return failed;
@@ -449,8 +459,8 @@ class Indicator extends PanelMenu.Button {
                     icon_size: 16,
                 });
                 item.add_child(warnIcon);
-                const reason = (r.message || 'unknown error').slice(0, 50);
-                item.label.set_text(`${src.name} - failed: ${reason}`);
+                item.label.add_style_class_name('update-checker-status-line');
+                item.label.set_text(`${src.name} - failed: ${truncate(r.message, 35)}`);
                 item.connect('activate', () => {
                     Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error');
                 });
@@ -498,7 +508,7 @@ class Indicator extends PanelMenu.Button {
                 // for a long COPR repo name etc. - guaranteed to fit
                 // regardless of popup width, at the cost of not being
                 // able to see the full line without widening the window.
-                const displayLine = line.length > 70 ? `${line.slice(0, 69)}…` : line;
+                const displayLine = truncate(line, 55);
                 item.menu.addMenuItem(
                     new PopupMenu.PopupMenuItem(
                         displayLine, {reactive: false, style_class: 'update-checker-package-line'})
