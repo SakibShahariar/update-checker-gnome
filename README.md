@@ -246,6 +246,28 @@ Script" always opens a terminal, since an external script's contents
 can't be safely rewritten to swap `doas` for `pkexec` line-by-line, and
 it's usually written to show its own progress anyway.
 
+## Instant refresh after updates
+
+The extension is otherwise purely poll-based — it only knows what it
+knew as of its last scheduled check or manual "Check Now" click. If you
+update packages some other way (your own terminal script, another
+tool), the panel stays stale until the next check runs.
+
+To close that gap, it watches DNF's and Flatpak's own state
+directories directly (`/usr/lib/sysimage/libdnf5`, `/var/lib/rpm`,
+`/var/lib/flatpak`, `~/.local/share/flatpak`) and triggers a fresh
+check a few seconds after any of them change — a debounce, since a
+single package operation touches these directories several times in a
+row and there's no point checking on every individual write. This
+catches an update *no matter how it was run*, not just ones triggered
+through this extension.
+
+It's harmless if a given path doesn't exist on your system (no
+Flatpak installed, a different rpmdb layout) — that watch just never
+fires. Toggle it off in Preferences → Instant Refresh After Updates if
+you'd rather it stick to the timer only; this needs an extension reload
+(log out/in, or `Alt+F2` → `r` on X11) to take effect either way.
+
 ## Quiet hours
 
 Preferences → Quiet Hours can suppress the two background popup

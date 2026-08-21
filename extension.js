@@ -551,6 +551,45 @@ export default class UpdateCheckerExtension extends Extension {
             }
         );
 
+        // Watch DNF's and Flatpak's own state directories directly, so
+        // an update run ANY way - your own terminal, another tool, this
+        // extension - triggers a fresh check, not just the scheduled
+        // timer. A single package operation touches these directories
+        // several times in a row, so this is debounced the same way as
+        // the network-reconnect check above: wait a few seconds after
+        // the LAST change before actually checking.
+        this._dbWatchPaths = [
+            '/usr/lib/sysimage/libdnf5', // dnf5 state (modern Fedora)
+            '/var/lib/rpm',              // traditional rpmdb location
+            '/var/lib/flatpak',          // system-wide Flatpak installs
+            GLib.build_filenamev([GLib.get_home_dir(), '.local/share/flatpak']),
+        ];
+        this._dbMonitors = [];
+        this._dbDebounceId = null;
+        if (this._settings.get_boolean('watch-package-db')) {
+            for (const path of this._dbWatchPaths) {
+                try {
+                    const monitor = Gio.File.new_for_path(path).monitor_directory(
+                        Gio.FileMonitorFlags.NONE, null);
+                    monitor.connect('changed', () => {
+                        if (this._dbDebounceId)
+                            GLib.source_remove(this._dbDebounceId);
+                        this._dbDebounceId = GLib.timeout_add_seconds(
+                            GLib.PRIORITY_DEFAULT, 4, () => {
+                                this._dbDebounceId = null;
+                                this._indicator.checkNow();
+                                return GLib.SOURCE_REMOVE;
+                            }
+                        );
+                    });
+                    this._dbMonitors.push(monitor);
+                } catch (e) {
+                    // Path doesn't exist or isn't watchable on this
+                    // system - harmless, just skip it.
+                }
+            }
+        }
+
         // Kick off an initial check shortly after enabling, so the panel
         // isn't blank while the shell finishes starting up.
         this._startupId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
@@ -600,6 +639,15 @@ export default class UpdateCheckerExtension extends Extension {
             this._networkDebounceId = null;
         }
         this._networkMonitor = null;
+
+        if (this._dbDebounceId) {
+            GLib.source_remove(this._dbDebounceId);
+            this._dbDebounceId = null;
+        }
+        for (const monitor of this._dbMonitors ?? [])
+            monitor.cancel();
+        this._dbMonitors = [];
+
         this._settings = null;
 
         this._indicator?.destroy();

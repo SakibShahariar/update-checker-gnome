@@ -36,6 +36,12 @@
       <description>Hour (0-23) quiet hours end.</description>
     </key>
 
+    <key name="watch-package-db" type="b">
+      <default>true</default>
+      <summary>Watch package databases for changes</summary>
+      <description>Watches DNF's and Flatpak's state directories directly and triggers a fresh check a few seconds after they change - catching updates run any way at all (your own terminal, another tool, this extension), not just the scheduled timer. Harmless if a given path doesn't exist on your system (e.g. no Flatpak installed); that watch simply does nothing.</description>
+    </key>
+
     <key name="show-zero" type="b">
       <default>false</default>
       <summary>Keep the panel icon visible when up to date</summary>

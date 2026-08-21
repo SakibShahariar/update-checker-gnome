@@ -102,6 +102,19 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEndRow);
 
+        // --- Package database watching ---
+        const watchGroup = new Adw.PreferencesGroup({
+            title: 'Instant Refresh After Updates',
+            description: 'Watches DNF\'s and Flatpak\'s state directories directly and re-checks a few seconds after they change - catching updates run any way at all (your own terminal, another tool, this extension), not just the scheduled timer. Requires reloading the extension (log out/in, or Alt+F2 r on X11) after changing this.',
+        });
+        page.add(watchGroup);
+
+        const watchRow = new Adw.SwitchRow({
+            title: 'Watch package databases for changes',
+        });
+        settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        watchGroup.add(watchRow);
+
         // --- Reboot required group ---
         const rebootGroup = new Adw.PreferencesGroup({
             title: 'Reboot Required',
