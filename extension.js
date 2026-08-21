@@ -38,10 +38,6 @@ function runShell(command) {
     });
 }
 
-function countLines(output) {
-    return output.split('\n').filter(line => line.trim().length > 0).length;
-}
-
 // Classify a source's result. We deliberately don't treat "non-zero
 // exit" alone as failure, since plenty of check-only commands (dnf,
 // grep -c, etc.) use non-zero to mean "found something", not "broke".
@@ -53,13 +49,14 @@ function countLines(output) {
 function classifyResult({stdout, stderr, exitStatus, spawnFailed}) {
     if (spawnFailed || exitStatus === 127) {
         const reason = stderr.trim().split('\n')[0] || 'command not found';
-        return {status: 'error', count: 0, message: reason};
+        return {status: 'error', count: 0, message: reason, lines: []};
     }
     if (stdout.trim() === '' && stderr.trim() !== '' && exitStatus !== 0) {
         const reason = stderr.trim().split('\n')[0];
-        return {status: 'error', count: 0, message: reason};
+        return {status: 'error', count: 0, message: reason, lines: []};
     }
-    return {status: 'ok', count: countLines(stdout), message: ''};
+    const lines = stdout.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    return {status: 'ok', count: lines.length, message: '', lines};
 }
 
 function parseSources(strv) {
@@ -431,15 +428,14 @@ class Indicator extends PanelMenu.Button {
         // Keep a stable, configured order.
         for (const src of sources) {
             const r = results.find(x => x.name === src.name) ??
-                {status: 'error', count: 0, message: 'no result'};
+                {status: 'error', count: 0, message: 'no result', lines: []};
 
             const updateCommand = updateCommands.get(src.name);
             const canUpdate = r.status === 'ok' && r.count > 0 && !!updateCommand;
-            const item = new PopupMenu.PopupMenuItem(
-                `${src.name}`, {reactive: r.status === 'error' || canUpdate});
 
             if (r.status === 'error') {
                 failed.push(src.name);
+                const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: true});
                 const warnIcon = new St.Icon({
                     icon_name: 'dialog-warning-symbolic',
                     style_class: 'update-checker-warning-icon',
@@ -451,20 +447,47 @@ class Indicator extends PanelMenu.Button {
                 item.connect('activate', () => {
                     Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error');
                 });
-            } else {
-                total += r.count;
-                const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
-                item.add_child(countLabel);
-                if (canUpdate) {
-                    const runIcon = new St.Icon({
-                        icon_name: 'media-playback-start-symbolic',
-                        style_class: 'update-checker-run-icon',
-                        icon_size: 14,
-                    });
-                    item.add_child(runIcon);
-                    item.connect('activate', () => this._runSourceUpdate(updateCommand, src.name));
-                }
+                this._resultsSection.addMenuItem(item);
+                continue;
             }
+
+            total += r.count;
+
+            if (r.count === 0) {
+                // Nothing pending - a plain, non-expandable line.
+                const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: false});
+                const countLabel = new St.Label({text: '0', style_class: 'update-checker-count'});
+                item.add_child(countLabel);
+                this._resultsSection.addMenuItem(item);
+                continue;
+            }
+
+            // Has pending updates - expandable to show the actual
+            // package lines. The header row's own click toggles
+            // expand/collapse (standard submenu behavior); the count
+            // and run-button are separate child widgets so they don't
+            // fight with that - the run-button specifically uses
+            // St.Button so its own click is handled distinctly and
+            // doesn't also toggle the submenu.
+            const item = new PopupMenu.PopupSubMenuMenuItem(`${src.name}`, false);
+            const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
+            item.insert_child_at_index(countLabel, Math.max(0, item.get_n_children() - 1));
+
+            if (canUpdate) {
+                const runButton = new St.Button({
+                    style_class: 'update-checker-run-icon',
+                    child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
+                });
+                runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
+                item.insert_child_at_index(runButton, Math.max(0, item.get_n_children() - 1));
+            }
+
+            for (const line of r.lines) {
+                item.menu.addMenuItem(
+                    new PopupMenu.PopupMenuItem(line, {reactive: false, style_class: 'update-checker-package-line'})
+                );
+            }
+
             this._resultsSection.addMenuItem(item);
         }
 

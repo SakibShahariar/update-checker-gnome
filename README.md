@@ -206,6 +206,17 @@ test -f /var/run/reboot-required && echo "Reboot required"
 
 Toggle the check off entirely, or edit the command, from Preferences.
 
+## Seeing which packages are pending
+
+Any source with pending updates (e.g. "DNF: 3") expands right in the
+dropdown when clicked — showing the actual output lines for that
+source, exactly as the underlying tool printed them (`name.arch
+version repo` for DNF, one path per outdated package for npm, etc.).
+Click the source name again to collapse it. This is read-only — the
+listed lines aren't individually clickable, only the source-level
+"run update" button (if configured) still is, positioned as its own
+small button so it doesn't conflict with expanding/collapsing.
+
 ## Updating a single source
 
 Each source in Preferences → Update Sources has an optional second

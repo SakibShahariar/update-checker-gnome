@@ -36,3 +36,9 @@
     padding-left: 4px;
     color: #c01c28;
 }
+
+.update-checker-package-line {
+    font-size: 90%;
+    opacity: 0.75;
+    padding-left: 24px;
+}
