@@ -252,14 +252,23 @@ a terminal"** toggle. With it on, clicking a source's update:
   under one `pkexec`-elevated shell).
 - Commands with no `doas`/`sudo` (cargo, uv, etc.) just run
   directly in the background, no prompt needed.
-- A notification reports success or failure when it's done; on success,
-  the extension automatically re-checks so the count updates.
+- A notification reports success or failure when it's done; the
+  extension re-checks either way, so the count updates on success and
+  the row goes back to normal (rather than staying stuck) on failure.
+- While it's running, the source's row shows "Updating…" with a sync
+  icon instead of the count and run button — clicking it again mid-run
+  shows a notice rather than starting a second, conflicting update.
+  This survives a check that happens to run mid-update (a timer tick,
+  the package-database watcher) rather than getting overwritten by a
+  fresh count partway through.
 
 Requires `pkexec` (part of polkit, installed by default on Fedora
 Workstation). This only affects per-source updates — "Run Update
 Script" always opens a terminal, since an external script's contents
 can't be safely rewritten to swap `doas` for `pkexec` line-by-line, and
-it's usually written to show its own progress anyway.
+it's usually written to show its own progress anyway. The open
+terminal window itself already serves as the "it's running" indicator
+in that mode.
 
 ## Instant refresh after updates
 

@@ -125,6 +125,7 @@ class Indicator extends PanelMenu.Button {
         this._lastCheckTimeStr = null;
         this._lastOffline = false;
         this._expandedSources = new Set();
+        this._updatingSources = new Set();
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -163,14 +164,28 @@ class Indicator extends PanelMenu.Button {
         this._offlineItem.visible = false;
         this.menu.addMenuItem(this._offlineItem);
 
-        this._securityItem = new PopupMenu.PopupMenuItem('Security updates', {reactive: false});
+        this._securityItem = new PopupMenu.PopupMenuItem('Security updates', {reactive: true});
         this._securityItem.label.add_style_class_name('update-checker-status-line');
         this._securityItem.visible = false;
+        this._securityFullMessage = '';
+        // Connected once here, not rebuilt every check - reads whatever
+        // the current state is at click time via instance state set in
+        // _checkSecurity(), rather than reconnecting a fresh handler on
+        // every check (which would stack up duplicate handlers).
+        this._securityItem.connect('activate', () => {
+            if (this._securityFullMessage)
+                Main.notifyError('Security check', this._securityFullMessage);
+        });
         this.menu.addMenuItem(this._securityItem);
 
-        this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: false});
+        this._rebootItem = new PopupMenu.PopupMenuItem('Reboot required', {reactive: true});
         this._rebootItem.label.add_style_class_name('update-checker-status-line');
         this._rebootItem.visible = false;
+        this._rebootFullMessage = '';
+        this._rebootItem.connect('activate', () => {
+            if (this._rebootFullMessage)
+                Main.notifyError('Reboot check', this._rebootFullMessage);
+        });
         this.menu.addMenuItem(this._rebootItem);
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
@@ -261,10 +276,16 @@ class Indicator extends PanelMenu.Button {
     // since running doas a second time *inside* an already-root pkexec
     // shell would just fail.
     _runInBackground(command, label) {
+        if (this._updatingSources.has(label)) {
+            Main.notify(`${label} update already running`, 'Wait for it to finish first.');
+            return;
+        }
+
         const hasPrivilege = /\b(?:doas|sudo)\s+/.test(command);
         const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
 
+        this._updatingSources.add(label);
         Main.notify(`Updating ${label}...`, 'Running in background.');
         try {
             const proc = Gio.Subprocess.new(
@@ -278,15 +299,20 @@ class Indicator extends PanelMenu.Button {
                 } catch (e) {
                     stderr = String(e);
                 }
-                if (ok) {
+                this._updatingSources.delete(label);
+                if (ok)
                     Main.notify(`${label} updated`, 'Finished successfully.');
-                    this.checkNow();
-                } else {
+                else {
                     Main.notifyError(
                         `${label} update failed`, stderr.trim().split('\n')[0] || 'Unknown error');
                 }
+                // Re-check either way - success needs a fresh count,
+                // and failure needs the "Updating..." state cleared
+                // from the row rather than left stuck.
+                this.checkNow();
             });
         } catch (e) {
+            this._updatingSources.delete(label);
             Main.notifyError('Update Checker', `Could not run update: ${e.message}`);
         }
     }
@@ -341,6 +367,7 @@ class Indicator extends PanelMenu.Button {
         this._lastRebootRequired = rebootRequired;
         this._rebootIcon.visible = rebootRequired;
         this._rebootItem.visible = rebootRequired || rebootCheckFailed;
+        this._rebootFullMessage = rebootMessage || '';
         if (rebootRequired) {
             this._rebootItem.label.set_text(`⟳ ${truncate(rebootMessage || 'Reboot required', 55)}`);
         } else if (rebootCheckFailed) {
@@ -384,6 +411,7 @@ class Indicator extends PanelMenu.Button {
         this._lastSecurityCount = count;
         this._securityIcon.visible = count > 0;
         this._securityItem.visible = count > 0 || failed;
+        this._securityFullMessage = failed ? (message || '') : '';
         if (count > 0) {
             this._securityItem.label.set_text(
                 `🛡 ${count} security update${count === 1 ? '' : 's'} pending`);
@@ -503,16 +531,31 @@ class Indicator extends PanelMenu.Button {
             // child order - they'll always land after the arrow icon,
             // but never in the wrong place or error out.
             const item = new PopupMenu.PopupSubMenuMenuItem(`${src.name}`, false);
-            const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
-            item.add_child(countLabel);
+            const isUpdating = this._updatingSources.has(src.name);
 
-            if (canUpdate) {
-                const runButton = new St.Button({
-                    style_class: 'update-checker-run-icon',
-                    child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
+            if (isUpdating) {
+                const updatingLabel = new St.Label({
+                    text: 'Updating…', style_class: 'update-checker-updating-label',
                 });
-                runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
-                item.add_child(runButton);
+                item.add_child(updatingLabel);
+                const syncIcon = new St.Icon({
+                    icon_name: 'emblem-synchronizing-symbolic',
+                    style_class: 'update-checker-run-icon',
+                    icon_size: 14,
+                });
+                item.add_child(syncIcon);
+            } else {
+                const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
+                item.add_child(countLabel);
+
+                if (canUpdate) {
+                    const runButton = new St.Button({
+                        style_class: 'update-checker-run-icon',
+                        child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
+                    });
+                    runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
+                    item.add_child(runButton);
+                }
             }
 
             for (const line of r.lines) {
