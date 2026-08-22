@@ -427,7 +427,14 @@ class Indicator extends PanelMenu.Button {
             return;
         this._checking = true;
 
-        const isOnline = Gio.NetworkMonitor.get_default().get_network_available();
+        // get_network_available() alone only means "there's a route" -
+        // it's still true when connected to a router with no working
+        // upstream internet (captive portal, ISP outage, etc.), which
+        // would otherwise send us down the "online" path straight into
+        // a wall of real but misleading failures. FULL connectivity
+        // specifically means the host can actually reach the internet.
+        const isOnline = Gio.NetworkMonitor.get_default().get_connectivity() ===
+            Gio.NetworkConnectivity.FULL;
         this._lastOffline = !isOnline;
         this._offlineIcon.visible = !isOnline;
 
@@ -663,24 +670,31 @@ export default class UpdateCheckerExtension extends Extension {
         // check on a connection that's already gone again.
         this._networkMonitor = Gio.NetworkMonitor.get_default();
         this._networkDebounceId = null;
-        this._networkChangedId = this._networkMonitor.connect(
-            'network-changed', (monitor, available) => {
-                if (this._networkDebounceId) {
-                    GLib.source_remove(this._networkDebounceId);
-                    this._networkDebounceId = null;
-                }
-                if (!available)
-                    return;
-                this._networkDebounceId = GLib.timeout_add_seconds(
-                    GLib.PRIORITY_DEFAULT, 5, () => {
-                        this._networkDebounceId = null;
-                        if (this._networkMonitor.get_network_available())
-                            this._indicator.checkNow();
-                        return GLib.SOURCE_REMOVE;
-                    }
-                );
+        const scheduleReconnectCheck = () => {
+            if (this._networkDebounceId) {
+                GLib.source_remove(this._networkDebounceId);
+                this._networkDebounceId = null;
             }
-        );
+            if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
+                return;
+            this._networkDebounceId = GLib.timeout_add_seconds(
+                GLib.PRIORITY_DEFAULT, 5, () => {
+                    this._networkDebounceId = null;
+                    if (this._networkMonitor.get_connectivity() === Gio.NetworkConnectivity.FULL)
+                        this._indicator.checkNow();
+                    return GLib.SOURCE_REMOVE;
+                }
+            );
+        };
+        this._networkChangedId = this._networkMonitor.connect(
+            'network-changed', () => scheduleReconnectCheck());
+        // Belt-and-braces: 'network-changed' is documented around the
+        // coarser network-available property, so also watch the
+        // connectivity property directly in case a captive-portal login
+        // completing (PORTAL -> FULL, with network-available true the
+        // whole time) doesn't fire the former on its own.
+        this._connectivityChangedId = this._networkMonitor.connect(
+            'notify::connectivity', () => scheduleReconnectCheck());
 
         // Watch DNF's and Flatpak's own state directories directly, so
         // an update run ANY way - your own terminal, another tool, this
@@ -764,6 +778,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._networkChangedId) {
             this._networkMonitor.disconnect(this._networkChangedId);
             this._networkChangedId = null;
+        }
+        if (this._connectivityChangedId) {
+            this._networkMonitor.disconnect(this._connectivityChangedId);
+            this._connectivityChangedId = null;
         }
         if (this._networkDebounceId) {
             GLib.source_remove(this._networkDebounceId);

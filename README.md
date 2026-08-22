@@ -150,8 +150,13 @@ Security Updates.
 ## Offline handling
 
 Before running any checks, the extension asks GNOME's own network
-monitor whether there's a connection at all — no guessing via a failed
-command first. If there isn't one:
+monitor whether there's genuine internet connectivity — not just "is
+there a network route at all," which stays true even when connected to
+a router with no working upstream internet (a captive portal, a WAN
+outage, etc.). That distinction matters: without it, "connected but
+nothing actually works" would run the real checks anyway and produce a
+wall of technically-accurate but misleading failures, rather than the
+quiet offline state below. If there's no full connectivity:
 
 - Network-dependent source checks (DNF, Flatpak, cargo, npm, uv)
   are skipped entirely, rather than run and left to fail one by one.
@@ -165,11 +170,13 @@ command first. If there isn't one:
   offline icon appears next to them, and the dropdown's status line
   switches to "Offline - showing results from HH:MM (N updates)" so
   it's clear the snapshot isn't live.
-- The moment connectivity returns, a check runs automatically — after
-  a short (5 second) delay, not instantly. The interface can report
-  "available" a moment before DNS/routing are actually working again
-  right after reconnecting, so checking immediately risks a real but
-  misleading "failed to download metadata" error. If it drops offline
+- The moment full connectivity returns — including completing a
+  captive portal login, not just plugging a cable back in — a check
+  runs automatically, after a short (5 second) delay, not instantly.
+  The interface can report a route a moment before DNS/routing are
+  actually working again right after reconnecting, so checking
+  immediately risks a real but misleading "failed to download
+  metadata" error. If it drops offline again before that timer fires,
   again before that delay is up, the pending check is cancelled rather
   than run against a connection that's already gone.
 
