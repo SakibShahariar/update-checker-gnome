@@ -6,6 +6,14 @@ Click the icon for a per-source breakdown, a "Check Now" button, and
 your own update script — e.g. the fish script you're already using — so
 `doas`/`sudo` password prompts still work interactively.
 
+**GNOME support policy:** `shell-version` tracks whatever the two
+currently-maintained Fedora releases ship (Fedora runs exactly two at a
+time, ~13 months of support each) — not because anything in the code
+actually requires a recent GNOME, but because that's the only range
+this extension is ever realistically tested against. As of this
+writing that's GNOME 49-50 (Fedora 43-44). When Fedora's supported pair
+rolls forward, bump this list to match.
+
 ## Install
 
 **Option A - from a release:** grab `update-checker@local.zip` from the
