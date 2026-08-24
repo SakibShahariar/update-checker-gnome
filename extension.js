@@ -125,7 +125,17 @@ class Indicator extends PanelMenu.Button {
         this._lastCheckTimeStr = null;
         this._lastOffline = false;
         this._expandedSources = new Set();
-        this._updatingSources = new Set();
+        // Name -> {proc, startTime, tickId}. A Map (not a Set) because
+        // we need the live Gio.Subprocess handle to support stopping,
+        // and the start time to show elapsed seconds while it runs.
+        this._updatingSources = new Map();
+        // Name -> {countLabel, runButton, updatingLabel, stopButton} -
+        // live references to each row's widgets, refreshed on every
+        // checkNow() rebuild. Lets an in-progress update mutate its own
+        // row directly (elapsed tick, clearing on completion) without
+        // needing a rebuild, which matters since checkNow() now skips
+        // itself entirely while a background update is running.
+        this._sourceRowWidgets = new Map();
         this._checking = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
@@ -269,6 +279,37 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
+    // Directly mutates a source's already-rendered row to show/hide the
+    // "Updating..." state, without needing a checkNow() rebuild - which
+    // matters since checkNow() deliberately skips itself entirely while
+    // an update is in progress (see the guard at the top of checkNow).
+    _setRowUpdating(name, isUpdating, elapsedText) {
+        const widgets = this._sourceRowWidgets.get(name);
+        if (!widgets)
+            return;
+        const {countLabel, runButton, updatingLabel, stopButton} = widgets;
+        countLabel.visible = !isUpdating;
+        if (runButton)
+            runButton.visible = !isUpdating;
+        updatingLabel.visible = isUpdating;
+        stopButton.visible = isUpdating;
+        if (isUpdating)
+            updatingLabel.set_text(`Updating… ${elapsedText}`);
+    }
+
+    _stopSourceUpdate(label) {
+        const entry = this._updatingSources.get(label);
+        if (!entry)
+            return;
+        entry.stopped = true;
+        try {
+            entry.proc.force_exit();
+        } catch (e) {
+            // Already exited on its own right as we tried to stop it -
+            // harmless, the completion callback will still run.
+        }
+    }
+
     // Run a source's update command without a terminal. If it contains
     // doas/sudo, those are stripped and the whole command is re-run
     // through pkexec instead, which shows its own graphical password
@@ -285,12 +326,26 @@ class Indicator extends PanelMenu.Button {
         const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
 
-        this._updatingSources.add(label);
         Main.notify(`Updating ${label}...`, 'Running in background.');
         try {
             const proc = Gio.Subprocess.new(
                 argv, Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+
+            const entry = {proc, startTime: GLib.get_monotonic_time(), stopped: false, tickId: null};
+            this._updatingSources.set(label, entry);
+            this._setRowUpdating(label, true, '0s');
+
+            entry.tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                const elapsed = Math.round((GLib.get_monotonic_time() - entry.startTime) / 1000000);
+                this._setRowUpdating(label, true, `${elapsed}s`);
+                return GLib.SOURCE_CONTINUE;
+            });
+
             proc.communicate_utf8_async(null, null, (proc_, res) => {
+                if (entry.tickId) {
+                    GLib.source_remove(entry.tickId);
+                    entry.tickId = null;
+                }
                 let ok = false, stderr = '';
                 try {
                     const [, , errOut] = proc_.communicate_utf8_finish(res);
@@ -300,19 +355,24 @@ class Indicator extends PanelMenu.Button {
                     stderr = String(e);
                 }
                 this._updatingSources.delete(label);
-                if (ok)
+                this._setRowUpdating(label, false);
+                if (entry.stopped)
+                    Main.notify(`${label} update stopped`, 'Stopped before it finished.');
+                else if (ok)
                     Main.notify(`${label} updated`, 'Finished successfully.');
                 else {
                     Main.notifyError(
                         `${label} update failed`, stderr.trim().split('\n')[0] || 'Unknown error');
                 }
                 // Re-check either way - success needs a fresh count,
-                // and failure needs the "Updating..." state cleared
-                // from the row rather than left stuck.
+                // and failure/stop needs a fresh look at what's still
+                // actually pending, since a partial run may have
+                // changed the real state even if it didn't finish.
                 this.checkNow();
             });
         } catch (e) {
             this._updatingSources.delete(label);
+            this._setRowUpdating(label, false);
             Main.notifyError('Update Checker', `Could not run update: ${e.message}`);
         }
     }
@@ -513,6 +573,7 @@ class Indicator extends PanelMenu.Button {
         // if a check ever takes a while (e.g. contending for a lock a
         // background update is holding).
         this._resultsSection.removeAll();
+        this._sourceRowWidgets.clear();
 
         // Keep a stable, configured order.
         for (const src of sources) {
@@ -553,42 +614,48 @@ class Indicator extends PanelMenu.Button {
 
             // Has pending updates - expandable to show the actual
             // package lines. The header row's own click toggles
-            // expand/collapse (standard submenu behavior); the count
-            // and run-button are separate child widgets so they don't
-            // fight with that - the run-button specifically uses
-            // St.Button so its own click is handled distinctly and
-            // doesn't also toggle the submenu. Appended with add_child
-            // rather than inserted at a guessed index, so this doesn't
-            // depend on assumptions about the submenu widget's internal
-            // child order - they'll always land after the arrow icon,
-            // but never in the wrong place or error out.
+            // expand/collapse (standard submenu behavior); the count,
+            // run-button, updating-label, and stop-button are separate
+            // child widgets so they don't fight with that - all use
+            // St.Button where clickable so their own clicks are handled
+            // distinctly and don't also toggle the submenu. Both the
+            // normal and "updating" widget sets are always built and
+            // just toggled visible/hidden based on state, rather than
+            // only constructing one - this lets an in-progress update
+            // update this exact row directly (elapsed time ticking, or
+            // clearing on completion) without needing a full rebuild,
+            // which is important now that checkNow() deliberately
+            // skips itself entirely while an update is running.
             const item = new PopupMenu.PopupSubMenuMenuItem(`${src.name}`, false);
-            const isUpdating = this._updatingSources.has(src.name);
 
-            if (isUpdating) {
-                const updatingLabel = new St.Label({
-                    text: 'Updating…', style_class: 'update-checker-updating-label',
-                });
-                item.add_child(updatingLabel);
-                const syncIcon = new St.Icon({
-                    icon_name: 'emblem-synchronizing-symbolic',
+            const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
+            item.add_child(countLabel);
+
+            let runButton = null;
+            if (canUpdate) {
+                runButton = new St.Button({
                     style_class: 'update-checker-run-icon',
-                    icon_size: 14,
+                    child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
                 });
-                item.add_child(syncIcon);
-            } else {
-                const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
-                item.add_child(countLabel);
-
-                if (canUpdate) {
-                    const runButton = new St.Button({
-                        style_class: 'update-checker-run-icon',
-                        child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
-                    });
-                    runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
-                    item.add_child(runButton);
-                }
+                runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
+                item.add_child(runButton);
             }
+
+            const updatingLabel = new St.Label({
+                text: 'Updating…', style_class: 'update-checker-updating-label', visible: false,
+            });
+            item.add_child(updatingLabel);
+            const stopButton = new St.Button({
+                style_class: 'update-checker-stop-icon',
+                child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14}),
+                visible: false,
+            });
+            stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
+            item.add_child(stopButton);
+
+            this._sourceRowWidgets.set(src.name, {countLabel, runButton, updatingLabel, stopButton});
+            if (this._updatingSources.has(src.name))
+                this._setRowUpdating(src.name, true);
 
             for (const line of r.lines) {
                 // Most check commands print "name.arch  version  repo"
@@ -821,6 +888,17 @@ export default class UpdateCheckerExtension extends Extension {
         for (const monitor of this._dbMonitors ?? [])
             monitor.cancel();
         this._dbMonitors = [];
+
+        // Any background update's elapsed-time tick timer is tracked on
+        // the indicator, not here - clear those too so they don't keep
+        // firing (and mutating disposed widgets) after this runs. The
+        // update's own subprocess isn't touched - it keeps running
+        // regardless, same as it would if you closed a terminal running
+        // `doas dnf update` - only our tracking/UI stops.
+        for (const entry of this._indicator?._updatingSources?.values() ?? []) {
+            if (entry.tickId)
+                GLib.source_remove(entry.tickId);
+        }
 
         this._settings = null;
 

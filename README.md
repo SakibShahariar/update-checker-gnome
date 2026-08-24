@@ -270,9 +270,23 @@ a terminal"** toggle. With it on, clicking a source's update:
 - A notification reports success or failure when it's done; the
   extension re-checks either way, so the count updates on success and
   the row goes back to normal (rather than staying stuck) on failure.
-- While it's running, the source's row shows "Updating…" with a sync
-  icon instead of the count and run button — clicking it again mid-run
-  shows a notice rather than starting a second, conflicting update.
+- While it's running, the source's row shows a live elapsed-time
+  counter ("Updating… 12s", ticking up every second) plus a stop
+  button, instead of the count and run button — clicking the source
+  again mid-run shows a notice rather than starting a second,
+  conflicting update. There's no percentage/progress bar: the
+  underlying tools don't report parseable progress when piped
+  non-interactively, and every source's output format differs anyway,
+  so an elapsed timer is the honest signal available generically across
+  any configured source.
+- The stop button kills the running process. For commands with no
+  `doas`/`sudo` (cargo, uv, etc.) this is reliable — there's no extra
+  process layer involved. For `doas`/`sudo` commands (routed through
+  `pkexec`), stopping should work, but depending on how `pkexec` forks
+  internally, the actual privileged work might technically be a child
+  process that doesn't automatically die with it — this hasn't been
+  exhaustively verified. If in doubt after clicking stop, check with
+  `ps aux | grep dnf` (or whatever the command was).
 - Automatic checks (timer tick, the package-database watcher, network
   reconnect) are skipped entirely while a background update is still
   running, rather than attempted — running one anyway would contend
