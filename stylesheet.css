@@ -35,7 +35,7 @@
 
 .update-checker-stop-icon {
     padding-left: 8px;
-    color: #e01b24;
+    opacity: 0.85;
 }
 
 .update-checker-offline-icon {
