@@ -273,9 +273,21 @@ a terminal"** toggle. With it on, clicking a source's update:
 - While it's running, the source's row shows "Updating…" with a sync
   icon instead of the count and run button — clicking it again mid-run
   shows a notice rather than starting a second, conflicting update.
-  This survives a check that happens to run mid-update (a timer tick,
-  the package-database watcher) rather than getting overwritten by a
-  fresh count partway through.
+- Automatic checks (timer tick, the package-database watcher, network
+  reconnect) are skipped entirely while a background update is still
+  running, rather than attempted — running one anyway would contend
+  with the update for the same package-manager lock, which could hang
+  the check with nothing to show until it cleared. The update's own
+  completion already triggers a fresh, accurate check afterward, so
+  nothing is lost by skipping. A manual "Check Now" click during this
+  window shows a brief notice explaining why, instead of doing nothing
+  silently; automatic triggers stay silent since a notification every
+  time would just be noise.
+- More generally, a check no longer clears the dropdown's rows before
+  it's done — the last-known breakdown stays visible for the whole
+  duration of any check, replaced only once fresh results are ready,
+  rather than a "Checking…" gap with nothing shown if a check ever
+  takes a while for any reason.
 
 Requires `pkexec` (part of polkit, installed by default on Fedora
 Workstation). This only affects per-source updates — "Run Update

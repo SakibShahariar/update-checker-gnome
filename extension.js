@@ -198,7 +198,7 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(this._statusItem);
 
         const checkNowItem = new PopupMenu.PopupMenuItem('Check Now');
-        checkNowItem.connect('activate', () => this.checkNow());
+        checkNowItem.connect('activate', () => this.checkNow(true));
         this.menu.addMenuItem(checkNowItem);
 
         this._runScriptItem = new PopupMenu.PopupMenuItem('Run Update Script');
@@ -422,9 +422,27 @@ class Indicator extends PanelMenu.Button {
         return failed;
     }
 
-    async checkNow() {
+    async checkNow(manual = false) {
         if (this._checking)
             return;
+        // A background update (no-terminal/pkexec mode) we started
+        // ourselves is still running - running a check right now would
+        // race it for the same package-manager lock, which is exactly
+        // what caused the check to hang with nothing to show. Its own
+        // completion already triggers a fresh check afterward, so
+        // there's nothing lost by skipping this one. Only say something
+        // for a manual click though - automatic triggers (timer,
+        // package-db watcher, reconnect) skipping silently is correct,
+        // not something worth a notification every single time.
+        if (this._updatingSources.size > 0) {
+            if (manual) {
+                Main.notify(
+                    'Update Checker',
+                    'A background update is still running - it will refresh automatically when done.'
+                );
+            }
+            return;
+        }
         this._checking = true;
 
         // get_network_available() alone only means "there's a route" -
@@ -466,7 +484,6 @@ class Indicator extends PanelMenu.Button {
 
         const sources = parseSources(this._settings.get_strv('sources'));
         const updateCommands = parseUpdateCommands(this._settings.get_strv('source-update-commands'));
-        this._resultsSection.removeAll();
 
         const currentNames = new Set(sources.map(s => s.name));
         for (const name of this._expandedSources) {
@@ -488,6 +505,14 @@ class Indicator extends PanelMenu.Button {
             this._checkReboot(),
             this._checkSecurity(),
         ]);
+
+        // Only clear the old rows now that fresh results are actually
+        // ready to replace them - keeps the last-known (stale but real)
+        // breakdown visible for the whole duration of the check instead
+        // of a "Checking..." gap with nothing shown, which is jarring
+        // if a check ever takes a while (e.g. contending for a lock a
+        // background update is holding).
+        this._resultsSection.removeAll();
 
         // Keep a stable, configured order.
         for (const src of sources) {
