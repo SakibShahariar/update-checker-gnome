@@ -270,10 +270,50 @@ class Indicator extends PanelMenu.Button {
         this._updateVisibility();
     }
 
-    _runInTerminal(command) {
+    // Launches a command in a terminal, same as before, but now tracked
+    // via a real process handle (Gio.Subprocess + wait_async) instead
+    // of fire-and-forget GLib.spawn_command_line_async - so we know
+    // when it actually finishes. Tracked in _updatingSources under
+    // `key` so checkNow()'s "skip while an update is running" guard
+    // covers terminal-launched updates too, not just background ones -
+    // otherwise the same lock-contention/empty-dropdown bug fixed for
+    // background mode could still happen via this door. Unlike
+    // background mode, this doesn't drive any row UI (no elapsed timer,
+    // no stop button) - the open terminal window is already that
+    // indicator, this is purely to prevent the collision.
+    _runInTerminal(command, key) {
         const term = this._settings.get_string('terminal-command');
+        const fullCommand = `${term} sh -c ${GLib.shell_quote(command)}`;
+        this._launchTracked(fullCommand, key);
+    }
+
+    _launchTracked(fullCommand, key) {
+        if (this._updatingSources.has(key)) {
+            Main.notify('Update Checker', 'Already running - check the open terminal window.');
+            return;
+        }
         try {
-            GLib.spawn_command_line_async(`${term} sh -c ${GLib.shell_quote(command)}`);
+            const [ok, argv] = GLib.shell_parse_argv(fullCommand);
+            if (!ok)
+                throw new Error('Could not parse terminal command');
+            const proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
+            this._updatingSources.set(key, {proc, isTerminal: true});
+            proc.wait_async(null, (proc_, res) => {
+                try {
+                    proc_.wait_finish(res);
+                } catch (e) {
+                    // Terminal itself failed to launch/run - harmless
+                    // to ignore here, the person already sees the
+                    // terminal window (or its absence) directly.
+                }
+                this._updatingSources.delete(key);
+                // Only re-check if nothing else is still in flight -
+                // checkNow() already guards this itself, but skip the
+                // call entirely rather than let it early-return for no
+                // visible reason.
+                if (this._updatingSources.size === 0)
+                    this.checkNow();
+            });
         } catch (e) {
             Main.notifyError('Update Checker', `Could not launch terminal: ${e.message}`);
         }
@@ -326,7 +366,20 @@ class Indicator extends PanelMenu.Button {
         const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
 
-        Main.notify(`Updating ${label}...`, 'Running in background.');
+        // Non-blocking heads-up only - we can't know whether this
+        // particular command actually needs network (some don't), so
+        // this informs rather than prevents the attempt. If it does
+        // need network, this at least explains why it's slow or fails,
+        // rather than an unexplained multi-minute wait before the
+        // eventual "update failed" notification (many tools retry with
+        // long timeouts before finally giving up).
+        const isOnline = Gio.NetworkMonitor.get_default().get_connectivity() ===
+            Gio.NetworkConnectivity.FULL;
+        Main.notify(
+            `Updating ${label}...`,
+            isOnline ? 'Running in background.'
+                : 'Running in background - no internet connection detected, this may fail or take a while if it needs network.'
+        );
         try {
             const proc = Gio.Subprocess.new(
                 argv, Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
@@ -381,7 +434,7 @@ class Indicator extends PanelMenu.Button {
         if (this._settings.get_boolean('background-updates'))
             this._runInBackground(command, label);
         else
-            this._runInTerminal(command);
+            this._runInTerminal(command, label);
     }
 
     _runUpdateScript() {
@@ -389,11 +442,8 @@ class Indicator extends PanelMenu.Button {
         if (!path)
             return;
         const term = this._settings.get_string('terminal-command');
-        try {
-            GLib.spawn_command_line_async(`${term} ${GLib.shell_quote(path)}`);
-        } catch (e) {
-            Main.notifyError('Update Checker', `Could not launch terminal: ${e.message}`);
-        }
+        const fullCommand = `${term} ${GLib.shell_quote(path)}`;
+        this._launchTracked(fullCommand, '__script__');
     }
 
     // Runs the reboot-required check on its own (local-only, works
@@ -654,7 +704,8 @@ class Indicator extends PanelMenu.Button {
             item.add_child(stopButton);
 
             this._sourceRowWidgets.set(src.name, {countLabel, runButton, updatingLabel, stopButton});
-            if (this._updatingSources.has(src.name))
+            const existingUpdate = this._updatingSources.get(src.name);
+            if (existingUpdate && !existingUpdate.isTerminal)
                 this._setRowUpdating(src.name, true);
 
             for (const line of r.lines) {

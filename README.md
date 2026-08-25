@@ -302,6 +302,19 @@ a terminal"** toggle. With it on, clicking a source's update:
   duration of any check, replaced only once fresh results are ready,
   rather than a "Checking…" gap with nothing shown if a check ever
   takes a while for any reason.
+- If no internet connection is detected when starting a background
+  update, the starting notification mentions it — a heads-up, not a
+  block, since some update commands don't actually need network (an
+  arbitrary user-configured command can't be assumed either way).
+  Explains a slow or failed background update instead of leaving it as
+  an unexplained multi-minute wait before the failure notice.
+
+Terminal-launched updates ("Run Update Script", and per-source updates
+when background mode is off) are tracked the same way internally, so
+the "skip automatic checks while something is running" protection
+above applies to them too — even though they don't get their own
+elapsed-time/stop-button UI, since the open terminal window is already
+that indicator for this mode.
 
 Requires `pkexec` (part of polkit, installed by default on Fedora
 Workstation). This only affects per-source updates — "Run Update
