@@ -24,7 +24,7 @@
 
 .update-checker-run-icon {
     padding-left: 8px;
-    color: #62a0ea;
+    opacity: 0.85;
 }
 
 .update-checker-updating-label {

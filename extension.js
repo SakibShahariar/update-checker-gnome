@@ -635,7 +635,7 @@ class Indicator extends PanelMenu.Button {
             if (canUpdate) {
                 runButton = new St.Button({
                     style_class: 'update-checker-run-icon',
-                    child: new St.Icon({icon_name: 'media-playback-start-symbolic', icon_size: 14}),
+                    child: new St.Icon({icon_name: 'view-refresh-symbolic', icon_size: 14}),
                 });
                 runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
                 item.add_child(runButton);
