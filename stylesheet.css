@@ -19,7 +19,7 @@
 
 .update-checker-reboot-icon {
     padding-left: 4px;
-    color: #e01b24;
+    opacity: 0.85;
 }
 
 .update-checker-run-icon {
@@ -45,7 +45,7 @@
 
 .update-checker-security-icon {
     padding-left: 4px;
-    color: #c01c28;
+    opacity: 0.85;
 }
 
 .update-checker-package-line {
