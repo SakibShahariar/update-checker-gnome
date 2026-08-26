@@ -302,12 +302,13 @@ a terminal"** toggle. With it on, clicking a source's update:
   duration of any check, replaced only once fresh results are ready,
   rather than a "Checking…" gap with nothing shown if a check ever
   takes a while for any reason.
-- If no internet connection is detected when starting a background
-  update, the starting notification mentions it — a heads-up, not a
-  block, since some update commands don't actually need network (an
-  arbitrary user-configured command can't be assumed either way).
-  Explains a slow or failed background update instead of leaving it as
-  an unexplained multi-minute wait before the failure notice.
+- A background update refuses to start at all if no internet
+  connection is detected — even for a command that might not actually
+  need network, since an arbitrary user-configured command can't be
+  assumed either way. If that ends up blocking something that
+  genuinely doesn't need a connection (a purely local operation), the
+  workaround is running it manually instead until connectivity is
+  detected again.
 
 Terminal-launched updates ("Run Update Script", and per-source updates
 when background mode is off) are tracked the same way internally, so

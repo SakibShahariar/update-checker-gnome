@@ -362,24 +362,19 @@ class Indicator extends PanelMenu.Button {
             return;
         }
 
+        const isOnline = Gio.NetworkMonitor.get_default().get_connectivity() ===
+            Gio.NetworkConnectivity.FULL;
+        if (!isOnline) {
+            Main.notifyError(
+                `${label} update not started`, 'No internet connection detected.');
+            return;
+        }
+
         const hasPrivilege = /\b(?:doas|sudo)\s+/.test(command);
         const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
 
-        // Non-blocking heads-up only - we can't know whether this
-        // particular command actually needs network (some don't), so
-        // this informs rather than prevents the attempt. If it does
-        // need network, this at least explains why it's slow or fails,
-        // rather than an unexplained multi-minute wait before the
-        // eventual "update failed" notification (many tools retry with
-        // long timeouts before finally giving up).
-        const isOnline = Gio.NetworkMonitor.get_default().get_connectivity() ===
-            Gio.NetworkConnectivity.FULL;
-        Main.notify(
-            `Updating ${label}...`,
-            isOnline ? 'Running in background.'
-                : 'Running in background - no internet connection detected, this may fail or take a while if it needs network.'
-        );
+        Main.notify(`Updating ${label}...`, 'Running in background.');
         try {
             const proc = Gio.Subprocess.new(
                 argv, Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
