@@ -179,12 +179,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const saveSources = () => {
             const checkValues = [];
             const updateValues = [];
+            const intervalValues = [];
             const seen = new Set();
             let hasDuplicate = false;
             for (const r of sourceRows) {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
                 const updateCommand = r.updateCmdEntry.get_text().trim();
+                const interval = Math.round(r.intervalSpin.get_value());
                 r.nameEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
@@ -198,6 +200,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 checkValues.push(`${name}|${command}`);
                 if (updateCommand)
                     updateValues.push(`${name}|${updateCommand}`);
+                intervalValues.push(`${name}|${interval}`);
             }
             if (hasDuplicate) {
                 updateBannerVisibility();
@@ -205,10 +208,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             }
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
+            settings.set_strv('source-intervals', intervalValues);
             updateBannerVisibility();
         };
 
-        const addSourceRow = (name = '', command = '', updateCommand = '') => {
+        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null) => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
                 spacing: 0,
@@ -261,7 +265,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             const bottomRow = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
-                margin_top: 10, margin_start: 12, margin_end: 12, margin_bottom: 12,
+                margin_top: 10, margin_start: 12, margin_end: 12, margin_bottom: 6,
             });
             const updateIconImg = new Gtk.Image({
                 icon_name: 'system-run-symbolic',
@@ -291,14 +295,44 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             bottomRow.append(updateIconImg);
             bottomRow.append(updateCmdEntry);
 
+            const intervalRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
+                margin_start: 12, margin_end: 12, margin_bottom: 12,
+            });
+            const intervalLabel = new Gtk.Label({
+                label: 'Every',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            const intervalSpin = new Gtk.SpinButton({
+                adjustment: new Gtk.Adjustment({
+                    lower: 5, upper: 1440, step_increment: 5,
+                    value: interval ?? settings.get_int('check-interval-minutes'),
+                }),
+                numeric: true,
+                width_chars: 5,
+                valign: Gtk.Align.CENTER,
+            });
+            intervalSpin.set_tooltip_text('Minutes for this source (overrides global)');
+            const intervalSuffix = new Gtk.Label({
+                label: 'min',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            intervalRow.append(intervalLabel);
+            intervalRow.append(intervalSpin);
+            intervalRow.append(intervalSuffix);
+
             wrapper.append(topRow);
             wrapper.append(separator);
             wrapper.append(bottomRow);
+            wrapper.append(intervalRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin};
             sourceRows.push(entry);
 
+            intervalSpin.connect('value-changed', saveSources);
             for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => { if (!widget.has_focus) saveSources(); });
@@ -325,13 +359,22 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 continue;
             existingUpdateCommands.set(entry.slice(0, idx).trim(), entry.slice(idx + 1).trim());
         }
+        const existingIntervals = new Map();
+        for (const entry of settings.get_strv('source-intervals')) {
+            const idx = entry.indexOf('|');
+            if (idx === -1)
+                continue;
+            const n = entry.slice(0, idx).trim();
+            const v = parseInt(entry.slice(idx + 1).trim(), 10);
+            if (n && Number.isFinite(v)) existingIntervals.set(n, v);
+        }
         for (const entry of settings.get_strv('sources')) {
             const idx = entry.indexOf('|');
             if (idx === -1)
                 continue;
             const name = entry.slice(0, idx).trim();
             const command = entry.slice(idx + 1).trim();
-            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '');
+            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null);
         }
 
         const scroller = new Gtk.ScrolledWindow({

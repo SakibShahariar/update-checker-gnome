@@ -102,5 +102,17 @@
       <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
     </key>
 
+    <key name="source-intervals" type="as">
+      <default>[]</default>
+      <summary>Per-source intervals</summary>
+      <description>List of "Name|minutes" entries overriding the global check-interval for a source, e.g. "Cargo|1440". Empty means use global interval.</description>
+    </key>
+
+    <key name="history" type="as">
+      <default>[]</default>
+      <summary>History of totals</summary>
+      <description>Internal list of "ISO8601|total" entries for sparkline, kept to last 14.</description>
+    </key>
+
   </schema>
 </schemalist>

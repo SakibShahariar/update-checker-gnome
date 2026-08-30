@@ -109,6 +109,27 @@ function truncate(str, max) {
     return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
+function parseIntervals(strv) {
+    const map = new Map();
+    for (const entry of strv) {
+        const idx = entry.indexOf('|');
+        if (idx === -1) continue;
+        const name = entry.slice(0, idx).trim();
+        const val = parseInt(entry.slice(idx + 1).trim(), 10);
+        if (name && Number.isFinite(val) && val >= 5) map.set(name, val);
+    }
+    return map;
+}
+
+function sparkline(values) {
+    if (!values || values.length === 0) return '';
+    const blocks = ['▁','▂','▃','▄','▅','▆','▇','█'];
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    return values.map(v => blocks[Math.round(((v - min) / range) * (blocks.length - 1))]).join('');
+}
+
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
     _init(extensionObject) {
@@ -138,6 +159,8 @@ class Indicator extends PanelMenu.Button {
         this._sourceRowWidgets = new Map();
         this._checking = false;
         this._destroyed = false;
+        this._lastSourcePoll = new Map(); // name -> epoch ms
+        this._lastSourceResults = new Map(); // name -> {status,count,message,lines}
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
         this._icon = new St.Icon({
@@ -208,6 +231,16 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.add_style_class_name('update-checker-status-line');
         this.menu.addMenuItem(this._statusItem);
 
+        this._historyItem = new PopupMenu.PopupMenuItem('', {reactive: false});
+        this._historyItem.label.add_style_class_name('update-checker-status-line');
+        this._historyItem.visible = false;
+        this.menu.addMenuItem(this._historyItem);
+
+        this._dismissItem = new PopupMenu.PopupMenuItem('Dismiss errors');
+        this._dismissItem.visible = false;
+        this._dismissItem.connect('activate', () => this._dismissErrors());
+        this.menu.addMenuItem(this._dismissItem);
+
         const checkNowItem = new PopupMenu.PopupMenuItem('Check Now');
         checkNowItem.connect('activate', () => this.checkNow(true));
         this.menu.addMenuItem(checkNowItem);
@@ -261,6 +294,51 @@ class Indicator extends PanelMenu.Button {
             : (hour >= start || hour < end); // wraps past midnight
     }
 
+    _dismissErrors() {
+        this._lastAnyFailed = false;
+        this._lastRebootRequired = false;
+        this._rebootItem.visible = false;
+        this._securityItem.visible = false;
+        this._dismissItem.visible = false;
+        // Hide failed per-source rows until next check
+        // (they will be rebuilt on next checkNow)
+        this._updateVisibility();
+        this._label.set_text(this._lastTotal > 0 ? `${this._lastTotal}` : '');
+        this._icon.icon_name = this._lastTotal > 0 ? 'software-update-urgent-symbolic' : 'software-update-available-symbolic';
+        this._statusItem.label.set_text(`Dismissed — next check ${this._settings.get_int('check-interval-minutes')}m`);
+    }
+
+    _pushHistory(total) {
+        try {
+            const now = GLib.DateTime.new_now_local().format_iso8601();
+            const hist = this._settings.get_strv('history');
+            hist.push(`${now}|${total}`);
+            while (hist.length > 14) hist.shift();
+            this._settings.set_strv('history', hist);
+        } catch (e) {}
+        this._updateHistoryItem();
+    }
+
+    _updateHistoryItem() {
+        try {
+            const hist = this._settings.get_strv('history');
+            if (hist.length < 2) {
+                this._historyItem.visible = false;
+                return;
+            }
+            const vals = hist.map(h => {
+                const idx = h.lastIndexOf('|');
+                return idx !== -1 ? parseInt(h.slice(idx + 1), 10) || 0 : 0;
+            });
+            const sp = sparkline(vals);
+            const last = vals[vals.length - 1];
+            this._historyItem.label.set_text(`History ${sp}  ${last}`);
+            this._historyItem.visible = true;
+        } catch (e) {
+            this._historyItem.visible = false;
+        }
+    }
+
     _renderEmpty() {
         this._label.set_text('');
         this._statusItem.label.set_text('Not checked yet');
@@ -273,6 +351,8 @@ class Indicator extends PanelMenu.Button {
         // Stay hidden until the first check completes and actually finds
         // something, unless the user wants the icon visible regardless.
         this._updateVisibility();
+        if (this._dismissItem) this._dismissItem.visible = false;
+        if (this._historyItem) this._updateHistoryItem();
     }
 
     // Launches a command in a terminal, same as before, but now tracked
@@ -646,16 +726,36 @@ class Indicator extends PanelMenu.Button {
         const failed = [];
         const results = [];
 
+        // Per-source intervals: skip source if its interval hasn't elapsed (unless manual)
+        const intervals = parseIntervals(this._settings.get_strv('source-intervals'));
+        const globalMinutes = this._settings.get_int('check-interval-minutes');
+        const nowMs = Date.now();
+        const toPoll = [];
+        for (const src of sources) {
+            const iv = intervals.get(src.name) ?? globalMinutes;
+            const last = this._lastSourcePoll.get(src.name) ?? 0;
+            const cached = this._lastSourceResults.get(src.name);
+            if (!manual && cached && (nowMs - last) < iv * 60 * 1000) {
+                results.push({name: src.name, ...cached});
+            } else {
+                toPoll.push(src);
+            }
+        }
+
         // Run all sources, the reboot check, and the security check
         // concurrently.
         const [, rebootCheckFailed, securityCheckFailed] = await Promise.all([
-            Promise.all(sources.map(async (src) => {
+            Promise.all(toPoll.map(async (src) => {
                 const raw = await runShell(src.command);
-                results.push({name: src.name, ...classifyResult(raw)});
+                const res = classifyResult(raw);
+                results.push({name: src.name, ...res});
+                this._lastSourcePoll.set(src.name, nowMs);
+                this._lastSourceResults.set(src.name, res);
             })),
             this._checkReboot(),
             this._checkSecurity(),
         ]);
+        // For cached sources, ensure poll time stays as last (don't update)
 
         // Only clear the old rows now that fresh results are actually
         // ready to replace them - keeps the last-known (stale but real)
@@ -825,6 +925,10 @@ class Indicator extends PanelMenu.Button {
             );
         }
         this._lastNotifiedTotal = total;
+        // History + dismiss visibility
+        this._pushHistory(total);
+        this._dismissItem.visible = anyFailed || rebootCheckFailed || securityCheckFailed;
+        this._updateHistoryItem();
         this._checking = false;
     }
 });
