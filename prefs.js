@@ -109,34 +109,54 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         watchGroup.add(watchRow);
 
-        // Page 2: Sources
+        // Page 2: Sources — beautiful cards
         const sourcesPage = new Adw.PreferencesPage({
             title: 'Sources',
             icon_name: 'system-software-install-symbolic',
         });
         window.add(sourcesPage);
 
-        const bgGroup = new Adw.PreferencesGroup({title: 'Per-Source Updates'});
+        const bgGroup = new Adw.PreferencesGroup({
+            title: 'Updates',
+            description: 'How clicking a source runs its update.',
+        });
         sourcesPage.add(bgGroup);
 
         const backgroundRow = new Adw.SwitchRow({
             title: 'Run in background',
-            subtitle: 'Use pkexec prompt, no terminal',
+            subtitle: 'No terminal, graphical password via pkexec',
         });
+        backgroundRow.add_prefix(new Gtk.Image({icon_name: 'system-run-symbolic', pixel_size: 20, valign: Gtk.Align.CENTER}));
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         bgGroup.add(backgroundRow);
 
+        const SOURCE_ICONS = {
+            'DNF': 'system-software-install-symbolic',
+            'Flatpak': 'application-x-flatpak-symbolic',
+            'Cargo': 'application-x-cargo-symbolic',
+            'npm (global)': 'application-x-npm-symbolic',
+            'uv tools': 'application-x-python-symbolic',
+        };
+        const getSourceIcon = (name) => SOURCE_ICONS[name] || 'package-x-generic-symbolic';
+
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Count = non-empty lines on stdout. Update command is optional.',
+            description: 'Each check prints one line per update. Update command runs when you click the source.',
         });
         sourcesPage.add(sourcesGroup);
 
-        const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 10});
+        const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12});
         const sourceRows = [];
         const emptyBanner = new Adw.Banner({
             title: 'No valid sources - add one below.',
             revealed: false,
+        });
+        const emptyStatus = new Adw.StatusPage({
+            icon_name: 'system-software-install-symbolic',
+            title: 'No sources yet',
+            description: 'Add DNF, Flatpak or a custom command to start checking.',
+            visible: false,
+            vexpand: false,
         });
         const updateBannerVisibility = () => {
             const valid = sourceRows.some(r => {
@@ -145,6 +165,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 return n && c;
             });
             emptyBanner.set_revealed(!valid);
+            emptyStatus.set_visible(sourceRows.length === 0);
+            rowsBox.set_visible(sourceRows.length > 0);
         };
 
         const saveSources = () => {
@@ -182,52 +204,81 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const addSourceRow = (name = '', command = '', updateCommand = '') => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
-                spacing: 3,
+                spacing: 0,
                 css_classes: ['card'],
-                margin_top: 2, margin_bottom: 2,
+                margin_top: 4, margin_bottom: 4,
             });
 
+            const iconName = getSourceIcon(name);
             const topRow = new Gtk.Box({
-                orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
-                margin_top: 6, margin_start: 8, margin_end: 8,
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 10,
+                margin_top: 12, margin_start: 12, margin_end: 12, margin_bottom: 4,
+            });
+            const icon = new Gtk.Image({
+                icon_name: iconName,
+                pixel_size: 22,
+                valign: Gtk.Align.CENTER,
+                css_classes: ['dim-label'],
             });
             const nameEntry = new Gtk.Entry({
-                placeholder_text: 'Name',
+                placeholder_text: 'Name  •  e.g. DNF',
                 text: name,
-                width_chars: 12,
+                width_chars: 11,
                 hexpand: false,
+                css_classes: ['heading'],
             });
+            nameEntry.set_tooltip_text('Source name - must be unique');
             const cmdEntry = new Gtk.Entry({
-                placeholder_text: 'Check command',
+                placeholder_text: 'Check  •  e.g. flatpak remote-ls --updates',
                 text: command,
                 hexpand: true,
+                css_classes: ['monospace'],
             });
+            cmdEntry.set_tooltip_text('Prints one line per pending update');
             const removeButton = new Gtk.Button({
-                icon_name: 'list-remove-symbolic',
-                tooltip_text: 'Remove',
+                icon_name: 'user-trash-symbolic',
+                tooltip_text: 'Remove this source',
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat', 'circular'],
             });
+            topRow.append(icon);
             topRow.append(nameEntry);
             topRow.append(cmdEntry);
             topRow.append(removeButton);
 
+            // live icon update when name changes
+            const updateIcon = () => icon.set_from_icon_name(getSourceIcon(nameEntry.get_text().trim()));
+            nameEntry.connect('changed', updateIcon);
+
+            const separator = new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, css_classes: ['spacer']});
+
             const bottomRow = new Gtk.Box({
-                orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
-                margin_bottom: 6, margin_start: 8, margin_end: 8,
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
+                margin_top: 8, margin_start: 12, margin_end: 12, margin_bottom: 12,
+            });
+            const updateIconImg = new Gtk.Image({
+                icon_name: 'system-run-symbolic',
+                pixel_size: 14,
+                valign: Gtk.Align.CENTER,
+                css_classes: ['dim-label'],
             });
             const updateLabel = new Gtk.Label({
-                label: 'Update:', width_chars: 12, xalign: 0, css_classes: ['dim-label'],
+                label: 'Update',
+                width_chars: 6, xalign: 0, css_classes: ['dim-label', 'caption'],
             });
             const updateCmdEntry = new Gtk.Entry({
-                placeholder_text: 'Update command (optional)',
+                placeholder_text: 'Update  •  optional, runs on click',
                 text: updateCommand,
                 hexpand: true,
+                css_classes: ['monospace'],
             });
+            updateCmdEntry.set_tooltip_text('Runs when you click this source in the panel');
+            bottomRow.append(updateIconImg);
             bottomRow.append(updateLabel);
             bottomRow.append(updateCmdEntry);
 
             wrapper.append(topRow);
+            wrapper.append(separator);
             wrapper.append(bottomRow);
             rowsBox.append(wrapper);
 
@@ -270,18 +321,23 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
 
         const scroller = new Gtk.ScrolledWindow({
-            min_content_height: Math.min(320, Math.max(90, sourceRows.length * 78 + 12)),
+            min_content_height: Math.min(340, Math.max(120, sourceRows.length * 92 + 16)),
             hexpand: true,
+            css_classes: ['card'],
         });
         scroller.set_child(rowsBox);
-
-        const frame = new Gtk.Frame();
-        frame.set_child(scroller);
+        // subtle rounded clipping for cards inside
+        rowsBox.set_margin_top(6);
+        rowsBox.set_margin_bottom(6);
+        rowsBox.set_margin_start(6);
+        rowsBox.set_margin_end(6);
 
         const addButton = new Gtk.Button({
-            label: '+ Add Source',
-            halign: Gtk.Align.START,
+            label: 'Add Source',
+            halign: Gtk.Align.CENTER,
+            css_classes: ['pill', 'suggested-action'],
         });
+        addButton.set_icon_name('list-add-symbolic');
 
         const buildPopoverContent = () => {
             const existingNames = new Set(sourceRows.map(r => r.nameEntry.get_text().trim()));
@@ -354,9 +410,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         popover.set_parent(addButton);
         addButton.connect('clicked', () => popover.popup());
 
-        const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
+        const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12});
         box.append(emptyBanner);
-        box.append(frame);
+        box.append(emptyStatus);
+        box.append(scroller);
         box.append(addButton);
         updateBannerVisibility();
 
