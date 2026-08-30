@@ -357,9 +357,16 @@ itself is skipped. Notifications from something you directly triggered
 (like a per-source update finishing) are unaffected — quiet hours only
 apply to the passive, periodic ones.
 
+## Per-source intervals, history and dismiss
+
+* **Per-source interval** — each source card in Preferences → Sources has an `Every [60] min` spin (default from General → Check interval). A fast source (e.g. DNF 60m, Cargo 1440m) is skipped until its interval elapses, reusing its last count; `Check Now` forces all.
+* **History sparkline** — the dropdown footer shows the last 14 totals as `History ▁▅█ 12`, stored in `history` (`ISO|total`).
+* **Dismiss errors** — when any source/reboot/security check fails, a `Dismiss errors` menu item appears; it clears `!`/warnings until the next poll.
+* **Settings** — panel menu now has `Settings…` (calls `openPreferences()`).
+
 ## Run Update Script
 
-Set **Preferences → Update Script → Script path** to your fish script
+Set **Preferences → Advanced → Update Script → Script path** to your fish script
 (e.g. `/home/you/bin/update-system.fish`), and set the terminal command
 if you don't use GNOME Terminal (default `gnome-terminal --`). The panel
 menu's "Run Update Script" item then opens a terminal and runs it, so
