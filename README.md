@@ -57,11 +57,11 @@ Default DNF: `dnf check-update -q --refresh --color=never | grep -E '^\S+\.\S+\s
 * Click source → expand package names (first token), run button if update command set.
 * `Dismiss errors` clears `!` until next poll.
 
-### Settings — 3 pages
+### Settings
 
-**General:** interval (global), notify, always show, quiet hours, watch DBs  
-**Sources:** per-source card — check + `On click →` update + `Every [60] min`  
-**Advanced:** reboot, security, script path + terminal (`gnome-terminal --` / `kitty --`)
+**General** — interval, notify, always show, quiet hours, watch DBs  
+**Sources** — per-source check + `On click →` update + `Every [60] min`  
+**Advanced** — reboot, security, script + terminal
 
 <details>
 <summary>Offline, Reboot, Security</summary>
