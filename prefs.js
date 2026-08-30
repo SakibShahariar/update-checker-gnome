@@ -4,39 +4,36 @@ import Gio from 'gi://Gio';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-// Known-good check-only commands for common tools. Each prints one line
-// of output per pending update on stdout, so a plain line count is
-// accurate (verified against each tool's current documented behavior).
 const PRESET_SOURCES = [
     {
         name: 'DNF',
         command: "dnf check-update -q --refresh --color=never | grep -E '^\\S+\\.\\S+\\s'",
         updateCommand: 'doas dnf update --refresh -y && doas dnf autoremove -y',
-        blurb: 'Fedora/RHEL system packages. --refresh forces a real metadata check every run.',
+        blurb: 'Fedora/RHEL packages.',
     },
     {
         name: 'Flatpak',
         command: 'flatpak remote-ls --updates',
         updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
-        blurb: 'Checks your default remote (usually flathub). Add one source per extra remote if needed.',
+        blurb: 'Flathub (add one per remote if needed).',
     },
     {
         name: 'Cargo',
         command: "cargo install-update -l -a | awk '$NF==\"Yes\"'",
         updateCommand: 'cargo install-update -a',
-        blurb: 'Rust binaries installed via `cargo install`, using the cargo-update crate.',
+        blurb: 'Requires cargo-update crate.',
     },
     {
         name: 'npm (global)',
         command: 'npm outdated -g --parseable',
         updateCommand: 'doas npm update -g',
-        blurb: 'Global npm packages. --parseable prints one line per outdated package, no header.',
+        blurb: 'Global npm packages.',
     },
     {
         name: 'uv tools',
         command: "uv tool list --outdated | grep '\\[latest:'",
         updateCommand: 'uv tool upgrade --all',
-        blurb: 'Python tools installed via `uv tool install`. Requires network access to check.',
+        blurb: 'Requires network.',
     },
 ];
 
@@ -44,16 +41,19 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
 
-        const page = new Adw.PreferencesPage();
-        window.add(page);
+        // Page 1: General
+        const generalPage = new Adw.PreferencesPage({
+            title: 'General',
+            icon_name: 'preferences-system-symbolic',
+        });
+        window.add(generalPage);
 
-        // --- General group ---
-        const generalGroup = new Adw.PreferencesGroup({title: 'General'});
-        page.add(generalGroup);
+        const generalGroup = new Adw.PreferencesGroup({title: 'Updates'});
+        generalPage.add(generalGroup);
 
         const intervalRow = new Adw.SpinRow({
-            title: 'Check interval (minutes)',
-            subtitle: 'How often to re-run all update checks',
+            title: 'Check interval',
+            subtitle: 'Minutes between checks',
             adjustment: new Gtk.Adjustment({lower: 5, upper: 1440, step_increment: 5}),
         });
         settings.bind('check-interval-minutes', intervalRow, 'value', Gio.SettingsBindFlags.DEFAULT);
@@ -61,171 +61,81 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const notifyRow = new Adw.SwitchRow({
             title: 'Notify on new updates',
-            subtitle: 'Show a notification when the update count increases',
+            subtitle: 'When count increases',
         });
         settings.bind('notify-on-new', notifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(notifyRow);
 
         const showZeroRow = new Adw.SwitchRow({
-            title: 'Keep icon visible when up to date',
-            subtitle: 'Off (default): the panel icon only appears when updates are pending',
+            title: 'Always show icon',
+            subtitle: 'Even when 0 updates',
         });
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
-        // --- Quiet hours group ---
-        const quietGroup = new Adw.PreferencesGroup({
-            title: 'Quiet Hours',
-            description: 'Suppresses the "updates available" and "reboot required" popup notifications during this hour range. The panel icon and count still update normally either way - only the popup is skipped.',
-        });
-        page.add(quietGroup);
+        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours'});
+        generalPage.add(quietGroup);
 
         const quietEnabledRow = new Adw.SwitchRow({
-            title: 'Suppress notifications during quiet hours',
+            title: 'Suppress notifications',
+            subtitle: 'Only popups - icon still updates',
         });
         settings.bind('quiet-hours-enabled', quietEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEnabledRow);
 
         const quietStartRow = new Adw.SpinRow({
-            title: 'Start (24h)',
-            subtitle: 'Hour quiet hours begin, e.g. 23 for 11pm',
+            title: 'Start',
+            subtitle: 'Hour (0-23), e.g. 23',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
         });
         settings.bind('quiet-hours-start', quietStartRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietStartRow);
 
         const quietEndRow = new Adw.SpinRow({
-            title: 'End (24h)',
-            subtitle: 'Hour quiet hours end, e.g. 8 for 8am. If earlier than start, wraps past midnight. Same as start = 24h quiet.',
+            title: 'End',
+            subtitle: 'Hour (0-23), same as start = 24h',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
         });
         settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEndRow);
 
-        // --- Package database watching ---
-        const watchGroup = new Adw.PreferencesGroup({
-            title: 'Instant Refresh After Updates',
-            description: 'Watches DNF\'s and Flatpak\'s state directories directly and re-checks a few seconds after they change - catching updates run any way at all (your own terminal, another tool, this extension), not just the scheduled timer. Requires reloading the extension (log out/in, or Alt+F2 r on X11) after changing this.',
-        });
-        page.add(watchGroup);
+        const watchGroup = new Adw.PreferencesGroup({title: 'Instant Refresh'});
+        generalPage.add(watchGroup);
 
         const watchRow = new Adw.SwitchRow({
-            title: 'Watch package databases for changes',
+            title: 'Watch package databases',
+            subtitle: 'Re-check after any update (needs reload)',
         });
         settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         watchGroup.add(watchRow);
 
-        // --- Reboot required group ---
-        const rebootGroup = new Adw.PreferencesGroup({
-            title: 'Reboot Required',
-            description: 'A separate check for whether the system needs a reboot to finish applying updates (e.g. after a kernel update) - shown as its own icon in the panel.',
+        // Page 2: Sources
+        const sourcesPage = new Adw.PreferencesPage({
+            title: 'Sources',
+            icon_name: 'system-software-install-symbolic',
         });
-        page.add(rebootGroup);
+        window.add(sourcesPage);
 
-        const rebootEnabledRow = new Adw.SwitchRow({
-            title: 'Check for pending reboot',
-            subtitle: 'Uses `dnf needs-restarting -r` by default (Fedora/RHEL)',
-        });
-        settings.bind('check-reboot-required', rebootEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        rebootGroup.add(rebootEnabledRow);
-
-        const rebootCommandRow = new Adw.EntryRow({title: 'Reboot check command'});
-        settings.bind('reboot-check-command', rebootCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
-        rebootGroup.add(rebootCommandRow);
-
-        const rebootHintRow = new Adw.ActionRow({
-            title: 'On Ubuntu/Debian, use instead:',
-            subtitle: 'test -f /var/run/reboot-required && echo "Reboot required"',
-        });
-        rebootGroup.add(rebootHintRow);
-
-        // --- Security updates group ---
-        const securityGroup = new Adw.PreferencesGroup({
-            title: 'Security Updates',
-            description: 'Separately flags how many pending updates are security-related, without double-counting them into the main total - they\'re already included there. Requires network, so it\'s skipped while offline, same as the main sources.',
-        });
-        page.add(securityGroup);
-
-        const securityEnabledRow = new Adw.SwitchRow({
-            title: 'Flag security updates separately',
-            subtitle: 'Uses `dnf check-update --security` by default (Fedora/RHEL)',
-        });
-        settings.bind('check-security-updates', securityEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        securityGroup.add(securityEnabledRow);
-
-        const securityCommandRow = new Adw.EntryRow({title: 'Security check command'});
-        settings.bind('security-check-command', securityCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
-        securityGroup.add(securityCommandRow);
-
-        // --- Update script group ---
-        const scriptGroup = new Adw.PreferencesGroup({
-            title: 'Update Script',
-            description: 'Optional: a script to run (in a terminal, so password prompts work) from the panel menu\'s "Run Update Script" item.',
-        });
-        page.add(scriptGroup);
-
-        const scriptRow = new Adw.EntryRow({title: 'Script path'});
-        scriptRow.set_text(settings.get_string('update-script-path'));
-        scriptRow.connect('notify::text', () => {
-            settings.set_string('update-script-path', scriptRow.get_text());
-        });
-        scriptGroup.add(scriptRow);
-
-        const browseButton = new Gtk.Button({
-            icon_name: 'document-open-symbolic',
-            valign: Gtk.Align.CENTER,
-            tooltip_text: 'Browse...',
-        });
-        browseButton.connect('clicked', () => {
-            const chooser = new Gtk.FileChooserNative({
-                title: 'Select update script',
-                action: Gtk.FileChooserAction.OPEN,
-                transient_for: window,
-                modal: true,
-            });
-            chooser.connect('response', (dlg, response) => {
-                if (response === Gtk.ResponseType.ACCEPT) {
-                    const file = dlg.get_file();
-                    if (file) {
-                        const path = file.get_path();
-                        scriptRow.set_text(path);
-                    }
-                }
-                chooser.destroy();
-            });
-            chooser.show();
-        });
-        scriptRow.add_suffix(browseButton);
-
-        const terminalRow = new Adw.EntryRow({title: 'Terminal command'});
-        settings.bind('terminal-command', terminalRow, 'text', Gio.SettingsBindFlags.DEFAULT);
-        scriptGroup.add(terminalRow);
-
-        // --- Per-source update behavior ---
-        const backgroundGroup = new Adw.PreferencesGroup({
-            title: 'Per-Source Updates',
-            description: 'How clicking a source (e.g. "Flatpak: 3") in the panel menu runs its update command. Only applies to per-source updates below, not "Run Update Script" above.',
-        });
-        page.add(backgroundGroup);
+        const bgGroup = new Adw.PreferencesGroup({title: 'Per-Source Updates'});
+        sourcesPage.add(bgGroup);
 
         const backgroundRow = new Adw.SwitchRow({
-            title: 'Run in background instead of a terminal',
-            subtitle: 'Uses a graphical password prompt (pkexec) for any doas/sudo command, no terminal window',
+            title: 'Run in background',
+            subtitle: 'Use pkexec prompt, no terminal',
         });
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        backgroundGroup.add(backgroundRow);
+        bgGroup.add(backgroundRow);
 
-        // --- Sources group ---
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Each row runs a check command; the number of non-empty lines it prints on stdout becomes that source\'s update count. The optional "update" field is a command to run (in a terminal) when you click that source in the panel menu - leave it blank to just show the count. Use "Add Source" below instead of editing text by hand.',
+            description: 'Count = non-empty lines on stdout. Update command is optional.',
         });
-        page.add(sourcesGroup);
+        sourcesPage.add(sourcesGroup);
 
         const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 10});
         const sourceRows = [];
         const emptyBanner = new Adw.Banner({
-            title: 'No valid sources - add one below, otherwise the panel will show a warning.',
+            title: 'No valid sources - add one below.',
             revealed: false,
         });
         const updateBannerVisibility = () => {
@@ -246,13 +156,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
                 const updateCommand = r.updateCmdEntry.get_text().trim();
-                // Clear previous error state
                 r.nameEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
                 if (seen.has(name)) {
                     r.nameEntry.add_css_class('error');
-                    r.nameEntry.set_tooltip_text(`Duplicate name "${name}" - rename or remove`);
+                    r.nameEntry.set_tooltip_text(`Duplicate "${name}"`);
                     hasDuplicate = true;
                     continue;
                 }
@@ -260,10 +169,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 checkValues.push(`${name}|${command}`);
                 if (updateCommand)
                     updateValues.push(`${name}|${updateCommand}`);
-                else
-                    r.updateCmdEntry.set_tooltip_text('');
             }
-            // Don’t save if duplicates remain - user must fix first
             if (hasDuplicate) {
                 updateBannerVisibility();
                 return;
@@ -298,7 +204,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             });
             const removeButton = new Gtk.Button({
                 icon_name: 'list-remove-symbolic',
-                tooltip_text: 'Remove this source',
+                tooltip_text: 'Remove',
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat', 'circular'],
             });
@@ -314,7 +220,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 label: 'Update:', width_chars: 12, xalign: 0, css_classes: ['dim-label'],
             });
             const updateCmdEntry = new Gtk.Entry({
-                placeholder_text: 'Optional - command to run when clicked in the panel menu',
+                placeholder_text: 'Update command (optional)',
                 text: updateCommand,
                 hexpand: true,
             });
@@ -372,7 +278,6 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const frame = new Gtk.Frame();
         frame.set_child(scroller);
 
-        // --- "Add Source" popover: pick a known tool, or add a custom one ---
         const addButton = new Gtk.Button({
             label: '+ Add Source',
             halign: Gtk.Align.START,
@@ -392,7 +297,6 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const row = new Adw.ActionRow({
                     title: preset.name,
                     subtitle: preset.blurb,
-                    subtitle_lines: 2,
                     activatable: !already,
                     sensitive: !already,
                     hexpand: true,
@@ -412,7 +316,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             const customRow = new Adw.ActionRow({
                 title: 'Custom command…',
-                subtitle: 'Add a blank row and write your own name and command',
+                subtitle: 'Blank row',
                 activatable: true,
                 hexpand: true,
             });
@@ -437,8 +341,6 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 orientation: Gtk.Orientation.VERTICAL,
                 margin_top: 8, margin_bottom: 8, margin_start: 8, margin_end: 8,
             });
-            // Force a fixed, sane width - ScrolledWindow content-size hints
-            // alone don't make the child (and its wrapped labels) expand to fill it.
             wrapper.set_size_request(360, -1);
             wrapper.append(scrolled);
 
@@ -456,9 +358,89 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         box.append(emptyBanner);
         box.append(frame);
         box.append(addButton);
-        // Initial banner state after loading existing rows
         updateBannerVisibility();
 
         sourcesGroup.add(box);
+
+        // Page 3: Advanced
+        const advancedPage = new Adw.PreferencesPage({
+            title: 'Advanced',
+            icon_name: 'applications-system-symbolic',
+        });
+        window.add(advancedPage);
+
+        const rebootGroup = new Adw.PreferencesGroup({title: 'Reboot Required'});
+        advancedPage.add(rebootGroup);
+
+        const rebootEnabledRow = new Adw.SwitchRow({
+            title: 'Check for reboot',
+            subtitle: 'Needs restart after kernel update',
+        });
+        settings.bind('check-reboot-required', rebootEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        rebootGroup.add(rebootEnabledRow);
+
+        const rebootCommandRow = new Adw.EntryRow({title: 'Command'});
+        settings.bind('reboot-check-command', rebootCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        rebootGroup.add(rebootCommandRow);
+
+        const rebootHintRow = new Adw.ActionRow({
+            title: 'Ubuntu/Debian:',
+            subtitle: 'test -f /var/run/reboot-required && echo "Reboot required"',
+        });
+        rebootGroup.add(rebootHintRow);
+
+        const securityGroup = new Adw.PreferencesGroup({title: 'Security Updates'});
+        advancedPage.add(securityGroup);
+
+        const securityEnabledRow = new Adw.SwitchRow({
+            title: 'Flag security separately',
+            subtitle: 'Subset of main count',
+        });
+        settings.bind('check-security-updates', securityEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(securityEnabledRow);
+
+        const securityCommandRow = new Adw.EntryRow({title: 'Command'});
+        settings.bind('security-check-command', securityCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(securityCommandRow);
+
+        const scriptGroup = new Adw.PreferencesGroup({title: 'Update Script'});
+        advancedPage.add(scriptGroup);
+
+        const scriptRow = new Adw.EntryRow({title: 'Script path'});
+        scriptRow.set_text(settings.get_string('update-script-path'));
+        scriptRow.connect('notify::text', () => {
+            settings.set_string('update-script-path', scriptRow.get_text());
+        });
+        scriptGroup.add(scriptRow);
+
+        const browseButton = new Gtk.Button({
+            icon_name: 'document-open-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: 'Browse...',
+        });
+        browseButton.connect('clicked', () => {
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Select script',
+                action: Gtk.FileChooserAction.OPEN,
+                transient_for: window,
+                modal: true,
+            });
+            chooser.connect('response', (dlg, response) => {
+                if (response === Gtk.ResponseType.ACCEPT) {
+                    const file = dlg.get_file();
+                    if (file) {
+                        const path = file.get_path();
+                        scriptRow.set_text(path);
+                    }
+                }
+                chooser.destroy();
+            });
+            chooser.show();
+        });
+        scriptRow.add_suffix(browseButton);
+
+        const terminalRow = new Adw.EntryRow({title: 'Terminal'});
+        settings.bind('terminal-command', terminalRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        scriptGroup.add(terminalRow);
     }
 }
