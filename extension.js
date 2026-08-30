@@ -216,6 +216,10 @@ class Indicator extends PanelMenu.Button {
         this._runScriptItem.connect('activate', () => this._runUpdateScript());
         this.menu.addMenuItem(this._runScriptItem);
 
+        const settingsItem = new PopupMenu.PopupMenuItem('Settings…');
+        settingsItem.connect('activate', () => this._ext.openPreferences());
+        this.menu.addMenuItem(settingsItem);
+
         this.menu.connect('open-state-changed', (menu, open) => {
             if (open)
                 this._updateRunScriptVisibility();
