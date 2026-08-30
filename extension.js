@@ -137,6 +137,7 @@ class Indicator extends PanelMenu.Button {
         // itself entirely while a background update is running.
         this._sourceRowWidgets = new Map();
         this._checking = false;
+        this._destroyed = false;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
         this._icon = new St.Icon({
@@ -249,7 +250,7 @@ class Indicator extends PanelMenu.Button {
         const start = this._settings.get_int('quiet-hours-start');
         const end = this._settings.get_int('quiet-hours-end');
         if (start === end)
-            return false;
+            return true; // same hour => 24h quiet (disable via toggle, not via equal hours)
         const hour = GLib.DateTime.new_now_local().get_hour();
         return start < end
             ? (hour >= start && hour < end)
@@ -306,6 +307,9 @@ class Indicator extends PanelMenu.Button {
                     // to ignore here, the person already sees the
                     // terminal window (or its absence) directly.
                 }
+                // Guard: indicator may have been destroyed while terminal was open
+                if (!this._sourceRowWidgets)
+                    return;
                 this._updatingSources.delete(key);
                 // Only re-check if nothing else is still in flight -
                 // checkNow() already guards this itself, but skip the
@@ -402,6 +406,9 @@ class Indicator extends PanelMenu.Button {
                 } catch (e) {
                     stderr = String(e);
                 }
+                // Guard: indicator may have been destroyed while update was running
+                if (!this._sourceRowWidgets)
+                    return;
                 this._updatingSources.delete(label);
                 this._setRowUpdating(label, false);
                 if (entry.stopped)
@@ -409,8 +416,15 @@ class Indicator extends PanelMenu.Button {
                 else if (ok)
                     Main.notify(`${label} updated`, 'Finished successfully.');
                 else {
-                    Main.notifyError(
-                        `${label} update failed`, stderr.trim().split('\n')[0] || 'Unknown error');
+                    const low = stderr.toLowerCase();
+                    const cancelled = low.includes('dismissed') || low.includes('cancel') ||
+                        low.includes('not authorized') || low.includes('auth could not be obtained');
+                    if (cancelled) {
+                        Main.notify(`${label} update cancelled`, 'Authentication cancelled.');
+                    } else {
+                        Main.notifyError(
+                            `${label} update failed`, stderr.trim().split('\n')[0] || 'Unknown error');
+                    }
                 }
                 // Re-check either way - success needs a fresh count,
                 // and failure/stop needs a fresh look at what's still
@@ -437,7 +451,7 @@ class Indicator extends PanelMenu.Button {
         if (!path)
             return;
         const term = this._settings.get_string('terminal-command');
-        const fullCommand = `${term} ${GLib.shell_quote(path)}`;
+        const fullCommand = `${term} sh -c ${GLib.shell_quote(path)}`;
         this._launchTracked(fullCommand, '__script__');
     }
 
@@ -475,8 +489,12 @@ class Indicator extends PanelMenu.Button {
         this._rebootFullMessage = rebootMessage || '';
         if (rebootRequired) {
             this._rebootItem.label.set_text(`⟳ ${truncate(rebootMessage || 'Reboot required', 55)}`);
+            this._rebootItem.tooltip_text = rebootMessage || 'Reboot required';
         } else if (rebootCheckFailed) {
             this._rebootItem.label.set_text(`⚠ Reboot check failed: ${truncate(rebootMessage, 35)}`);
+            this._rebootItem.tooltip_text = rebootMessage || '';
+        } else {
+            this._rebootItem.tooltip_text = '';
         }
 
         if (this._settings.get_boolean('notify-on-new') && !this._inQuietHours() &&
@@ -520,8 +538,12 @@ class Indicator extends PanelMenu.Button {
         if (count > 0) {
             this._securityItem.label.set_text(
                 `🛡 ${count} security update${count === 1 ? '' : 's'} pending`);
+            this._securityItem.tooltip_text = '';
         } else if (failed) {
             this._securityItem.label.set_text(`⚠ Security check failed: ${truncate(message, 35)}`);
+            this._securityItem.tooltip_text = message || '';
+        } else {
+            this._securityItem.tooltip_text = '';
         }
 
         return failed;
@@ -590,6 +612,26 @@ class Indicator extends PanelMenu.Button {
         const sources = parseSources(this._settings.get_strv('sources'));
         const updateCommands = parseUpdateCommands(this._settings.get_strv('source-update-commands'));
 
+        // Empty sources is misconfigured, not "up to date"
+        if (sources.length === 0) {
+            this._resultsSection.removeAll();
+            this._sourceRowWidgets.clear();
+            const warn = new PopupMenu.PopupMenuItem('No sources configured', {reactive: true});
+            warn.add_child(new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16, style_class: 'update-checker-warning-icon'}));
+            warn.label.add_style_class_name('update-checker-status-line');
+            warn.label.set_text('No sources configured - add one in Preferences');
+            warn.connect('activate', () => Main.notifyError('Update Checker', 'No update sources configured. Open Preferences → Update Sources and add one.'));
+            this._resultsSection.addMenuItem(warn);
+            this._lastTotal = 0;
+            this._lastAnyFailed = true;
+            this._label.set_text('!');
+            this._icon.icon_name = 'dialog-warning-symbolic';
+            this._statusItem.label.set_text('No sources configured');
+            this._updateVisibility();
+            this._checking = false;
+            return;
+        }
+
         const currentNames = new Set(sources.map(s => s.name));
         for (const name of this._expandedSources) {
             if (!currentNames.has(name))
@@ -631,6 +673,7 @@ class Indicator extends PanelMenu.Button {
             if (r.status === 'error') {
                 failed.push(src.name);
                 const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: true});
+                item.tooltip_text = r.message || 'Unknown error';
                 const warnIcon = new St.Icon({
                     icon_name: 'dialog-warning-symbolic',
                     style_class: 'update-checker-warning-icon',
@@ -945,6 +988,9 @@ export default class UpdateCheckerExtension extends Extension {
             if (entry.tickId)
                 GLib.source_remove(entry.tickId);
         }
+        // Mark destroyed so inflight wait_async/communicate callbacks can bail
+        if (this._indicator)
+            this._indicator._destroyed = true;
 
         this._settings = null;
 

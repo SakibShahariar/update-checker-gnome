@@ -96,7 +96,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const quietEndRow = new Adw.SpinRow({
             title: 'End (24h)',
-            subtitle: 'Hour quiet hours end, e.g. 8 for 8am. If earlier than start, wraps past midnight.',
+            subtitle: 'Hour quiet hours end, e.g. 8 for 8am. If earlier than start, wraps past midnight. Same as start = 24h quiet.',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
         });
         settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
@@ -228,16 +228,32 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const saveSources = () => {
             const checkValues = [];
             const updateValues = [];
+            const seen = new Set();
+            let hasDuplicate = false;
             for (const r of sourceRows) {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
                 const updateCommand = r.updateCmdEntry.get_text().trim();
+                // Clear previous error state
+                r.nameEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
+                if (seen.has(name)) {
+                    r.nameEntry.add_css_class('error');
+                    r.nameEntry.set_tooltip_text(`Duplicate name "${name}" - rename or remove`);
+                    hasDuplicate = true;
+                    continue;
+                }
+                seen.add(name);
                 checkValues.push(`${name}|${command}`);
                 if (updateCommand)
                     updateValues.push(`${name}|${updateCommand}`);
+                else
+                    r.updateCmdEntry.set_tooltip_text('');
             }
+            // Don’t save if duplicates remain - user must fix first
+            if (hasDuplicate)
+                return;
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
         };
