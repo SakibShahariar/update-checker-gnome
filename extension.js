@@ -898,11 +898,24 @@ export default class UpdateCheckerExtension extends Extension {
                     const monitor = Gio.File.new_for_path(path).monitor_directory(
                         Gio.FileMonitorFlags.NONE, null);
                     monitor.connect('changed', () => {
+                        // Skip scheduling if offline or an update is running - checkNow()
+                        // would just early-return anyway (and we avoid waking the disk
+                        // for nothing). The update's own completion already triggers
+                        // a fresh check, so nothing is lost.
+                        if (this._indicator._updatingSources.size > 0)
+                            return;
+                        if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
+                            return;
                         if (this._dbDebounceId)
                             GLib.source_remove(this._dbDebounceId);
                         this._dbDebounceId = GLib.timeout_add_seconds(
                             GLib.PRIORITY_DEFAULT, 4, () => {
                                 this._dbDebounceId = null;
+                                // Re-check guards at fire time too (state may have changed)
+                                if (this._indicator._updatingSources.size > 0)
+                                    return GLib.SOURCE_REMOVE;
+                                if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
+                                    return GLib.SOURCE_REMOVE;
                                 this._indicator.checkNow();
                                 return GLib.SOURCE_REMOVE;
                             }

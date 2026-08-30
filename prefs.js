@@ -224,6 +224,18 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 10});
         const sourceRows = [];
+        const emptyBanner = new Adw.Banner({
+            title: 'No valid sources - add one below, otherwise the panel will show a warning.',
+            revealed: false,
+        });
+        const updateBannerVisibility = () => {
+            const valid = sourceRows.some(r => {
+                const n = r.nameEntry.get_text().trim();
+                const c = r.cmdEntry.get_text().trim();
+                return n && c;
+            });
+            emptyBanner.set_revealed(!valid);
+        };
 
         const saveSources = () => {
             const checkValues = [];
@@ -252,10 +264,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     r.updateCmdEntry.set_tooltip_text('');
             }
             // Don’t save if duplicates remain - user must fix first
-            if (hasDuplicate)
+            if (hasDuplicate) {
+                updateBannerVisibility();
                 return;
+            }
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
+            updateBannerVisibility();
         };
 
         const addSourceRow = (name = '', command = '', updateCommand = '') => {
@@ -316,6 +331,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => { if (!widget.has_focus) saveSources(); });
+                w.connect('changed', updateBannerVisibility);
             }
 
             removeButton.connect('clicked', () => {
@@ -324,8 +340,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 if (idx !== -1)
                     sourceRows.splice(idx, 1);
                 saveSources();
+                updateBannerVisibility();
             });
 
+            updateBannerVisibility();
             return entry;
         };
 
@@ -435,8 +453,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         addButton.connect('clicked', () => popover.popup());
 
         const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 8});
+        box.append(emptyBanner);
         box.append(frame);
         box.append(addButton);
+        // Initial banner state after loading existing rows
+        updateBannerVisibility();
 
         sourcesGroup.add(box);
     }
