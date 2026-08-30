@@ -48,7 +48,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         window.add(generalPage);
 
-        const generalGroup = new Adw.PreferencesGroup({title: 'Updates'});
+        const generalGroup = new Adw.PreferencesGroup({title: 'Updates', description: 'How often to check and notify.'});
         generalPage.add(generalGroup);
 
         const intervalRow = new Adw.SpinRow({
@@ -56,6 +56,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             subtitle: 'Minutes between checks',
             adjustment: new Gtk.Adjustment({lower: 5, upper: 1440, step_increment: 5}),
         });
+        intervalRow.add_prefix(new Gtk.Image({icon_name: 'alarm-symbolic', pixel_size: 18}));
         settings.bind('check-interval-minutes', intervalRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(intervalRow);
 
@@ -63,6 +64,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Notify on new updates',
             subtitle: 'When count increases',
         });
+        notifyRow.add_prefix(new Gtk.Image({icon_name: 'preferences-system-notifications-symbolic', pixel_size: 18}));
         settings.bind('notify-on-new', notifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(notifyRow);
 
@@ -70,16 +72,18 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Always show icon',
             subtitle: 'Even when 0 updates',
         });
+        showZeroRow.add_prefix(new Gtk.Image({icon_name: 'view-visible-symbolic', pixel_size: 18}));
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
-        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours'});
+        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Silence popups, keep icon live.'});
         generalPage.add(quietGroup);
 
         const quietEnabledRow = new Adw.SwitchRow({
             title: 'Suppress notifications',
             subtitle: 'Only popups - icon still updates',
         });
+        quietEnabledRow.add_prefix(new Gtk.Image({icon_name: 'weather-clear-night-symbolic', pixel_size: 18}));
         settings.bind('quiet-hours-enabled', quietEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEnabledRow);
 
@@ -88,6 +92,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             subtitle: 'Hour (0-23), e.g. 23',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
         });
+        quietStartRow.add_prefix(new Gtk.Image({icon_name: 'alarm-symbolic', pixel_size: 16}));
         settings.bind('quiet-hours-start', quietStartRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietStartRow);
 
@@ -96,16 +101,18 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             subtitle: 'Hour (0-23), same as start = 24h',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 23, step_increment: 1}),
         });
+        quietEndRow.add_prefix(new Gtk.Image({icon_name: 'alarm-symbolic', pixel_size: 16}));
         settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEndRow);
 
-        const watchGroup = new Adw.PreferencesGroup({title: 'Instant Refresh'});
+        const watchGroup = new Adw.PreferencesGroup({title: 'Instant Refresh', description: 'Watch system package DBs for changes.'});
         generalPage.add(watchGroup);
 
         const watchRow = new Adw.SwitchRow({
             title: 'Watch package databases',
             subtitle: 'Re-check after any update (needs reload)',
         });
+        watchRow.add_prefix(new Gtk.Image({icon_name: 'view-refresh-symbolic', pixel_size: 18}));
         settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         watchGroup.add(watchRow);
 
@@ -117,16 +124,16 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         window.add(sourcesPage);
 
         const bgGroup = new Adw.PreferencesGroup({
-            title: 'Updates',
-            description: 'How clicking a source runs its update.',
+            title: 'Update Action',
+            description: 'What happens when you click a source with updates.',
         });
         sourcesPage.add(bgGroup);
 
         const backgroundRow = new Adw.SwitchRow({
             title: 'Run in background',
-            subtitle: 'No terminal, graphical password via pkexec',
+            subtitle: 'Use graphical password, no terminal window',
         });
-        backgroundRow.add_prefix(new Gtk.Image({icon_name: 'system-run-symbolic', pixel_size: 20, valign: Gtk.Align.CENTER}));
+        backgroundRow.add_prefix(new Gtk.Image({icon_name: 'system-run-symbolic', pixel_size: 18}));
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         bgGroup.add(backgroundRow);
 
@@ -254,27 +261,34 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             const bottomRow = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
-                margin_top: 8, margin_start: 12, margin_end: 12, margin_bottom: 12,
+                margin_top: 10, margin_start: 12, margin_end: 12, margin_bottom: 12,
             });
             const updateIconImg = new Gtk.Image({
                 icon_name: 'system-run-symbolic',
                 pixel_size: 14,
                 valign: Gtk.Align.CENTER,
                 css_classes: ['dim-label'],
-            });
-            const updateLabel = new Gtk.Label({
-                label: 'Update',
-                width_chars: 6, xalign: 0, css_classes: ['dim-label', 'caption'],
+                tooltip_text: 'Runs when you click the source',
             });
             const updateCmdEntry = new Gtk.Entry({
-                placeholder_text: 'Update  •  optional, runs on click',
+                placeholder_text: 'On click →  e.g. flatpak update -y',
                 text: updateCommand,
                 hexpand: true,
                 css_classes: ['monospace'],
             });
-            updateCmdEntry.set_tooltip_text('Runs when you click this source in the panel');
+            updateCmdEntry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'media-playback-start-symbolic');
+            updateCmdEntry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, 'Runs on click');
+            updateCmdEntry.set_tooltip_text('Optional: command to run when you click this source');
+            // dim when empty, normal when filled
+            const syncUpdateStyle = () => {
+                if (updateCmdEntry.get_text().trim())
+                    updateCmdEntry.remove_css_class('dim-label');
+                else
+                    updateCmdEntry.add_css_class('dim-label');
+            };
+            updateCmdEntry.connect('changed', syncUpdateStyle);
+            syncUpdateStyle();
             bottomRow.append(updateIconImg);
-            bottomRow.append(updateLabel);
             bottomRow.append(updateCmdEntry);
 
             wrapper.append(topRow);
@@ -426,44 +440,50 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         window.add(advancedPage);
 
-        const rebootGroup = new Adw.PreferencesGroup({title: 'Reboot Required'});
+        const rebootGroup = new Adw.PreferencesGroup({title: 'Reboot Required', description: 'Separate icon when reboot is needed.'});
         advancedPage.add(rebootGroup);
 
         const rebootEnabledRow = new Adw.SwitchRow({
             title: 'Check for reboot',
-            subtitle: 'Needs restart after kernel update',
+            subtitle: 'After kernel update',
         });
+        rebootEnabledRow.add_prefix(new Gtk.Image({icon_name: 'system-reboot-symbolic', pixel_size: 18}));
         settings.bind('check-reboot-required', rebootEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         rebootGroup.add(rebootEnabledRow);
 
         const rebootCommandRow = new Adw.EntryRow({title: 'Command'});
+        rebootCommandRow.add_prefix(new Gtk.Image({icon_name: 'utilities-terminal-symbolic', pixel_size: 16}));
         settings.bind('reboot-check-command', rebootCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         rebootGroup.add(rebootCommandRow);
 
         const rebootHintRow = new Adw.ActionRow({
-            title: 'Ubuntu/Debian:',
+            title: 'Ubuntu/Debian',
             subtitle: 'test -f /var/run/reboot-required && echo "Reboot required"',
         });
+        rebootHintRow.add_prefix(new Gtk.Image({icon_name: 'help-about-symbolic', pixel_size: 16}));
         rebootGroup.add(rebootHintRow);
 
-        const securityGroup = new Adw.PreferencesGroup({title: 'Security Updates'});
+        const securityGroup = new Adw.PreferencesGroup({title: 'Security Updates', description: 'Subset of main count, shown separately.'});
         advancedPage.add(securityGroup);
 
         const securityEnabledRow = new Adw.SwitchRow({
             title: 'Flag security separately',
-            subtitle: 'Subset of main count',
+            subtitle: 'Highlight security updates',
         });
+        securityEnabledRow.add_prefix(new Gtk.Image({icon_name: 'security-high-symbolic', pixel_size: 18}));
         settings.bind('check-security-updates', securityEnabledRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         securityGroup.add(securityEnabledRow);
 
         const securityCommandRow = new Adw.EntryRow({title: 'Command'});
+        securityCommandRow.add_prefix(new Gtk.Image({icon_name: 'utilities-terminal-symbolic', pixel_size: 16}));
         settings.bind('security-check-command', securityCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         securityGroup.add(securityCommandRow);
 
-        const scriptGroup = new Adw.PreferencesGroup({title: 'Update Script'});
+        const scriptGroup = new Adw.PreferencesGroup({title: 'Update Script', description: 'Optional script via Run Update Script menu.'});
         advancedPage.add(scriptGroup);
 
         const scriptRow = new Adw.EntryRow({title: 'Script path'});
+        scriptRow.add_prefix(new Gtk.Image({icon_name: 'text-x-script-symbolic', pixel_size: 16}));
         scriptRow.set_text(settings.get_string('update-script-path'));
         scriptRow.connect('notify::text', () => {
             settings.set_string('update-script-path', scriptRow.get_text());
@@ -497,6 +517,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         scriptRow.add_suffix(browseButton);
 
         const terminalRow = new Adw.EntryRow({title: 'Terminal'});
+        terminalRow.add_prefix(new Gtk.Image({icon_name: 'utilities-terminal-symbolic', pixel_size: 16}));
         settings.bind('terminal-command', terminalRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         scriptGroup.add(terminalRow);
     }
