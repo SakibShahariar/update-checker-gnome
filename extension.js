@@ -399,8 +399,22 @@ class Indicator extends PanelMenu.Button {
                 // checkNow() already guards this itself, but skip the
                 // call entirely rather than let it early-return for no
                 // visible reason.
-                if (this._updatingSources.size === 0)
-                    this.checkNow();
+                if (this._updatingSources.size === 0) {
+                    // Terminal updates (including per-source and the
+                    // generic script) don't have a single source name
+                    // to invalidate, so force a full manual re-check
+                    // to bypass the per-source interval cache (same
+                    // bug as the pkexec background path above).
+                    if (key !== '__script__')
+                        this._lastSourcePoll.delete(key);
+                    this._lastSourceResults.delete(key);
+                    // __script__ could have touched anything - invalidate all
+                    if (key === '__script__') {
+                        this._lastSourcePoll.clear();
+                        this._lastSourceResults.clear();
+                    }
+                    this.checkNow(true);
+                }
             });
         } catch (e) {
             Main.notifyError('Update Checker', `Could not launch terminal: ${e.message}`);
@@ -514,7 +528,16 @@ class Indicator extends PanelMenu.Button {
                 // and failure/stop needs a fresh look at what's still
                 // actually pending, since a partial run may have
                 // changed the real state even if it didn't finish.
-                this.checkNow();
+                // Invalidate cached poll for this source so the
+                // per-source interval cache (checkNow's `manual=false`
+                // fast-path at extension.js:738) doesn't reuse the
+                // stale pre-update count. Without this, the immediate
+                // re-check would see `now - last < 60m` and return the
+                // old `1` instead of the real `0` until the interval
+                // expires or the user clicks "Check Now" (manual=true).
+                this._lastSourcePoll.delete(label);
+                this._lastSourceResults.delete(label);
+                this.checkNow(true);
             });
         } catch (e) {
             this._updatingSources.delete(label);
@@ -1024,7 +1047,13 @@ export default class UpdateCheckerExtension extends Extension {
                                     return GLib.SOURCE_REMOVE;
                                 if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
                                     return GLib.SOURCE_REMOVE;
-                                this._indicator.checkNow();
+                                // DB changed externally (e.g. dnf in your own terminal):
+                                // force a full refresh bypassing per-source interval
+                                // cache, otherwise the 60m cache would hide the change
+                                // until the next scheduled tick / manual "Check Now".
+                                this._indicator._lastSourcePoll.clear();
+                                this._indicator._lastSourceResults.clear();
+                                this._indicator.checkNow(true);
                                 return GLib.SOURCE_REMOVE;
                             }
                         );
