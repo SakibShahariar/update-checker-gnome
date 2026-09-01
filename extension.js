@@ -1,5 +1,6 @@
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 
@@ -194,6 +195,27 @@ class Indicator extends PanelMenu.Button {
         box.add_child(this._offlineIcon);
         this.add_child(box);
 
+        // Header card — neutral structure only, maps PkgUpdateWidget.qml:192
+        this._headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-header-card'});
+        const headerBox = new St.BoxLayout({style_class: 'update-checker-header-card', x_expand: true});
+        const headerLeft = new St.BoxLayout({style_class: 'update-checker-section-header', x_expand: true});
+        const iconBox = new St.Widget({style_class: 'update-checker-header-icon-box', layout_manager: new Clutter.BinLayout()});
+        const headerIcon = new St.Icon({icon_name: 'system-software-install-symbolic', icon_size: 20, style_class: 'update-checker-header-icon'});
+        iconBox.add_child(headerIcon);
+        const headerTextBox = new St.BoxLayout({vertical: true, y_align: 2 /* CENTER */, style_class: ''});
+        this._headerTitle = new St.Label({text: 'Package Updates', style_class: 'update-checker-header-title'});
+        this._headerSubtitle = new St.Label({text: 'Checking…', style_class: 'update-checker-header-subtitle'});
+        headerTextBox.add_child(this._headerTitle);
+        headerTextBox.add_child(this._headerSubtitle);
+        headerLeft.add_child(iconBox);
+        headerLeft.add_child(headerTextBox);
+        const refreshBtn = new St.Button({style_class: 'update-checker-refresh-button', child: new St.Icon({icon_name: 'view-refresh-symbolic', icon_size: 16})});
+        refreshBtn.connect('clicked', () => this.checkNow(true));
+        headerBox.add_child(headerLeft);
+        headerBox.add_child(refreshBtn);
+        this._headerItem.add_child(headerBox);
+        this.menu.addMenuItem(this._headerItem);
+
         this._offlineItem = new PopupMenu.PopupMenuItem('Offline', {reactive: false});
         this._offlineItem.visible = false;
         this.menu.addMenuItem(this._offlineItem);
@@ -276,6 +298,25 @@ class Indicator extends PanelMenu.Button {
             this._lastAnyFailed || this._lastRebootRequired || this._lastOffline;
     }
 
+    _updateHeaderSubtitle() {
+        if (!this._headerSubtitle)
+            return;
+        if (this._checking) {
+            this._headerSubtitle.set_text('Checking…');
+        } else if (this._lastOffline) {
+            const when = this._lastCheckTimeStr ?? 'last check';
+            this._headerSubtitle.set_text(`Offline — from ${when}`);
+        } else if (this._lastTotal === -1) {
+            this._headerSubtitle.set_text('Not checked yet');
+        } else if (this._lastTotal > 0) {
+            this._headerSubtitle.set_text(`${this._lastTotal} update${this._lastTotal === 1 ? '' : 's'} available`);
+        } else if (this._lastAnyFailed) {
+            this._headerSubtitle.set_text('Some checks failed');
+        } else {
+            this._headerSubtitle.set_text('System is up to date');
+        }
+    }
+
     // Whether background notifications ("updates available", "reboot
     // required") should be suppressed right now. Only applies to those
     // two passive/periodic notifications - anything the person directly
@@ -306,6 +347,7 @@ class Indicator extends PanelMenu.Button {
         this._label.set_text(this._lastTotal > 0 ? `${this._lastTotal}` : '');
         this._icon.icon_name = this._lastTotal > 0 ? 'software-update-urgent-symbolic' : 'software-update-available-symbolic';
         this._statusItem.label.set_text(`Dismissed — next check ${this._settings.get_int('check-interval-minutes')}m`);
+        this._updateHeaderSubtitle();
     }
 
     _pushHistory(total) {
@@ -351,6 +393,7 @@ class Indicator extends PanelMenu.Button {
         // Stay hidden until the first check completes and actually finds
         // something, unless the user wants the icon visible regardless.
         this._updateVisibility();
+        this._updateHeaderSubtitle();
         if (this._dismissItem) this._dismissItem.visible = false;
         if (this._historyItem) this._updateHistoryItem();
     }
@@ -678,6 +721,7 @@ class Indicator extends PanelMenu.Button {
             return;
         }
         this._checking = true;
+        this._updateHeaderSubtitle();
 
         // get_network_available() alone only means "there's a route" -
         // it's still true when connected to a router with no working
@@ -710,11 +754,13 @@ class Indicator extends PanelMenu.Button {
             this._statusItem.label.set_text(
                 truncate(`Offline - showing results from ${when}${countPart}`, 55));
             this._checking = false;
+            this._updateHeaderSubtitle();
             return;
         }
 
         this._offlineItem.visible = false;
         this._statusItem.label.set_text('Checking...');
+        this._updateHeaderSubtitle();
 
         const sources = parseSources(this._settings.get_strv('sources'));
         const updateCommands = parseUpdateCommands(this._settings.get_strv('source-update-commands'));
@@ -736,6 +782,7 @@ class Indicator extends PanelMenu.Button {
             this._statusItem.label.set_text('No sources configured');
             this._updateVisibility();
             this._checking = false;
+            this._updateHeaderSubtitle();
             return;
         }
 
@@ -789,125 +836,105 @@ class Indicator extends PanelMenu.Button {
         this._resultsSection.removeAll();
         this._sourceRowWidgets.clear();
 
-        // Keep a stable, configured order.
+        // DMS-style neutral cards — header + container per source (no colors)
+        const SOURCE_ICONS = {
+            'DNF': 'system-software-install-symbolic',
+            'Flatpak': 'application-x-flatpak-symbolic',
+            'Cargo': 'application-x-cargo-symbolic',
+            'npm (global)': 'application-x-npm-symbolic',
+            'uv tools': 'application-x-python-symbolic',
+        };
+        const getIcon = n => SOURCE_ICONS[n] || 'package-x-generic-symbolic';
+
         for (const src of sources) {
             const r = results.find(x => x.name === src.name) ??
                 {status: 'error', count: 0, message: 'no result', lines: []};
-
             const updateCommand = updateCommands.get(src.name);
             const canUpdate = r.status === 'ok' && r.count > 0 && !!updateCommand;
 
-            if (r.status === 'error') {
+            if (r.status === 'error')
                 failed.push(src.name);
-                const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: true});
-                item.tooltip_text = r.message || 'Unknown error';
-                const warnIcon = new St.Icon({
-                    icon_name: 'dialog-warning-symbolic',
-                    style_class: 'update-checker-warning-icon',
-                    icon_size: 16,
-                });
-                item.add_child(warnIcon);
-                item.label.add_style_class_name('update-checker-status-line');
-                item.label.set_text(`${src.name} - failed: ${truncate(r.message, 35)}`);
-                item.connect('activate', () => {
-                    Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error');
-                });
-                this._resultsSection.addMenuItem(item);
-                continue;
-            }
+            else
+                total += r.count;
 
-            total += r.count;
+            // — Section header — PkgUpdateWidget.qml:293 structure
+            const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-section-header'});
+            const headerBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-section-header'});
+            const accent = new St.Widget({style_class: 'update-checker-accent'});
+            const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon'});
+            const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: 2});
+            const badgeText = r.status === 'error' ? '!' : `${r.count}`;
+            const countLabel = new St.Label({text: badgeText, style_class: 'update-checker-badge', y_align: 2});
+            headerBox.add_child(accent);
+            headerBox.add_child(secIcon);
+            headerBox.add_child(titleLabel);
+            headerBox.add_child(countLabel);
 
-            if (r.count === 0) {
-                // Nothing pending - a plain, non-expandable line.
-                const item = new PopupMenu.PopupMenuItem(`${src.name}`, {reactive: false});
-                const countLabel = new St.Label({text: '0', style_class: 'update-checker-count'});
-                item.add_child(countLabel);
-                this._resultsSection.addMenuItem(item);
-                continue;
-            }
-
-            // Has pending updates - expandable to show the actual
-            // package lines. The header row's own click toggles
-            // expand/collapse (standard submenu behavior); the count,
-            // run-button, updating-label, and stop-button are separate
-            // child widgets so they don't fight with that - all use
-            // St.Button where clickable so their own clicks are handled
-            // distinctly and don't also toggle the submenu. Both the
-            // normal and "updating" widget sets are always built and
-            // just toggled visible/hidden based on state, rather than
-            // only constructing one - this lets an in-progress update
-            // update this exact row directly (elapsed time ticking, or
-            // clearing on completion) without needing a full rebuild,
-            // which is important now that checkNow() deliberately
-            // skips itself entirely while an update is running.
-            const item = new PopupMenu.PopupSubMenuMenuItem(`${src.name}`, false);
-
-            const countLabel = new St.Label({text: `${r.count}`, style_class: 'update-checker-count'});
-            item.add_child(countLabel);
+            // spacer
+            const spacer = new St.Widget({x_expand: true});
+            headerBox.add_child(spacer);
 
             let runButton = null;
-            if (canUpdate) {
-                runButton = new St.Button({
-                    style_class: 'update-checker-run-icon',
-                    child: new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 14}),
-                });
-                runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
-                item.add_child(runButton);
-            }
-
-            const updatingLabel = new St.Label({
-                text: 'Updating…', style_class: 'update-checker-updating-label', visible: false,
-            });
-            item.add_child(updatingLabel);
-            const stopButton = new St.Button({
-                style_class: 'update-checker-stop-icon',
-                child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14}),
-                visible: false,
-            });
+            const updatingLabel = new St.Label({text: 'Updating…', style_class: 'update-checker-updating-label', visible: false, y_align: 2});
+            const stopButton = new St.Button({style_class: 'update-checker-stop-icon', visible: false, child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14})});
             stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
-            item.add_child(stopButton);
+            if (canUpdate) {
+                runButton = new St.Button({style_class: 'update-checker-update-button', child: new St.BoxLayout({style_class: 'update-checker-section-header'})});
+                const btnBox = new St.BoxLayout({style_class: 'update-checker-section-header'});
+                btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 12}));
+                btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label'}));
+                runButton.set_child(btnBox);
+                runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
+                headerBox.add_child(runButton);
+            }
+            headerBox.add_child(updatingLabel);
+            headerBox.add_child(stopButton);
+            headerItem.add_child(headerBox);
+            this._resultsSection.addMenuItem(headerItem);
 
+            // keep live handles for _setRowUpdating (elapsed tick)
             this._sourceRowWidgets.set(src.name, {countLabel, runButton, updatingLabel, stopButton});
             const existingUpdate = this._updatingSources.get(src.name);
             if (existingUpdate && !existingUpdate.isTerminal)
                 this._setRowUpdating(src.name, true);
 
-            for (const line of r.lines) {
-                // Most check commands print "name.arch  version  repo"
-                // (or similar column layouts) - the first token is the
-                // package name, which is what people actually want to
-                // see here, not the full row. Falls back to the whole
-                // (still truncated) line for formats with no whitespace
-                // to split on, like npm --parseable's colon-separated
-                // output.
-                const packageName = line.split(/\s+/)[0] || line;
-                const displayLine = truncate(packageName, 55);
-                item.menu.addMenuItem(
-                    new PopupMenu.PopupMenuItem(
-                        displayLine, {reactive: false, style_class: 'update-checker-package-line'})
-                );
-            }
+            // — Container — PkgUpdateWidget.qml:397 StyledRect
+            const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-container'});
+            const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
 
-            // Re-expand if this source was open before this rebuild -
-            // otherwise every check (including the new instant-refresh
-            // watcher) would silently collapse anything you had open.
-            if (this._expandedSources.has(src.name)) {
-                try {
-                    item.menu.open(false);
-                } catch (e) {
-                    // Best-effort - if this ever fails, it just stays
-                    // collapsed rather than breaking the check.
+            if (r.status === 'error') {
+                const errBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
+                errBox.add_child(new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16}));
+                const errLabel = new St.Label({text: truncate(r.message || 'Unknown error', 50), style_class: 'update-checker-status-line'});
+                errBox.add_child(errLabel);
+                const clickable = new St.Button({child: errBox, x_expand: true});
+                clickable.connect('clicked', () => Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error'));
+                containerBox.add_child(clickable);
+            } else if (r.count === 0) {
+                const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
+                emptyBox.add_child(new St.Icon({icon_name: 'emblem-ok-symbolic', icon_size: 16}));
+                emptyBox.add_child(new St.Label({text: 'No updates available', style_class: ''}));
+                containerBox.add_child(emptyBox);
+            } else {
+                // list rows — PkgUpdateWidget.qml:454 ListView delegate 36px
+                for (const line of r.lines) {
+                    const parts = line.trim().split(/\s+|\t/);
+                    const pkgName = parts[0] || line;
+                    const version = parts[1] || '';
+                    const row = new St.BoxLayout({style_class: 'update-checker-package-row', x_expand: true});
+                    row.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12}));
+                    const nameLabel = new St.Label({text: truncate(pkgName, 42), style_class: 'update-checker-package-name', x_expand: true});
+                    row.add_child(nameLabel);
+                    if (version) {
+                        const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version'});
+                        row.add_child(verLabel);
+                    }
+                    containerBox.add_child(row);
                 }
             }
-            item.menu.connect('open-state-changed', (menu, isOpen) => {
-                if (isOpen)
-                    this._expandedSources.add(src.name);
-                else
-                    this._expandedSources.delete(src.name);
-            });
 
-            this._resultsSection.addMenuItem(item);
+            containerItem.add_child(containerBox);
+            this._resultsSection.addMenuItem(containerItem);
         }
 
         const anyFailed = failed.length > 0;
@@ -953,6 +980,7 @@ class Indicator extends PanelMenu.Button {
         this._dismissItem.visible = anyFailed || rebootCheckFailed || securityCheckFailed;
         this._updateHistoryItem();
         this._checking = false;
+        this._updateHeaderSubtitle();
     }
 });
 

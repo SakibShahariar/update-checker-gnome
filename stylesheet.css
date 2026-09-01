@@ -7,6 +7,132 @@
     font-weight: bold;
 }
 
+.update-checker-reboot-icon {
+    padding-left: 4px;
+    opacity: 0.85;
+}
+
+.update-checker-offline-icon {
+    padding-left: 4px;
+    opacity: 0.7;
+}
+
+.update-checker-security-icon {
+    padding-left: 4px;
+    opacity: 0.85;
+}
+
+.update-checker-status-line {
+    max-width: 420px;
+}
+
+/* — Header card — neutral, no Theme.primary tint — maps PkgUpdateWidget.qml:192 header */
+.update-checker-header-card {
+    border-radius: 12px;
+    border: 1px solid rgba(128, 128, 128, 0.18);
+    background-color: rgba(128, 128, 128, 0.07);
+    padding: 12px;
+    margin: 6px 0 10px 0;
+}
+
+.update-checker-header-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    background-color: rgba(128, 128, 128, 0.12);
+}
+
+.update-checker-header-title {
+    font-weight: bold;
+    font-size: 1.05em;
+}
+
+.update-checker-header-subtitle {
+    font-size: 0.9em;
+    opacity: 0.75;
+}
+
+.update-checker-refresh-button {
+    border-radius: 16px;
+    padding: 6px;
+}
+
+.update-checker-refresh-button:hover {
+    background-color: rgba(128, 128, 128, 0.14);
+}
+
+/* — Section header — PkgUpdateWidget.qml:293 accent + badge + button row */
+.update-checker-section-header {
+    spacing: 8px;
+    padding: 2px 2px;
+    min-height: 30px;
+}
+
+.update-checker-accent {
+    width: 4px;
+    border-radius: 2px;
+    background-color: rgba(128, 128, 128, 0.45);
+}
+
+.update-checker-section-title {
+    font-weight: bold;
+}
+
+.update-checker-badge {
+    border-radius: 10px;
+    padding: 1px 8px;
+    background-color: rgba(128, 128, 128, 0.14);
+    border: 1px solid rgba(128, 128, 128, 0.16);
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.update-checker-update-button {
+    border-radius: 8px;
+    padding: 4px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.28);
+    background-color: rgba(128, 128, 128, 0.08);
+}
+
+.update-checker-update-button:hover {
+    background-color: rgba(128, 128, 128, 0.16);
+}
+
+.update-checker-update-button-label {
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+/* — List container — PkgUpdateWidget.qml:397 StyledRect */
+.update-checker-container {
+    border-radius: 12px;
+    border: 1px solid rgba(128, 128, 128, 0.14);
+    background-color: rgba(128, 128, 128, 0.05);
+    padding: 4px;
+    margin-bottom: 10px;
+}
+
+.update-checker-container-empty {
+    padding: 12px;
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+
+.update-checker-package-row {
+    padding: 6px 10px;
+    spacing: 8px;
+}
+
+.update-checker-package-name {
+    font-size: 0.92em;
+}
+
+.update-checker-package-version {
+    font-size: 0.85em;
+    opacity: 0.65;
+}
+
+/* legacy - kept for failed rows / fallback */
 .update-checker-count {
     font-weight: bold;
     padding-left: 12px;
@@ -15,11 +141,6 @@
 .update-checker-warning-icon {
     color: #e5a50a;
     padding-left: 12px;
-}
-
-.update-checker-reboot-icon {
-    padding-left: 4px;
-    opacity: 0.85;
 }
 
 .update-checker-run-icon {
@@ -38,23 +159,14 @@
     opacity: 0.85;
 }
 
-.update-checker-offline-icon {
-    padding-left: 4px;
-    opacity: 0.7;
-}
-
-.update-checker-security-icon {
-    padding-left: 4px;
-    opacity: 0.85;
-}
-
 .update-checker-package-line {
     font-size: 90%;
     opacity: 0.75;
     padding-left: 24px;
-    max-width: 340px;
+    max-width: 420px;
 }
 
-.update-checker-status-line {
-    max-width: 340px;
+/* widen popup - DMS 480px -> GNOME neutral ~440px */
+.popup-menu-content {
+    min-width: 440px;
 }
