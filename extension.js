@@ -1017,6 +1017,10 @@ class Indicator extends PanelMenu.Button {
             else
                 total += r.count;
 
+            // Hide sources with no updates (ok + 0) — only show pending or failed
+            if (r.status === 'ok' && r.count === 0)
+                continue;
+
             // — Section header — PkgUpdateWidget.qml:293 structure — GNOME: flat, no extra card style on wrapper
             const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const headerBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-section-header'});
@@ -1039,10 +1043,10 @@ class Indicator extends PanelMenu.Button {
             const stopButton = new St.Button({style_class: 'update-checker-stop-icon', visible: false, child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14})});
             stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
             if (canUpdate) {
-                runButton = new St.Button({style_class: 'update-checker-update-button', child: new St.BoxLayout({style_class: 'update-checker-section-header'})});
-                const btnBox = new St.BoxLayout({style_class: 'update-checker-section-header'});
-                btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 12}));
-                btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label'}));
+                runButton = new St.Button({style_class: 'update-checker-update-button', y_align: Clutter.ActorAlign.CENTER});
+                const btnBox = new St.BoxLayout({style_class: 'update-checker-update-button-box', y_align: Clutter.ActorAlign.CENTER});
+                btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
+                btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
                 runButton.set_child(btnBox);
                 runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
                 headerBox.add_child(runButton);

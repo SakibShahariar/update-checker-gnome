@@ -123,6 +123,10 @@
     background-color: #70547a;
 }
 
+.update-checker-update-button-box {
+    spacing: 6px;
+}
+
 .update-checker-update-button-label {
     font-size: 0.9em;
     font-weight: 500;
