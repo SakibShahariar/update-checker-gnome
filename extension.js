@@ -219,9 +219,9 @@ function loadMatugenColors() {
 }
 
 function buildMatugenCss(c) {
-    // Mirrors stylesheet.css but with live Matugen hex values — more colors than -st-accent
+    // Mirrors stylesheet.css but with live Matugen hex values — GNOME: no outline borders (was KDE-like)
     return `
-.update-checker-header-card { background-color: ${c.primary_container}; border-color: ${c.outline_variant}; }
+.update-checker-header-card { background-color: ${c.primary_container}; border-color: transparent; border-width: 0; }
 .update-checker-header-icon-box { background-color: ${c.primary}; }
 .update-checker-header-icon { color: ${c.on_primary}; }
 .update-checker-header-title { color: ${c.on_primary_container}; }
@@ -232,11 +232,11 @@ function buildMatugenCss(c) {
 .update-checker-accent { background-color: ${c.primary}; }
 .update-checker-section-title { color: ${c.on_surface}; }
 .update-checker-section-icon { color: ${c.secondary}; }
-.update-checker-badge { background-color: ${c.secondary_container}; border-color: ${c.outline_variant}; color: ${c.on_secondary_container}; }
-.update-checker-update-button { background-color: ${c.tertiary_container}; border-color: ${hexToRgba(c.tertiary, 0.35)}; color: ${c.on_tertiary_container}; }
+.update-checker-badge { background-color: ${c.secondary_container}; border-color: transparent; border-width: 0; color: ${c.on_secondary_container}; }
+.update-checker-update-button { background-color: ${c.tertiary_container}; border-color: transparent; border-width: 0; color: ${c.on_tertiary_container}; }
 .update-checker-update-button:hover { background-color: ${lightenHex(c.tertiary_container, 0x14)}; }
 .update-checker-update-button:active { background-color: ${lightenHex(c.tertiary_container, 0x22)}; }
-.update-checker-container { background-color: ${c.surface_container}; border-color: ${c.outline_variant}; }
+.update-checker-container { background-color: ${c.surface_container}; border-color: transparent; border-width: 0; }
 .update-checker-container-empty { color: ${c.on_surface_variant}; }
 .update-checker-package-row:hover { background-color: ${c.surface_container_high}; }
 .update-checker-package-name { color: ${c.on_surface}; }
@@ -318,8 +318,8 @@ class Indicator extends PanelMenu.Button {
         box.add_child(this._offlineIcon);
         this.add_child(box);
 
-        // Header card — neutral structure only, maps PkgUpdateWidget.qml:192
-        this._headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-header-card'});
+        // Header card — neutral structure only, maps PkgUpdateWidget.qml:192 — GNOME: only inner BoxLayout has card style, wrapper is flat (avoids double border)
+        this._headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
         const headerBox = new St.BoxLayout({style_class: 'update-checker-header-card', x_expand: true});
         const headerLeft = new St.BoxLayout({style_class: 'update-checker-section-header', x_expand: true});
         const iconBox = new St.Widget({style_class: 'update-checker-header-icon-box', layout_manager: new Clutter.BinLayout()});
@@ -1017,8 +1017,8 @@ class Indicator extends PanelMenu.Button {
             else
                 total += r.count;
 
-            // — Section header — PkgUpdateWidget.qml:293 structure
-            const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-section-header'});
+            // — Section header — PkgUpdateWidget.qml:293 structure — GNOME: flat, no extra card style on wrapper
+            const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const headerBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-section-header'});
             const accent = new St.Widget({style_class: 'update-checker-accent'});
             const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon'});
@@ -1058,8 +1058,8 @@ class Indicator extends PanelMenu.Button {
             if (existingUpdate && !existingUpdate.isTerminal)
                 this._setRowUpdating(src.name, true);
 
-            // — Container — PkgUpdateWidget.qml:397 StyledRect
-            const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: 'update-checker-container'});
+            // — Container — PkgUpdateWidget.qml:397 StyledRect — GNOME: only inner BoxLayout is card, wrapper flat
+            const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
 
             if (r.status === 'error') {

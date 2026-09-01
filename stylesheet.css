@@ -30,10 +30,10 @@
 }
 
 /* — Header card — Matugen Material You — maps PkgUpdateWidget.qml:192
-   source: ~/.config/matugen/matugen-colors.css (dark) */
+   source: ~/.config/matugen/matugen-colors.css (dark) — GNOME: no outline, just fill */
 .update-checker-header-card {
     border-radius: 12px;
-    border: 1px solid #43474e; /* outline_variant */
+    border: none;
     background-color: #254777; /* primary_container */
     padding: 12px;
     margin: 6px 0 10px 0;
@@ -101,16 +101,16 @@
     border-radius: 10px;
     padding: 1px 8px;
     background-color: #3e4758; /* secondary_container */
-    border: 1px solid #43474e; /* outline_variant */
+    border: none;
     color: #d9e3f8; /* on_secondary_container */
     font-size: 0.85em;
     font-weight: bold;
 }
 
 .update-checker-update-button {
-    border-radius: 8px;
-    padding: 4px 10px;
-    border: 1px solid rgba(219, 188, 225, 0.35); /* tertiary @35% */
+    border-radius: 999px; /* GNOME pill */
+    padding: 4px 12px;
+    border: none;
     background-color: #563e5d; /* tertiary_container */
     color: #f8d8fe; /* on_tertiary_container */
 }
@@ -128,10 +128,11 @@
     font-weight: 500;
 }
 
-/* — List container — PkgUpdateWidget.qml:397 StyledRect — Matugen surfaces */
+/* — List container — PkgUpdateWidget.qml:397 StyledRect — Matugen surfaces
+   GNOME: no outline border (was KDE-like), just filled surface */
 .update-checker-container {
     border-radius: 12px;
-    border: 1px solid #43474e; /* outline_variant */
+    border: none;
     background-color: #1d2024; /* surface_container */
     padding: 4px;
     margin-bottom: 10px;
