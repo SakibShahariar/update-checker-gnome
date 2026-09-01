@@ -10,27 +10,31 @@
 .update-checker-reboot-icon {
     padding-left: 4px;
     opacity: 0.85;
+    color: #ffb4ab; /* error */
 }
 
 .update-checker-offline-icon {
     padding-left: 4px;
     opacity: 0.7;
+    color: #bdc7dc; /* secondary */
 }
 
 .update-checker-security-icon {
     padding-left: 4px;
     opacity: 0.85;
+    color: #ffb4ab; /* error */
 }
 
 .update-checker-status-line {
     max-width: 420px;
 }
 
-/* — Header card — follows Shell theme via -st-accent-color — maps PkgUpdateWidget.qml:192 */
+/* — Header card — Matugen Material You — maps PkgUpdateWidget.qml:192
+   source: ~/.config/matugen/matugen-colors.css (dark) */
 .update-checker-header-card {
     border-radius: 12px;
-    border: 1px solid st-transparentize(-st-accent-color, 0.78);
-    background-color: st-transparentize(-st-accent-color, 0.88);
+    border: 1px solid #43474e; /* outline_variant */
+    background-color: #254777; /* primary_container */
     padding: 12px;
     margin: 6px 0 10px 0;
 }
@@ -39,36 +43,36 @@
     width: 40px;
     height: 40px;
     border-radius: 20px;
-    background-color: -st-accent-color;
-    color: -st-accent-fg-color;
+    background-color: #a8c8ff; /* primary */
 }
 
 .update-checker-header-icon {
-    color: -st-accent-fg-color;
+    color: #06305f; /* on_primary */
 }
 
 .update-checker-header-title {
     font-weight: bold;
     font-size: 1.05em;
+    color: #d5e3ff; /* on_primary_container */
 }
 
 .update-checker-header-subtitle {
     font-size: 0.9em;
-    opacity: 0.75;
+    color: rgba(213, 227, 255, 0.75); /* on_primary_container @ 75% */
 }
 
 .update-checker-refresh-button {
     border-radius: 16px;
     padding: 6px;
-    color: currentColor;
+    color: #d5e3ff; /* on_primary_container */
 }
 
 .update-checker-refresh-button:hover {
-    background-color: st-transparentize(currentColor, 0.86);
+    background-color: rgba(189, 199, 220, 0.18); /* secondary 18% */
 }
 
 .update-checker-refresh-button:active {
-    background-color: st-transparentize(currentColor, 0.80);
+    background-color: rgba(219, 188, 225, 0.22); /* tertiary 22% */
 }
 
 /* — Section header — PkgUpdateWidget.qml:293 accent + badge + button row */
@@ -81,19 +85,24 @@
 .update-checker-accent {
     width: 4px;
     border-radius: 2px;
-    background-color: -st-accent-color;
+    background-color: #a8c8ff; /* primary */
 }
 
 .update-checker-section-title {
     font-weight: bold;
+    color: #e1e2e9; /* on_surface */
+}
+
+.update-checker-section-icon {
+    color: #bdc7dc; /* secondary */
 }
 
 .update-checker-badge {
     border-radius: 10px;
     padding: 1px 8px;
-    background-color: st-transparentize(-st-accent-color, 0.84);
-    border: 1px solid st-transparentize(-st-accent-color, 0.68);
-    color: -st-accent-color;
+    background-color: #3e4758; /* secondary_container */
+    border: 1px solid #43474e; /* outline_variant */
+    color: #d9e3f8; /* on_secondary_container */
     font-size: 0.85em;
     font-weight: bold;
 }
@@ -101,17 +110,17 @@
 .update-checker-update-button {
     border-radius: 8px;
     padding: 4px 10px;
-    border: 1px solid st-transparentize(-st-accent-color, 0.35);
-    background-color: st-transparentize(-st-accent-color, 0.88);
-    color: -st-accent-color;
+    border: 1px solid rgba(219, 188, 225, 0.35); /* tertiary @35% */
+    background-color: #563e5d; /* tertiary_container */
+    color: #f8d8fe; /* on_tertiary_container */
 }
 
 .update-checker-update-button:hover {
-    background-color: st-transparentize(-st-accent-color, 0.75);
+    background-color: #654a6b; /* tertiary_container lightened */
 }
 
 .update-checker-update-button:active {
-    background-color: st-transparentize(-st-accent-color, 0.65);
+    background-color: #70547a;
 }
 
 .update-checker-update-button-label {
@@ -119,18 +128,18 @@
     font-weight: 500;
 }
 
-/* — List container — PkgUpdateWidget.qml:397 StyledRect — subtle theme-aware surface */
+/* — List container — PkgUpdateWidget.qml:397 StyledRect — Matugen surfaces */
 .update-checker-container {
     border-radius: 12px;
-    border: 1px solid st-transparentize(currentColor, 0.88);
-    background-color: st-transparentize(currentColor, 0.95);
+    border: 1px solid #43474e; /* outline_variant */
+    background-color: #1d2024; /* surface_container */
     padding: 4px;
     margin-bottom: 10px;
 }
 
 .update-checker-container-empty {
     padding: 12px;
-    opacity: 0.75;
+    color: #c4c6cf; /* on_surface_variant */
     font-size: 0.9em;
 }
 
@@ -140,49 +149,53 @@
 }
 
 .update-checker-package-row:hover {
-    background-color: st-transparentize(currentColor, 0.92);
+    background-color: #282a2f; /* surface_container_high */
     border-radius: 8px;
 }
 
 .update-checker-package-name {
     font-size: 0.92em;
+    color: #e1e2e9; /* on_surface */
 }
 
 .update-checker-package-version {
     font-size: 0.85em;
-    opacity: 0.65;
+    color: #bdc7dc; /* secondary — distinct from name */
 }
 
 /* legacy - kept for failed rows / fallback */
 .update-checker-count {
     font-weight: bold;
     padding-left: 12px;
+    color: #e1e2e9;
 }
 
 .update-checker-warning-icon {
-    color: #e5a50a;
+    color: #ffb4ab; /* error */
     padding-left: 12px;
 }
 
 .update-checker-run-icon {
     padding-left: 8px;
     opacity: 0.85;
+    color: #a8c8ff; /* primary */
 }
 
 .update-checker-updating-label {
     font-style: italic;
-    opacity: 0.75;
+    color: #d9e3f8; /* on_secondary_container */
     padding-left: 8px;
 }
 
 .update-checker-stop-icon {
     padding-left: 8px;
     opacity: 0.85;
+    color: #ffb4ab; /* error */
 }
 
 .update-checker-package-line {
     font-size: 90%;
-    opacity: 0.75;
+    color: #c4c6cf; /* on_surface_variant */
     padding-left: 24px;
     max-width: 420px;
 }
