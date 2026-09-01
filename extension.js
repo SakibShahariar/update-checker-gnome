@@ -138,6 +138,10 @@ class Indicator extends PanelMenu.Button {
 
         this._ext = extensionObject;
         this._settings = extensionObject.getSettings();
+        // Scoped width: only this extension's popup should be wide (DMS 480 -> 440).
+        // Adding class to menu.box so stylesheet can target .update-checker-menu
+        // instead of the global .popup-menu-content which affects every popup.
+        this.menu.box.add_style_class_name('update-checker-menu');
         this._lastTotal = -1;
         this._lastAnyFailed = false;
         this._lastRebootRequired = false;
