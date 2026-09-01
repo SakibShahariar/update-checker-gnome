@@ -26,11 +26,11 @@
     max-width: 420px;
 }
 
-/* — Header card — neutral, no Theme.primary tint — maps PkgUpdateWidget.qml:192 header */
+/* — Header card — follows Shell theme via -st-accent-color — maps PkgUpdateWidget.qml:192 */
 .update-checker-header-card {
     border-radius: 12px;
-    border: 1px solid rgba(128, 128, 128, 0.18);
-    background-color: rgba(128, 128, 128, 0.07);
+    border: 1px solid st-transparentize(-st-accent-color, 0.78);
+    background-color: st-transparentize(-st-accent-color, 0.88);
     padding: 12px;
     margin: 6px 0 10px 0;
 }
@@ -39,7 +39,12 @@
     width: 40px;
     height: 40px;
     border-radius: 20px;
-    background-color: rgba(128, 128, 128, 0.12);
+    background-color: -st-accent-color;
+    color: -st-accent-fg-color;
+}
+
+.update-checker-header-icon {
+    color: -st-accent-fg-color;
 }
 
 .update-checker-header-title {
@@ -55,10 +60,15 @@
 .update-checker-refresh-button {
     border-radius: 16px;
     padding: 6px;
+    color: currentColor;
 }
 
 .update-checker-refresh-button:hover {
-    background-color: rgba(128, 128, 128, 0.14);
+    background-color: st-transparentize(currentColor, 0.86);
+}
+
+.update-checker-refresh-button:active {
+    background-color: st-transparentize(currentColor, 0.80);
 }
 
 /* — Section header — PkgUpdateWidget.qml:293 accent + badge + button row */
@@ -71,7 +81,7 @@
 .update-checker-accent {
     width: 4px;
     border-radius: 2px;
-    background-color: rgba(128, 128, 128, 0.45);
+    background-color: -st-accent-color;
 }
 
 .update-checker-section-title {
@@ -81,8 +91,9 @@
 .update-checker-badge {
     border-radius: 10px;
     padding: 1px 8px;
-    background-color: rgba(128, 128, 128, 0.14);
-    border: 1px solid rgba(128, 128, 128, 0.16);
+    background-color: st-transparentize(-st-accent-color, 0.84);
+    border: 1px solid st-transparentize(-st-accent-color, 0.68);
+    color: -st-accent-color;
     font-size: 0.85em;
     font-weight: bold;
 }
@@ -90,12 +101,17 @@
 .update-checker-update-button {
     border-radius: 8px;
     padding: 4px 10px;
-    border: 1px solid rgba(128, 128, 128, 0.28);
-    background-color: rgba(128, 128, 128, 0.08);
+    border: 1px solid st-transparentize(-st-accent-color, 0.35);
+    background-color: st-transparentize(-st-accent-color, 0.88);
+    color: -st-accent-color;
 }
 
 .update-checker-update-button:hover {
-    background-color: rgba(128, 128, 128, 0.16);
+    background-color: st-transparentize(-st-accent-color, 0.75);
+}
+
+.update-checker-update-button:active {
+    background-color: st-transparentize(-st-accent-color, 0.65);
 }
 
 .update-checker-update-button-label {
@@ -103,11 +119,11 @@
     font-weight: 500;
 }
 
-/* — List container — PkgUpdateWidget.qml:397 StyledRect */
+/* — List container — PkgUpdateWidget.qml:397 StyledRect — subtle theme-aware surface */
 .update-checker-container {
     border-radius: 12px;
-    border: 1px solid rgba(128, 128, 128, 0.14);
-    background-color: rgba(128, 128, 128, 0.05);
+    border: 1px solid st-transparentize(currentColor, 0.88);
+    background-color: st-transparentize(currentColor, 0.95);
     padding: 4px;
     margin-bottom: 10px;
 }
@@ -121,6 +137,11 @@
 .update-checker-package-row {
     padding: 6px 10px;
     spacing: 8px;
+}
+
+.update-checker-package-row:hover {
+    background-color: st-transparentize(currentColor, 0.92);
+    border-radius: 8px;
 }
 
 .update-checker-package-name {
