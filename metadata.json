@@ -8,6 +8,6 @@
     "51"
   ],
   "url": "https://github.com/SakibShahariar/update-checker-gnome",
-  "version": 6,
+  "version": 7,
   "settings-schema": "org.gnome.shell.extensions.update-checker"
 }

@@ -219,6 +219,21 @@ function loadMatugenColors() {
     }
 }
 
+function shouldAnimate() {
+    try {
+        const stSettings = St.Settings.get();
+        if (stSettings && 'enable_animations' in stSettings)
+            return stSettings.enable_animations !== false;
+    } catch (e) {}
+    try {
+        // Clutter.Settings fallback (GNOME 51)
+        const clutterSettings = Clutter.Settings.get_default?.();
+        if (clutterSettings && 'enable_animations' in clutterSettings)
+            return clutterSettings.enable_animations !== false;
+    } catch (e) {}
+    return true;
+}
+
 function buildMatugenCss(c) {
     // Mirrors stylesheet.css but with live Matugen hex values — GNOME: no outline borders (was KDE-like)
     return `
@@ -297,6 +312,8 @@ class Indicator extends PanelMenu.Button {
         this._lastRenderUpdateCommands = new Map();
         this._matugenColors = null;
         this._matugenThemeFile = null;
+        this._refreshIcon = null;
+        this._refreshButton = null;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
         this._icon = new St.Icon({
@@ -347,12 +364,15 @@ class Indicator extends PanelMenu.Button {
         headerTextBox.add_child(this._headerSubtitle);
         headerLeft.add_child(iconBox);
         headerLeft.add_child(headerTextBox);
-        const refreshBtn = new St.Button({style_class: 'update-checker-refresh-button', child: new St.Icon({icon_name: 'view-refresh-symbolic', icon_size: 16})});
+        const refreshIcon = new St.Icon({icon_name: 'view-refresh-symbolic', icon_size: 16});
+        const refreshBtn = new St.Button({style_class: 'update-checker-refresh-button', child: refreshIcon});
         refreshBtn.connect('clicked', () => this.checkNow(true));
         headerBox.add_child(headerLeft);
         headerBox.add_child(refreshBtn);
         this._headerItem.add_child(headerBox);
         this.menu.addMenuItem(this._headerItem);
+        this._refreshIcon = refreshIcon;
+        this._refreshButton = refreshBtn;
 
         this._offlineItem = new PopupMenu.PopupMenuItem('Offline', {reactive: false});
         this._offlineItem.visible = false;
@@ -419,6 +439,13 @@ class Indicator extends PanelMenu.Button {
                 // Reload matugen on every menu open — ensures wallpaper change is picked up
                 // even if file monitor missed atomic rename or was GC'd.
                 this._applyMatugenTheme();
+                // Energetic header entrance
+                GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                    this._animateHeaderEntrance();
+                    return GLib.SOURCE_REMOVE;
+                });
+            } else {
+                this._stopRefreshSpin();
             }
         });
 
@@ -429,6 +456,7 @@ class Indicator extends PanelMenu.Button {
 
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
     destroy() {
+        try { this._stopRefreshSpin(); } catch (e) {}
         this._removeMatugenTheme();
         super.destroy();
     }
@@ -453,18 +481,121 @@ class Indicator extends PanelMenu.Button {
             return;
         if (this._checking) {
             this._headerSubtitle.set_text('Checking…');
+            this._startRefreshSpin();
         } else if (this._lastOffline) {
             const when = this._lastCheckTimeStr ?? 'last check';
             this._headerSubtitle.set_text(`Offline — from ${when}`);
+            this._stopRefreshSpin();
         } else if (this._lastTotal === -1) {
             this._headerSubtitle.set_text('Not checked yet');
+            this._stopRefreshSpin();
         } else if (this._lastTotal > 0) {
             this._headerSubtitle.set_text(`${this._lastTotal} update${this._lastTotal === 1 ? '' : 's'} available`);
+            this._stopRefreshSpin();
         } else if (this._lastAnyFailed) {
             this._headerSubtitle.set_text('Some checks failed');
+            this._stopRefreshSpin();
         } else {
             this._headerSubtitle.set_text('System is up to date');
+            this._stopRefreshSpin();
         }
+    }
+
+    _startRefreshSpin() {
+        if (!this._refreshIcon || !shouldAnimate())
+            return;
+        // Already spinning?
+        if (this._refreshIcon.get_transition?.('rotation-angle-z'))
+            return;
+        try {
+            this._refreshIcon.set_pivot_point(0.5, 0.5);
+            const spin = () => {
+                if (!this._checking || this._destroyed || !this._refreshIcon)
+                    return;
+                this._refreshIcon.ease({
+                    rotation_angle_z: this._refreshIcon.rotation_angle_z + 360,
+                    duration: 900,
+                    mode: Clutter.AnimationMode.LINEAR,
+                    onComplete: () => {
+                        if (this._checking && !this._destroyed)
+                            spin();
+                    },
+                });
+            };
+            spin();
+        } catch (e) {}
+    }
+
+    _stopRefreshSpin() {
+        if (!this._refreshIcon)
+            return;
+        try {
+            this._refreshIcon.remove_all_transitions();
+            this._refreshIcon.ease({
+                rotation_angle_z: 0,
+                duration: 250,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        } catch (e) {
+            try { this._refreshIcon.rotation_angle_z = 0; } catch (ee) {}
+        }
+    }
+
+    _animateBadge(badge) {
+        if (!badge || !shouldAnimate())
+            return;
+        try {
+            badge.set_pivot_point(0.5, 0.5);
+            badge.set_scale(0.2, 0.2);
+            badge.ease({
+                scale_x: 1, scale_y: 1,
+                duration: 480,
+                mode: Clutter.AnimationMode.EASE_OUT_BOUNCE,
+            });
+        } catch (e) {}
+    }
+
+    _animatePanelPulse() {
+        if (!shouldAnimate() || !this._icon)
+            return;
+        try {
+            this._icon.set_pivot_point(0.5, 0.5);
+            this._icon.ease({scale_x: 1.35, scale_y: 1.35, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    this._icon.ease({scale_x: 1, scale_y: 1, duration: 320, mode: Clutter.AnimationMode.EASE_OUT_BOUNCE});
+                }});
+        } catch (e) {}
+    }
+
+    _animateHeaderEntrance() {
+        if (!shouldAnimate() || !this._headerBox)
+            return;
+        try {
+            this._headerBox.set_pivot_point(0.5, 0.5);
+            this._headerBox.opacity = 0;
+            this._headerBox.set_scale(0.96, 0.96);
+            this._headerBox.ease({opacity: 255, scale_x: 1, scale_y: 1, duration: 280, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            if (this._headerIconBox) {
+                this._headerIconBox.set_pivot_point(0.5, 0.5);
+                this._headerIconBox.set_scale(0.5, 0.5);
+                this._headerIconBox.ease({scale_x: 1, scale_y: 1, duration: 420, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+            }
+        } catch (e) {}
+    }
+
+    _addButtonHoverScale(button) {
+        if (!button || !shouldAnimate())
+            return;
+        try {
+            button.set_pivot_point(0.5, 0.5);
+            button.connect('enter-event', () => {
+                if (!shouldAnimate()) return;
+                button.ease({scale_x: 1.06, scale_y: 1.06, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            });
+            button.connect('leave-event', () => {
+                button.ease({scale_x: 1, scale_y: 1, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            });
+        } catch (e) {}
     }
 
     _applyMatugenTheme() {
@@ -804,6 +935,20 @@ class Indicator extends PanelMenu.Button {
             const existingUpdate = this._updatingSources.get(src.name);
             if (existingUpdate && !existingUpdate.isTerminal)
                 this._setRowUpdating(src.name, true);
+            // Energetic: badge bounce + button hover scale
+            if (shouldAnimate()) {
+                // Staggered badge entrance ( Energetic )
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+                    this._animateBadge(countLabel);
+                    return GLib.SOURCE_REMOVE;
+                });
+                if (runButton)
+                    this._addButtonHoverScale(runButton);
+                // Header slide-in per source
+                headerItem.opacity = 0;
+                headerItem.translation_y = -6;
+                headerItem.ease({opacity: 255, translation_y: 0, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            }
 
             const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
@@ -827,7 +972,8 @@ class Indicator extends PanelMenu.Button {
                 const isExpanded = this._expandedSources.has(src.name);
                 const hasMore = r.lines.length > MAX_VISIBLE;
                 const linesToShow = isExpanded ? r.lines : r.lines.slice(0, MAX_VISIBLE);
-                for (const line of linesToShow) {
+                for (let idx = 0; idx < linesToShow.length; idx++) {
+                    const line = linesToShow[idx];
                     const parts = line.trim().split(/\s+|\t/);
                     const pkgName = parts[0] || line;
                     const version = parts[1] || '';
@@ -840,6 +986,15 @@ class Indicator extends PanelMenu.Button {
                         const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version'});
                         verLabel.set_style(`color: ${c.secondary};`);
                         row.add_child(verLabel);
+                    }
+                    if (shouldAnimate()) {
+                        row.opacity = 0;
+                        row.translation_y = -4;
+                        const delay = idx * 35;
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                            if (row) row.ease({opacity: 255, translation_y: 0, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                            return GLib.SOURCE_REMOVE;
+                        });
                     }
                     containerBox.add_child(row);
                 }
@@ -854,6 +1009,7 @@ class Indicator extends PanelMenu.Button {
                     btnBox.add_child(new St.Label({text: btnLabel, y_align: Clutter.ActorAlign.CENTER}));
                     toggleBtn.set_child(btnBox);
                     toggleBtn.connect('clicked', () => this._toggleSourceExpanded(src.name));
+                    if (shouldAnimate()) this._addButtonHoverScale(toggleBtn);
                     containerBox.add_child(toggleBtn);
                 }
             }
@@ -874,6 +1030,11 @@ class Indicator extends PanelMenu.Button {
                 containerItem.add_child(containerBox);
             }
             this._resultsSection.addMenuItem(containerItem);
+            if (shouldAnimate()) {
+                containerItem.opacity = 0;
+                containerItem.translation_y = -4;
+                containerItem.ease({opacity: 255, translation_y: 0, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            }
         }
     }
 
@@ -1227,6 +1388,8 @@ class Indicator extends PanelMenu.Button {
         this._rebuildResultsSection(sources, results, updateCommands);
 
         const anyFailed = failed.length > 0;
+        const prevTotal = this._lastTotal;
+        const prevFailed = this._lastAnyFailed;
         this._lastTotal = total;
         this._lastAnyFailed = anyFailed;
         this._updateVisibility();
@@ -1238,6 +1401,20 @@ class Indicator extends PanelMenu.Button {
             this._icon.icon_name = 'dialog-warning-symbolic';
         else
             this._icon.icon_name = 'software-update-available-symbolic';
+
+        // Energetic: panel icon pulse when new total appears or increases
+        if (total > 0 && total !== prevTotal) {
+            this._animatePanelPulse();
+        } else if (anyFailed && !prevFailed) {
+            // Pulse on first failure too
+            try {
+                if (shouldAnimate()) {
+                    this._icon.set_pivot_point(0.5, 0.5);
+                    this._icon.ease({scale_x: 1.2, scale_y: 1.2, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                        onComplete: () => this._icon.ease({scale_x: 1, scale_y: 1, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_BOUNCE})});
+                }
+            } catch (e) {}
+        }
 
         const now = GLib.DateTime.new_now_local().format('%H:%M');
         this._lastCheckTimeStr = now;
