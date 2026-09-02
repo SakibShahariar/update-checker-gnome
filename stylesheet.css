@@ -205,6 +205,28 @@
     max-width: 420px;
 }
 
+/* — Scroll container — capped when expanded (hybrid truncate+scroll) */
+.update-checker-scroll {
+    max-height: 260px;
+}
+
+.update-checker-expand-button {
+    border-radius: 8px;
+    padding: 6px 12px;
+    margin: 4px;
+    background-color: #282a2f; /* surface_container_high */
+    color: #c4c6cf; /* on_surface_variant */
+    font-size: 0.85em;
+}
+
+.update-checker-expand-button:hover {
+    background-color: #3e4758; /* secondary_container */
+}
+
+.update-checker-expand-button:active {
+    background-color: #43474e; /* outline_variant */
+}
+
 /* widen popup - DMS 480px -> GNOME neutral ~440px — scoped to this extension only */
 .update-checker-menu {
     min-width: 440px;
