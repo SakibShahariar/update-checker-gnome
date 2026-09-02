@@ -153,28 +153,29 @@ function lightenHex(hex, amount = 0x14) {
 }
 
 function loadMatugenColors() {
+    // Fallback matches current ~/.config/matugen/matugen-colors.css (dark) — never use -st-accent-color
     const fallback = {
-        background: '#111318',
+        background: '#131314',
         error: '#ffb4ab',
         error_container: '#93000a',
         on_error_container: '#ffdad6',
-        on_primary: '#06305f',
-        on_primary_container: '#d5e3ff',
-        on_secondary_container: '#d9e3f8',
-        on_surface: '#e1e2e9',
-        on_surface_variant: '#c4c6cf',
-        on_tertiary_container: '#f8d8fe',
-        outline: '#8e9099',
-        outline_variant: '#43474e',
-        primary: '#a8c8ff',
-        primary_container: '#254777',
-        secondary: '#bdc7dc',
-        secondary_container: '#3e4758',
-        surface: '#111318',
-        surface_container: '#1d2024',
-        surface_container_high: '#282a2f',
-        tertiary: '#dbbce1',
-        tertiary_container: '#563e5d',
+        on_primary: '#29313c',
+        on_primary_container: '#dbe3f1',
+        on_secondary_container: '#dfe2eb',
+        on_surface: '#e4e2e3',
+        on_surface_variant: '#c8c6c7',
+        on_tertiary_container: '#d6e4f7',
+        outline: '#919092',
+        outline_variant: '#474748',
+        primary: '#bfc7d5',
+        primary_container: '#3f4753',
+        secondary: '#c3c7cf',
+        secondary_container: '#42474e',
+        surface: '#131314',
+        surface_container: '#1f2021',
+        surface_container_high: '#2a2a2b',
+        tertiary: '#bac8db',
+        tertiary_container: '#3b4858',
     };
     const path = GLib.build_filenamev([GLib.get_home_dir(), '.config', 'matugen', 'matugen-colors.css']);
     try {
@@ -294,6 +295,8 @@ class Indicator extends PanelMenu.Button {
         this._lastRenderSources = [];
         this._lastRenderResults = [];
         this._lastRenderUpdateCommands = new Map();
+        this._matugenColors = null;
+        this._matugenThemeFile = null;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
         this._icon = new St.Icon({
@@ -467,16 +470,23 @@ class Indicator extends PanelMenu.Button {
     _applyMatugenTheme() {
         try {
             const colors = loadMatugenColors();
+            this._matugenColors = colors;
             const css = buildMatugenCss(colors);
             const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
-            // Unload previous first so St.Theme sees file as new
+            // Unload previous first so St.Theme sees file as new — try multiple stage sources (Wayland/X11 differ)
             let theme = null;
             try {
-                const ctx = St.ThemeContext.get_for_stage(global.stage);
-                theme = ctx?.get_theme() ?? null;
+                const stage = global.stage ?? global.display?.get_stage?.() ?? Main.layoutManager?.dummyStage ?? null;
+                if (stage) {
+                    const ctx = St.ThemeContext.get_for_stage(stage);
+                    theme = ctx?.get_theme() ?? null;
+                }
             } catch (e) {}
             if (!theme) {
-                try { theme = St.ThemeContext.get_for_stage(global.display?.get_stage?.() ?? global.stage)?.get_theme() ?? null; } catch (e) {}
+                try {
+                    const ctx2 = St.ThemeContext.get_for_stage(global.stage);
+                    theme = ctx2?.get_theme() ?? null;
+                } catch (e) {}
             }
             if (theme && this._matugenThemeFile) {
                 try { theme.unload_stylesheet(this._matugenThemeFile); } catch (e) {}
@@ -490,23 +500,16 @@ class Indicator extends PanelMenu.Button {
                 // Force Shell to re-apply styles immediately — otherwise popup
                 // can stay painted with old fallback until next theme change.
                 try { global.stage?.queue_relayout(); } catch (e) {}
+                try { Main.panel?.queue_relayout(); } catch (e) {}
                 try { this.menu?.box?.queue_relayout(); } catch (e) {}
             } else {
-                // Fallback: keep file ref even if theme unavailable this tick
                 this._matugenThemeFile = file;
             }
-            log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} -> ${cachePath}`);
-            // Direct inline fallback for already-rendered header — guarantees
-            // visual update even if St.Theme load is delayed or cached.
-            try {
-                if (this._headerBox) this._headerBox.set_style(`background-color: ${colors.primary_container};`);
-                if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${colors.primary};`);
-                if (this._headerIcon) this._headerIcon.set_style(`color: ${colors.on_primary};`);
-                if (this._headerTitle) this._headerTitle.set_style(`color: ${colors.on_primary_container};`);
-                if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(colors.on_primary_container, 0.75)};`);
-            } catch (e) {}
-            // Rebuild current results so per-source cards pick up new stylesheet
-            // immediately if popup is open (otherwise next checkNow will).
+            log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} secondary=${colors.secondary} surface_container=${colors.surface_container} -> ${cachePath}`);
+            // Comprehensive inline fallback — guarantees visual update even if St.Theme load is delayed/cached.
+            // Uses Matugen primary family, never -st-accent-color.
+            this._applyInlineMatugenColors(colors);
+            // Rebuild current results so per-source cards pick up new stylesheet/inline immediately if popup is open
             try {
                 if (this._lastRenderSources?.length && this.menu?.isOpen)
                     this._rebuildResultsSection(this._lastRenderSources, this._lastRenderResults, this._lastRenderUpdateCommands);
@@ -514,6 +517,25 @@ class Indicator extends PanelMenu.Button {
         } catch (e) {
             logError(e, 'UpdateChecker matugen theme failed');
         }
+    }
+
+    _applyInlineMatugenColors(c) {
+        try {
+            if (this._headerBox) this._headerBox.set_style(`background-color: ${c.primary_container}; border-color: transparent; border-width: 0;`);
+            if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${c.primary};`);
+            if (this._headerIcon) this._headerIcon.set_style(`color: ${c.on_primary};`);
+            if (this._headerTitle) this._headerTitle.set_style(`color: ${c.on_primary_container};`);
+            if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(c.on_primary_container, 0.75)};`);
+            // Inline for already-rendered per-source widgets (if popup already open before expand rebuild)
+            // We can't enumerate all containerBox widgets easily, but _rebuildResultsSection will handle new ones.
+            // Apply to source row widgets still alive
+            for (const [, w] of this._sourceRowWidgets ?? []) {
+                try { if (w.countLabel) w.countLabel.set_style(`background-color: ${c.secondary_container}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`); } catch (e) {}
+                try { if (w.runButton) w.runButton.set_style(`background-color: ${c.tertiary_container}; color: ${c.on_tertiary_container}; border-color: transparent; border-width: 0;`); } catch (e) {}
+                try { if (w.updatingLabel) w.updatingLabel.set_style(`color: ${c.on_secondary_container};`); } catch (e) {}
+            }
+            try { this.menu?.box?.queue_relayout(); } catch (e) {}
+        } catch (e) {}
     }
 
     _removeMatugenTheme() {
@@ -717,9 +739,11 @@ class Indicator extends PanelMenu.Button {
     // without re-running shell commands. Keeps header/badge/update-button logic identical
     // to the main checkNow render, but slices lines to MAX_VISIBLE when collapsed and
     // wraps expanded lists in a capped St.ScrollView (260px ≈ 8-9 rows).
+    // Uses live Matugen colors inline (primary etc.) — never -st-accent-color.
     _rebuildResultsSection(sources, results, updateCommands) {
         this._resultsSection.removeAll();
         this._sourceRowWidgets.clear();
+        const c = this._matugenColors || loadMatugenColors();
 
         const SOURCE_ICONS = {
             'DNF': 'system-software-install-symbolic',
@@ -742,10 +766,14 @@ class Indicator extends PanelMenu.Button {
             const headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const headerBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-section-header'});
             const accent = new St.Widget({style_class: 'update-checker-accent'});
+            accent.set_style(`background-color: ${c.primary};`);
             const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon'});
+            secIcon.set_style(`color: ${c.secondary};`);
             const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: 2});
+            titleLabel.set_style(`color: ${c.on_surface};`);
             const badgeText = r.status === 'error' ? '!' : `${r.count}`;
             const countLabel = new St.Label({text: badgeText, style_class: 'update-checker-badge', y_align: 2});
+            countLabel.set_style(`background-color: ${c.secondary_container}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`);
             headerBox.add_child(accent);
             headerBox.add_child(secIcon);
             headerBox.add_child(titleLabel);
@@ -754,10 +782,13 @@ class Indicator extends PanelMenu.Button {
             headerBox.add_child(spacer);
             let runButton = null;
             const updatingLabel = new St.Label({text: 'Updating…', style_class: 'update-checker-updating-label', visible: false, y_align: 2});
+            updatingLabel.set_style(`color: ${c.on_secondary_container};`);
             const stopButton = new St.Button({style_class: 'update-checker-stop-icon', visible: false, child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14})});
+            stopButton.set_style(`color: ${c.error};`);
             stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
             if (canUpdate) {
                 runButton = new St.Button({style_class: 'update-checker-update-button', y_align: Clutter.ActorAlign.CENTER});
+                runButton.set_style(`background-color: ${c.tertiary_container}; color: ${c.on_tertiary_container}; border-color: transparent; border-width: 0;`);
                 const btnBox = new St.BoxLayout({style_class: 'update-checker-update-button-box', y_align: Clutter.ActorAlign.CENTER});
                 btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
                 btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
@@ -776,9 +807,11 @@ class Indicator extends PanelMenu.Button {
 
             const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
+            containerBox.set_style(`background-color: ${c.surface_container}; border-color: transparent; border-width: 0;`);
             if (r.status === 'error') {
                 const errBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
-                errBox.add_child(new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16}));
+                errBox.set_style(`color: ${c.on_surface_variant};`);
+                errBox.add_child(new St.Icon({icon_name: 'dialog-warning-symbolic', icon_size: 16, style_class: ''}));
                 const errLabel = new St.Label({text: truncate(r.message || 'Unknown error', 50), style_class: 'update-checker-status-line'});
                 errBox.add_child(errLabel);
                 const clickable = new St.Button({child: errBox, x_expand: true});
@@ -786,6 +819,7 @@ class Indicator extends PanelMenu.Button {
                 containerBox.add_child(clickable);
             } else if (r.count === 0) {
                 const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
+                emptyBox.set_style(`color: ${c.on_surface_variant};`);
                 emptyBox.add_child(new St.Icon({icon_name: 'emblem-ok-symbolic', icon_size: 16}));
                 emptyBox.add_child(new St.Label({text: 'No updates available', style_class: ''}));
                 containerBox.add_child(emptyBox);
@@ -798,11 +832,13 @@ class Indicator extends PanelMenu.Button {
                     const pkgName = parts[0] || line;
                     const version = parts[1] || '';
                     const row = new St.BoxLayout({style_class: 'update-checker-package-row', x_expand: true});
-                    row.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12}));
+                    row.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12, style_class: ''}));
                     const nameLabel = new St.Label({text: truncate(pkgName, 42), style_class: 'update-checker-package-name', x_expand: true});
+                    nameLabel.set_style(`color: ${c.on_surface};`);
                     row.add_child(nameLabel);
                     if (version) {
                         const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version'});
+                        verLabel.set_style(`color: ${c.secondary};`);
                         row.add_child(verLabel);
                     }
                     containerBox.add_child(row);
@@ -812,6 +848,7 @@ class Indicator extends PanelMenu.Button {
                     const btnLabel = isExpanded ? 'Show less' : `Show all (${r.lines.length}) — ${remaining} more`;
                     const iconName = isExpanded ? 'go-up-symbolic' : 'go-down-symbolic';
                     const toggleBtn = new St.Button({style_class: 'update-checker-expand-button', x_expand: true});
+                    toggleBtn.set_style(`background-color: ${c.surface_container_high}; color: ${c.on_surface_variant};`);
                     const btnBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-update-button-box'});
                     btnBox.add_child(new St.Icon({icon_name: iconName, icon_size: 12, y_align: Clutter.ActorAlign.CENTER}));
                     btnBox.add_child(new St.Label({text: btnLabel, y_align: Clutter.ActorAlign.CENTER}));

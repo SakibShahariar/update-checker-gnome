@@ -30,11 +30,12 @@
 }
 
 /* — Header card — Matugen Material You — maps PkgUpdateWidget.qml:192
-   source: ~/.config/matugen/matugen-colors.css (dark) — GNOME: no outline, just fill */
+   source: ~/.config/matugen/matugen-colors.css (dark) — GNOME: no outline, just fill
+   Uses Matugen primary/primary_container/on_primary — no -st-accent-color */
 .update-checker-header-card {
     border-radius: 12px;
     border: none;
-    background-color: #254777; /* primary_container */
+    background-color: #3f4753; /* primary_container — Matugen */
     padding: 12px;
     margin: 6px 0 10px 0;
 }
@@ -43,36 +44,36 @@
     width: 40px;
     height: 40px;
     border-radius: 20px;
-    background-color: #a8c8ff; /* primary */
+    background-color: #bfc7d5; /* primary — Matugen */
 }
 
 .update-checker-header-icon {
-    color: #06305f; /* on_primary */
+    color: #29313c; /* on_primary — Matugen */
 }
 
 .update-checker-header-title {
     font-weight: bold;
     font-size: 1.05em;
-    color: #d5e3ff; /* on_primary_container */
+    color: #dbe3f1; /* on_primary_container — Matugen */
 }
 
 .update-checker-header-subtitle {
     font-size: 0.9em;
-    color: rgba(213, 227, 255, 0.75); /* on_primary_container @ 75% */
+    color: rgba(219, 227, 241, 0.75); /* on_primary_container @ 75% — Matugen */
 }
 
 .update-checker-refresh-button {
     border-radius: 16px;
     padding: 6px;
-    color: #d5e3ff; /* on_primary_container */
+    color: #dbe3f1; /* on_primary_container — Matugen */
 }
 
 .update-checker-refresh-button:hover {
-    background-color: rgba(189, 199, 220, 0.18); /* secondary 18% */
+    background-color: rgba(195, 199, 207, 0.18); /* secondary 18% — Matugen */
 }
 
 .update-checker-refresh-button:active {
-    background-color: rgba(219, 188, 225, 0.22); /* tertiary 22% */
+    background-color: rgba(186, 200, 219, 0.22); /* tertiary 22% — Matugen */
 }
 
 /* — Section header — PkgUpdateWidget.qml:293 accent + badge + button row */
@@ -85,24 +86,24 @@
 .update-checker-accent {
     width: 4px;
     border-radius: 2px;
-    background-color: #a8c8ff; /* primary */
+    background-color: #bfc7d5; /* primary — Matugen */
 }
 
 .update-checker-section-title {
     font-weight: bold;
-    color: #e1e2e9; /* on_surface */
+    color: #e4e2e3; /* on_surface — Matugen */
 }
 
 .update-checker-section-icon {
-    color: #bdc7dc; /* secondary */
+    color: #c3c7cf; /* secondary — Matugen */
 }
 
 .update-checker-badge {
     border-radius: 10px;
     padding: 1px 8px;
-    background-color: #3e4758; /* secondary_container */
+    background-color: #42474e; /* secondary_container — Matugen */
     border: none;
-    color: #d9e3f8; /* on_secondary_container */
+    color: #dfe2eb; /* on_secondary_container — Matugen */
     font-size: 0.85em;
     font-weight: bold;
 }
@@ -111,16 +112,16 @@
     border-radius: 999px; /* GNOME pill */
     padding: 4px 12px;
     border: none;
-    background-color: #563e5d; /* tertiary_container */
-    color: #f8d8fe; /* on_tertiary_container */
+    background-color: #3b4858; /* tertiary_container — Matugen */
+    color: #d6e4f7; /* on_tertiary_container — Matugen */
 }
 
 .update-checker-update-button:hover {
-    background-color: #654a6b; /* tertiary_container lightened */
+    background-color: #4f5c6c; /* tertiary_container lightened — Matugen */
 }
 
 .update-checker-update-button:active {
-    background-color: #70547a;
+    background-color: #5d6a7a;
 }
 
 .update-checker-update-button-box {
@@ -137,14 +138,14 @@
 .update-checker-container {
     border-radius: 12px;
     border: none;
-    background-color: #1d2024; /* surface_container */
+    background-color: #1f2021; /* surface_container — Matugen */
     padding: 4px;
     margin-bottom: 10px;
 }
 
 .update-checker-container-empty {
     padding: 12px;
-    color: #c4c6cf; /* on_surface_variant */
+    color: #c8c6c7; /* on_surface_variant — Matugen */
     font-size: 0.9em;
 }
 
@@ -154,41 +155,41 @@
 }
 
 .update-checker-package-row:hover {
-    background-color: #282a2f; /* surface_container_high */
+    background-color: #2a2a2b; /* surface_container_high — Matugen */
     border-radius: 8px;
 }
 
 .update-checker-package-name {
     font-size: 0.92em;
-    color: #e1e2e9; /* on_surface */
+    color: #e4e2e3; /* on_surface — Matugen */
 }
 
 .update-checker-package-version {
     font-size: 0.85em;
-    color: #bdc7dc; /* secondary — distinct from name */
+    color: #c3c7cf; /* secondary — Matugen */
 }
 
 /* legacy - kept for failed rows / fallback */
 .update-checker-count {
     font-weight: bold;
     padding-left: 12px;
-    color: #e1e2e9;
+    color: #e4e2e3; /* on_surface — Matugen */
 }
 
 .update-checker-warning-icon {
-    color: #ffb4ab; /* error */
+    color: #ffb4ab; /* error — Matugen */
     padding-left: 12px;
 }
 
 .update-checker-run-icon {
     padding-left: 8px;
     opacity: 0.85;
-    color: #a8c8ff; /* primary */
+    color: #bfc7d5; /* primary — Matugen */
 }
 
 .update-checker-updating-label {
     font-style: italic;
-    color: #d9e3f8; /* on_secondary_container */
+    color: #dfe2eb; /* on_secondary_container — Matugen */
     padding-left: 8px;
 }
 
@@ -200,7 +201,7 @@
 
 .update-checker-package-line {
     font-size: 90%;
-    color: #c4c6cf; /* on_surface_variant */
+    color: #c8c6c7; /* on_surface_variant — Matugen */
     padding-left: 24px;
     max-width: 420px;
 }
@@ -214,17 +215,17 @@
     border-radius: 8px;
     padding: 6px 12px;
     margin: 4px;
-    background-color: #282a2f; /* surface_container_high */
-    color: #c4c6cf; /* on_surface_variant */
+    background-color: #2a2a2b; /* surface_container_high — Matugen */
+    color: #c8c6c7; /* on_surface_variant — Matugen */
     font-size: 0.85em;
 }
 
 .update-checker-expand-button:hover {
-    background-color: #3e4758; /* secondary_container */
+    background-color: #42474e; /* secondary_container — Matugen */
 }
 
 .update-checker-expand-button:active {
-    background-color: #43474e; /* outline_variant */
+    background-color: #474748; /* outline_variant — Matugen */
 }
 
 /* widen popup - DMS 480px -> GNOME neutral ~440px — scoped to this extension only */
