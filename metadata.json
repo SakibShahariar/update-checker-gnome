@@ -4,6 +4,6 @@
   "description": "Periodically checks for pending system updates (DNF, Flatpak, and any other sources you configure) and shows the count in the top panel. Click the icon for a breakdown, or to launch your own update script.",
   "shell-version": ["49", "50"],
   "url": "https://github.com/SakibShahariar/update-checker-gnome",
-  "version": 3,
+  "version": 4,
   "settings-schema": "org.gnome.shell.extensions.update-checker"
 }

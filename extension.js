@@ -330,9 +330,12 @@ class Indicator extends PanelMenu.Button {
         // Header card — neutral structure only, maps PkgUpdateWidget.qml:192 — GNOME: only inner BoxLayout has card style, wrapper is flat (avoids double border)
         this._headerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
         const headerBox = new St.BoxLayout({style_class: 'update-checker-header-card', x_expand: true});
+        this._headerBox = headerBox;
         const headerLeft = new St.BoxLayout({style_class: 'update-checker-section-header', x_expand: true});
         const iconBox = new St.Widget({style_class: 'update-checker-header-icon-box', layout_manager: new Clutter.BinLayout()});
+        this._headerIconBox = iconBox;
         const headerIcon = new St.Icon({icon_name: 'system-software-install-symbolic', icon_size: 20, style_class: 'update-checker-header-icon'});
+        this._headerIcon = headerIcon;
         iconBox.add_child(headerIcon);
         const headerTextBox = new St.BoxLayout({vertical: true, y_align: 2 /* CENTER */, style_class: ''});
         this._headerTitle = new St.Label({text: 'Package Updates', style_class: 'update-checker-header-title'});
@@ -466,15 +469,48 @@ class Indicator extends PanelMenu.Button {
             const colors = loadMatugenColors();
             const css = buildMatugenCss(colors);
             const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
-            GLib.file_set_contents(cachePath, css);
-            const file = Gio.File.new_for_path(cachePath);
-            const theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
-            // Unload previous if any (hot reload)
-            if (this._matugenThemeFile) {
+            // Unload previous first so St.Theme sees file as new
+            let theme = null;
+            try {
+                const ctx = St.ThemeContext.get_for_stage(global.stage);
+                theme = ctx?.get_theme() ?? null;
+            } catch (e) {}
+            if (!theme) {
+                try { theme = St.ThemeContext.get_for_stage(global.display?.get_stage?.() ?? global.stage)?.get_theme() ?? null; } catch (e) {}
+            }
+            if (theme && this._matugenThemeFile) {
                 try { theme.unload_stylesheet(this._matugenThemeFile); } catch (e) {}
             }
-            theme.load_stylesheet(file);
-            this._matugenThemeFile = file;
+            const ok = GLib.file_set_contents(cachePath, css);
+            if (!ok) throw new Error('file_set_contents failed');
+            const file = Gio.File.new_for_path(cachePath);
+            if (theme) {
+                theme.load_stylesheet(file);
+                this._matugenThemeFile = file;
+                // Force Shell to re-apply styles immediately — otherwise popup
+                // can stay painted with old fallback until next theme change.
+                try { global.stage?.queue_relayout(); } catch (e) {}
+                try { this.menu?.box?.queue_relayout(); } catch (e) {}
+            } else {
+                // Fallback: keep file ref even if theme unavailable this tick
+                this._matugenThemeFile = file;
+            }
+            log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} -> ${cachePath}`);
+            // Direct inline fallback for already-rendered header — guarantees
+            // visual update even if St.Theme load is delayed or cached.
+            try {
+                if (this._headerBox) this._headerBox.set_style(`background-color: ${colors.primary_container};`);
+                if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${colors.primary};`);
+                if (this._headerIcon) this._headerIcon.set_style(`color: ${colors.on_primary};`);
+                if (this._headerTitle) this._headerTitle.set_style(`color: ${colors.on_primary_container};`);
+                if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(colors.on_primary_container, 0.75)};`);
+            } catch (e) {}
+            // Rebuild current results so per-source cards pick up new stylesheet
+            // immediately if popup is open (otherwise next checkNow will).
+            try {
+                if (this._lastRenderSources?.length && this.menu?.isOpen)
+                    this._rebuildResultsSection(this._lastRenderSources, this._lastRenderResults, this._lastRenderUpdateCommands);
+            } catch (e) {}
         } catch (e) {
             logError(e, 'UpdateChecker matugen theme failed');
         }
