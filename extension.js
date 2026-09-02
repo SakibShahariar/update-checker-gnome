@@ -408,12 +408,16 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(settingsItem);
 
         this.menu.connect('open-state-changed', (menu, open) => {
-            if (open)
+            if (open) {
                 this._updateRunScriptVisibility();
+                // Reload matugen on every menu open — ensures wallpaper change is picked up
+                // even if file monitor missed atomic rename or was GC'd.
+                this._applyMatugenTheme();
+            }
         });
 
         this._renderEmpty();
-        // Apply Matugen colors at launch — reads ~/.config/matugen/matugen-colors.css once per enable
+        // Apply Matugen colors at launch — also re-applied on every popup open (no background watch)
         this._applyMatugenTheme();
     }
 
