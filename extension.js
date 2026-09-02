@@ -219,20 +219,24 @@ function loadMatugenColors() {
     }
 }
 
-function shouldAnimate() {
+function hasMotion() {
     try {
         const stSettings = St.Settings.get();
-        if (stSettings && 'enable_animations' in stSettings)
-            return stSettings.enable_animations !== false;
+        if (stSettings && 'enable_animations' in stSettings && stSettings.enable_animations === false)
+            return false;
+        if (St.ReducedMotion) {
+            const {reducedMotion} = stSettings;
+            if (reducedMotion === St.ReducedMotion.REDUCE) return false;
+        }
     } catch (e) {}
     try {
-        // Clutter.Settings fallback (GNOME 51)
         const clutterSettings = Clutter.Settings.get_default?.();
-        if (clutterSettings && 'enable_animations' in clutterSettings)
-            return clutterSettings.enable_animations !== false;
+        if (clutterSettings && 'enable_animations' in clutterSettings && clutterSettings.enable_animations === false)
+            return false;
     } catch (e) {}
     return true;
 }
+function shouldAnimate() { return hasMotion(); }
 
 function buildMatugenCss(c) {
     // Mirrors stylesheet.css but with live Matugen hex values — GNOME: no outline borders (was KDE-like)
@@ -502,7 +506,7 @@ class Indicator extends PanelMenu.Button {
     }
 
     _startRefreshSpin() {
-        if (!this._refreshIcon || !shouldAnimate())
+        if (!this._refreshIcon || !hasMotion())
             return;
         // Already spinning?
         if (this._refreshIcon.get_transition?.('rotation-angle-z'))
@@ -542,33 +546,56 @@ class Indicator extends PanelMenu.Button {
     }
 
     _animateBadge(badge) {
-        if (!badge || !shouldAnimate())
+        if (!badge || !hasMotion())
             return;
         try {
             badge.set_pivot_point(0.5, 0.5);
-            badge.set_scale(0.2, 0.2);
+            badge.set_scale(0.55, 0.55);
+            badge.opacity = 180;
             badge.ease({
-                scale_x: 1, scale_y: 1,
-                duration: 480,
-                mode: Clutter.AnimationMode.EASE_OUT_BOUNCE,
+                scale_x: 1.45, scale_y: 1.45, opacity: 255,
+                duration: 140, mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                onComplete: () => {
+                    if (this._destroyed || !badge.get_stage()) return;
+                    badge.ease({
+                        scale_x: 0.92, scale_y: 0.92,
+                        duration: 90, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+                        onComplete: () => {
+                            if (this._destroyed || !badge.get_stage()) return;
+                            badge.ease({scale_x: 1, scale_y: 1, duration: 110, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+                        },
+                    });
+                },
             });
         } catch (e) {}
     }
 
     _animatePanelPulse() {
-        if (!shouldAnimate() || !this._icon)
+        if (!hasMotion() || !this._icon)
             return;
         try {
             this._icon.set_pivot_point(0.5, 0.5);
-            this._icon.ease({scale_x: 1.35, scale_y: 1.35, duration: 180, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            this._icon.translation_y = 0;
+            this._icon.ease({
+                scale_x: 1.35, scale_y: 1.35, translation_y: -3,
+                duration: 120, mode: Clutter.AnimationMode.EASE_OUT_BACK,
                 onComplete: () => {
-                    this._icon.ease({scale_x: 1, scale_y: 1, duration: 320, mode: Clutter.AnimationMode.EASE_OUT_BOUNCE});
-                }});
+                    if (this._destroyed || !this._icon.get_stage()) return;
+                    this._icon.ease({
+                        scale_x: 0.88, scale_y: 0.88, translation_y: 1,
+                        duration: 100, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+                        onComplete: () => {
+                            if (this._destroyed || !this._icon.get_stage()) return;
+                            this._icon.ease({scale_x: 1, scale_y: 1, translation_y: 0, duration: 130, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+                        },
+                    });
+                },
+            });
         } catch (e) {}
     }
 
     _animateHeaderEntrance() {
-        if (!shouldAnimate() || !this._headerBox)
+        if (!hasMotion() || !this._headerBox)
             return;
         try {
             this._headerBox.set_pivot_point(0.5, 0.5);
@@ -584,15 +611,16 @@ class Indicator extends PanelMenu.Button {
     }
 
     _addButtonHoverScale(button) {
-        if (!button || !shouldAnimate())
+        if (!button || !hasMotion())
             return;
         try {
             button.set_pivot_point(0.5, 0.5);
             button.connect('enter-event', () => {
-                if (!shouldAnimate()) return;
+                if (!hasMotion() || this._destroyed) return;
                 button.ease({scale_x: 1.06, scale_y: 1.06, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
             });
             button.connect('leave-event', () => {
+                if (this._destroyed) return;
                 button.ease({scale_x: 1, scale_y: 1, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
             });
         } catch (e) {}
@@ -628,10 +656,6 @@ class Indicator extends PanelMenu.Button {
             if (theme) {
                 theme.load_stylesheet(file);
                 this._matugenThemeFile = file;
-                // Force Shell to re-apply styles immediately — otherwise popup
-                // can stay painted with old fallback until next theme change.
-                try { global.stage?.queue_relayout(); } catch (e) {}
-                try { Main.panel?.queue_relayout(); } catch (e) {}
                 try { this.menu?.box?.queue_relayout(); } catch (e) {}
             } else {
                 this._matugenThemeFile = file;
@@ -935,13 +959,19 @@ class Indicator extends PanelMenu.Button {
             const existingUpdate = this._updatingSources.get(src.name);
             if (existingUpdate && !existingUpdate.isTerminal)
                 this._setRowUpdating(src.name, true);
-            // Energetic: badge bounce + button hover scale
-            if (shouldAnimate()) {
-                // Staggered badge entrance ( Energetic )
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
-                    this._animateBadge(countLabel);
-                    return GLib.SOURCE_REMOVE;
-                });
+            // Energetic: badge bounce + button hover scale (delay-based, no GLib source to leak)
+            if (hasMotion()) {
+                countLabel.opacity = 0;
+                countLabel.set_scale(0.55, 0.55);
+                countLabel.ease({opacity: 255, scale_x: 1.45, scale_y: 1.45, delay: 80, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                    onComplete: () => {
+                        if (this._destroyed || !countLabel.get_stage()) return;
+                        countLabel.ease({scale_x: 0.92, scale_y: 0.92, duration: 90, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+                            onComplete: () => {
+                                if (this._destroyed || !countLabel.get_stage()) return;
+                                countLabel.ease({scale_x: 1, scale_y: 1, duration: 110, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+                            }});
+                    }});
                 if (runButton)
                     this._addButtonHoverScale(runButton);
                 // Header slide-in per source
@@ -987,14 +1017,10 @@ class Indicator extends PanelMenu.Button {
                         verLabel.set_style(`color: ${c.secondary};`);
                         row.add_child(verLabel);
                     }
-                    if (shouldAnimate()) {
+                    if (hasMotion()) {
                         row.opacity = 0;
                         row.translation_y = -4;
-                        const delay = idx * 35;
-                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-                            if (row) row.ease({opacity: 255, translation_y: 0, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
-                            return GLib.SOURCE_REMOVE;
-                        });
+                        row.ease({opacity: 255, translation_y: 0, delay: idx * 35, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
                     }
                     containerBox.add_child(row);
                 }
@@ -1009,7 +1035,7 @@ class Indicator extends PanelMenu.Button {
                     btnBox.add_child(new St.Label({text: btnLabel, y_align: Clutter.ActorAlign.CENTER}));
                     toggleBtn.set_child(btnBox);
                     toggleBtn.connect('clicked', () => this._toggleSourceExpanded(src.name));
-                    if (shouldAnimate()) this._addButtonHoverScale(toggleBtn);
+                    if (hasMotion()) this._addButtonHoverScale(toggleBtn);
                     containerBox.add_child(toggleBtn);
                 }
             }
