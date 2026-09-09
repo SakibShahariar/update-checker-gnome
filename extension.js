@@ -371,6 +371,9 @@ class Indicator extends PanelMenu.Button {
         const refreshIcon = new St.Icon({icon_name: 'view-refresh-symbolic', icon_size: 16});
         const refreshBtn = new St.Button({style_class: 'update-checker-refresh-button', child: refreshIcon});
         refreshBtn.connect('clicked', () => this.checkNow(true));
+        this._setTooltip(refreshBtn, 'Check now');
+        refreshBtn.accessible_name = 'Check now';
+        if (hasMotion()) this._addButtonHoverScale(refreshBtn);
         headerBox.add_child(headerLeft);
         headerBox.add_child(refreshBtn);
         this._headerItem.add_child(headerBox);
@@ -624,6 +627,20 @@ class Indicator extends PanelMenu.Button {
                 button.ease({scale_x: 1, scale_y: 1, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
             });
         } catch (e) {}
+    }
+
+    _setTooltip(actor, text) {
+        if (!actor || text == null)
+            return;
+        try {
+            actor.tooltip_text = text;
+        } catch (_e) {
+            try {
+                actor.accessible_name = text;
+            } catch (_e2) {
+                /* ignore */
+            }
+        }
     }
 
     _applyMatugenTheme() {
