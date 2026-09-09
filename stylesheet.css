@@ -235,7 +235,7 @@
 
 /* widen popup - DMS 480px -> GNOME neutral ~440px — scoped to this extension only */
 .update-checker-menu {
-    min-width: 440px;
+    min-width: 480px;
 }
 
 /* Stock popup items (security/reboot/status/footer) — match themed surfaces with
