@@ -102,7 +102,7 @@
 }
 
 .update-checker-badge {
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 1px 8px;
     background-color: #42474e; /* secondary_container — Matugen */
     border: none;
