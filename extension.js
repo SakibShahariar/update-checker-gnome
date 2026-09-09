@@ -316,6 +316,7 @@ class Indicator extends PanelMenu.Button {
         this._lastRenderUpdateCommands = new Map();
         this._matugenColors = null;
         this._matugenThemeFile = null;
+        this._matugenMonitor = null;
         this._refreshIcon = null;
         this._refreshButton = null;
 
@@ -440,11 +441,10 @@ class Indicator extends PanelMenu.Button {
         this.menu.connect('open-state-changed', (menu, open) => {
             if (open) {
                 this._updateRunScriptVisibility();
-                // Reload matugen on every menu open — ensures wallpaper change is picked up
-                // even if file monitor missed atomic rename or was GC'd.
-                this._applyMatugenTheme();
-                // Energetic header entrance
+                // Defer matugen + header entrance to next idle tick so the
+                // popup frame paints first (avoids click-to-show lag).
                 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                    this._applyMatugenTheme();
                     this._animateHeaderEntrance();
                     return GLib.SOURCE_REMOVE;
                 });
@@ -455,6 +455,7 @@ class Indicator extends PanelMenu.Button {
 
         this._renderEmpty();
         // Apply Matugen colors at launch — also re-applied on every popup open (no background watch)
+        this._setupMatugenMonitor();
         this._applyMatugenTheme();
     }
 
@@ -631,7 +632,7 @@ class Indicator extends PanelMenu.Button {
             const colors = loadMatugenColors();
             this._matugenColors = colors;
             const css = buildMatugenCss(colors);
-            const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
+            const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), `update-checker-matugen-${Date.now()}.css`]);
             // Unload previous first so St.Theme sees file as new — try multiple stage sources (Wayland/X11 differ)
             let theme = null;
             try {
@@ -676,6 +677,7 @@ class Indicator extends PanelMenu.Button {
 
     _applyInlineMatugenColors(c) {
         try {
+            log(`UpdateChecker inline matugen: headerBox bg=${c.primary_container} hasHeaderBox=${!!this._headerBox}`);
             if (this._headerBox) this._headerBox.set_style(`background-color: ${c.primary_container}; border-color: transparent; border-width: 0;`);
             if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${c.primary};`);
             if (this._headerIcon) this._headerIcon.set_style(`color: ${c.on_primary};`);
@@ -700,6 +702,25 @@ class Indicator extends PanelMenu.Button {
                 if (theme) theme.unload_stylesheet(this._matugenThemeFile);
             } catch (e) {}
             this._matugenThemeFile = null;
+        }
+        if (this._matugenMonitor) {
+            try { this._matugenMonitor.cancel(); } catch (e) {}
+            this._matugenMonitor = null;
+        }
+    }
+
+    _setupMatugenMonitor() {
+        const path = GLib.build_filenamev([GLib.get_home_dir(), '.config', 'matugen', 'matugen-colors.css']);
+        const file = Gio.File.new_for_path(path);
+        try {
+            this._matugenMonitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._matugenMonitor.connect('changed', (monitor, file, otherFile, eventType) => {
+                if (eventType === Gio.FileMonitorEvent.CHANGED || eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT) {
+                    this._applyMatugenTheme();
+                }
+            });
+        } catch (e) {
+            logError(e, 'UpdateChecker matugen monitor failed');
         }
     }
 
