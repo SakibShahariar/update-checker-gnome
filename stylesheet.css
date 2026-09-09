@@ -237,3 +237,18 @@
 .update-checker-menu {
     min-width: 440px;
 }
+
+/* Stock popup items (security/reboot/status/footer) — match themed surfaces with
+   rounded, inset rows instead of default flat list items. Scoped to this menu only. */
+.update-checker-menu .popup-menu-item {
+    border-radius: 8px;
+    margin: 1px 8px;
+    border-color: transparent;
+    border-width: 0;
+}
+
+.update-checker-menu .popup-menu-item:hover,
+.update-checker-menu .popup-menu-item:selected,
+.update-checker-menu .popup-menu-item:focus {
+    background-color: #2a2a2b; /* surface_container_high — Matugen */
+}
