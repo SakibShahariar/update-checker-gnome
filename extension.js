@@ -1067,7 +1067,6 @@ class Indicator extends PanelMenu.Button {
                     overlay_scrollbars: true,
                     x_expand: true,
                     y_expand: false,
-                    style: `max-height: ${EXPANDED_SCROLL_MAX_HEIGHT}px;`,
                 });
                 scrollView.set_child(containerBox);
                 // St.ScrollView scroll policy
