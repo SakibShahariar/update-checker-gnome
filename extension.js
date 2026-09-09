@@ -1027,15 +1027,25 @@ class Indicator extends PanelMenu.Button {
                     const parts = line.trim().split(/\s+|\t/);
                     const pkgName = parts[0] || line;
                     const version = parts[1] || '';
-                    const row = new St.BoxLayout({style_class: 'update-checker-package-row', x_expand: true});
-                    row.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12, style_class: ''}));
+                    const rowBox = new St.BoxLayout({style_class: '', x_expand: true, spacing: 8});
+                    rowBox.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12, style_class: ''}));
                     const nameLabel = new St.Label({text: truncate(pkgName, 42), style_class: 'update-checker-package-name', x_expand: true});
                     nameLabel.set_style(`color: ${c.on_surface};`);
-                    row.add_child(nameLabel);
+                    rowBox.add_child(nameLabel);
                     if (version) {
                         const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version'});
                         verLabel.set_style(`color: ${c.secondary};`);
-                        row.add_child(verLabel);
+                        rowBox.add_child(verLabel);
+                    }
+                    // Whole row toggles expand/collapse so the hover highlight is actionable,
+                    // not just decoration (only when there are hidden lines to show).
+                    let row;
+                    if (hasMore) {
+                        row = new St.Button({child: rowBox, style_class: 'update-checker-package-row', x_expand: true});
+                        row.connect('clicked', () => this._toggleSourceExpanded(src.name));
+                    } else {
+                        row = rowBox;
+                        row.style_class = 'update-checker-package-row';
                     }
                     if (hasMotion()) {
                         row.opacity = 0;
