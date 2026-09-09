@@ -329,7 +329,7 @@ class Indicator extends PanelMenu.Button {
         });
         this._label = new St.Label({
             text: '',
-            y_align: 2 /* Clutter.ActorAlign.CENTER */,
+            y_align: Clutter.ActorAlign.CENTER,
             style_class: 'update-checker-label',
         });
         this._securityIcon = new St.Icon({
@@ -364,7 +364,7 @@ class Indicator extends PanelMenu.Button {
         const headerIcon = new St.Icon({icon_name: 'system-software-install-symbolic', icon_size: 20, style_class: 'update-checker-header-icon'});
         this._headerIcon = headerIcon;
         iconBox.add_child(headerIcon);
-        const headerTextBox = new St.BoxLayout({vertical: true, y_align: 2 /* CENTER */, style_class: ''});
+        const headerTextBox = new St.BoxLayout({vertical: true, y_align: Clutter.ActorAlign.CENTER, style_class: ''});
         this._headerTitle = new St.Label({text: 'Package Updates', style_class: 'update-checker-header-title'});
         this._headerSubtitle = new St.Label({text: 'Checking…', style_class: 'update-checker-header-subtitle'});
         headerTextBox.add_child(this._headerTitle);
@@ -964,10 +964,10 @@ class Indicator extends PanelMenu.Button {
             accent.set_style(`background-color: ${c.primary};`);
             const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon'});
             secIcon.set_style(`color: ${c.secondary};`);
-            const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: 2});
+            const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: Clutter.ActorAlign.CENTER});
             titleLabel.set_style(`color: ${c.on_surface};`);
             const badgeText = r.status === 'error' ? '!' : `${r.count}`;
-            const countLabel = new St.Label({text: badgeText, style_class: 'update-checker-badge', y_align: 2});
+            const countLabel = new St.Label({text: badgeText, style_class: 'update-checker-badge', y_align: Clutter.ActorAlign.CENTER});
             countLabel.set_style(`background-color: ${c.secondary_container}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`);
             headerBox.add_child(accent);
             headerBox.add_child(secIcon);
@@ -976,7 +976,7 @@ class Indicator extends PanelMenu.Button {
             const spacer = new St.Widget({x_expand: true});
             headerBox.add_child(spacer);
             let runButton = null;
-            const updatingLabel = new St.Label({text: 'Updating…', style_class: 'update-checker-updating-label', visible: false, y_align: 2});
+            const updatingLabel = new St.Label({text: 'Updating…', style_class: 'update-checker-updating-label', visible: false, y_align: Clutter.ActorAlign.CENTER});
             updatingLabel.set_style(`color: ${c.on_secondary_container};`);
             const stopButton = new St.Button({style_class: 'update-checker-stop-icon', visible: false, child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14})});
             stopButton.set_style(`color: ${c.error};`);
