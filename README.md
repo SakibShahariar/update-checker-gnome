@@ -2,7 +2,9 @@
 
 > Pending updates at a glance — in your top panel.
 
-![GNOME 49-50](https://img.shields.io/badge/GNOME-49--50-blue) ![Fedora](https://img.shields.io/badge/Fedora-43--44-blue)
+![GNOME 49-51](https://img.shields.io/badge/GNOME-49--51-blue) ![Fedora](https://img.shields.io/badge/Fedora-43--44-blue)
+
+> Follows your wallpaper colors via [Matugen](https://github.com/InioX/matugen) — reloads live on theme change, no restart needed.
 
 Click the icon for a per-source breakdown, `Check Now`, or `Run Update Script` (your fish script, with `doas` prompts).
 
@@ -18,6 +20,7 @@ Click the icon for a per-source breakdown, `Check Now`, or `Run Update Script` (
 | 🌙 **Quiet hours** | Silence popups, keep icon live |
 | ⚡ **Instant refresh** | Watches `/usr/lib/sysimage/libdnf5` etc. |
 | ▶️ **Background** | `pkexec` graphical prompt, elapsed + stop |
+| 🎨 **Matugen** | Header, badges, buttons track your wallpaper palette live |
 
 ### Install
 
