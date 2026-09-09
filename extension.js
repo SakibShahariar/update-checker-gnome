@@ -261,7 +261,8 @@ function buildMatugenCss(c) {
 .update-checker-package-row:hover { background-color: ${c.surface_container_high}; }
 .update-checker-package-name { color: ${c.on_surface}; }
 .update-checker-package-version { color: ${c.secondary}; }
-.update-checker-reboot-icon, .update-checker-security-icon, .update-checker-warning-icon, .update-checker-stop-icon { color: ${c.error}; }
+.update-checker-security-icon, .update-checker-warning-icon, .update-checker-stop-icon { color: ${c.error}; }
+.update-checker-reboot-icon { color: ${c.tertiary}; }
 .update-checker-offline-icon { color: ${c.secondary}; }
 .update-checker-run-icon { color: ${c.primary}; }
 .update-checker-updating-label { color: ${c.on_secondary_container}; }

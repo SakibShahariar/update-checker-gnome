@@ -10,7 +10,7 @@
 .update-checker-reboot-icon {
     padding-left: 4px;
     opacity: 0.85;
-    color: #ffb4ab; /* error */
+    color: #bac8db; /* tertiary — distinct from error red */
 }
 
 .update-checker-offline-icon {
