@@ -274,7 +274,6 @@ function buildMatugenCss(c) {
 }
 
 const MAX_VISIBLE = 8;
-const EXPANDED_SCROLL_MAX_HEIGHT = 260;
 
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
@@ -1060,21 +1059,10 @@ class Indicator extends PanelMenu.Button {
                     containerBox.add_child(toggleBtn);
                 }
             }
-            // Wrap in ScrollView when expanded and tall — caps height to 260px, otherwise let popup scroll
-            if (r.status === 'ok' && r.count > MAX_VISIBLE && this._expandedSources.has(src.name)) {
-                const scrollView = new St.ScrollView({
-                    style_class: 'update-checker-scroll',
-                    overlay_scrollbars: true,
-                    x_expand: true,
-                    y_expand: false,
-                });
-                scrollView.set_child(containerBox);
-                // St.ScrollView scroll policy
-                scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-                containerItem.add_child(scrollView);
-            } else {
-                containerItem.add_child(containerBox);
-            }
+            // Let the popup itself scroll the whole content as one region —
+            // per-source ScrollViews created nested scroll regions and made
+            // wheel navigation across expanded sources feel sticky.
+            containerItem.add_child(containerBox);
             this._resultsSection.addMenuItem(containerItem);
             if (shouldAnimate()) {
                 containerItem.opacity = 0;

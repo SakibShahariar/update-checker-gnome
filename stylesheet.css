@@ -213,10 +213,7 @@
     max-width: 420px;
 }
 
-/* — Scroll container — capped when expanded (hybrid truncate+scroll) */
-.update-checker-scroll {
-    max-height: 260px;
-}
+/* — Scroll container — removed nested scrollviews; popup scrolls as one region */
 
 .update-checker-expand-button {
     border-radius: 8px;
