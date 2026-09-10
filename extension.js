@@ -1046,8 +1046,9 @@ class Indicator extends PanelMenu.Button {
                     const line = linesToShow[idx];
                     const parts = line.trim().split(/\s+|\t/);
                     const pkgName = parts[0] || line;
-                    const version = parts[1] || '';
-                    const rowBox = new St.BoxLayout({style_class: '', x_expand: true, spacing: 8});
+                    const version = parts[2] || parts[1] || '';
+                    const rowBox = new St.BoxLayout({style_class: '', x_expand: true});
+                    rowBox.spacing = 8;
                     rowBox.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12, style_class: ''}));
                     const nameLabel = new St.Label({text: truncate(pkgName, 42), style_class: 'update-checker-package-name', x_expand: true});
                     nameLabel.set_style(`color: ${c.on_surface};`);
@@ -1307,6 +1308,13 @@ class Indicator extends PanelMenu.Button {
     }
 
     async checkNow(manual = false) {
+        try { return await this._checkNowInner(manual); } catch (e) {
+            log(`UpdateChecker checkNow FAILED: ${e}\n${e.stack}`);
+            this._checking = false;
+        }
+    }
+
+    async _checkNowInner(manual = false) {
         if (this._checking)
             return;
         // A background update (no-terminal/pkexec mode) we started
