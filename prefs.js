@@ -1,6 +1,7 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
+import Gdk from 'gi://Gdk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -9,31 +10,36 @@ const PRESET_SOURCES = [
         name: 'DNF',
         command: "dnf check-update -q --refresh --color=never | grep -E '^\\S+\\.\\S+\\s'",
         updateCommand: 'doas dnf update --refresh -y && doas dnf autoremove -y',
-        blurb: 'Fedora/RHEL packages.',
+        interval: 60,
+        blurb: 'Fedora/RHEL packages · every 60 min',
     },
     {
         name: 'Flatpak',
         command: 'flatpak remote-ls --updates',
         updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
-        blurb: 'Flathub (add one per remote if needed).',
+        interval: 120,
+        blurb: 'Flathub · every 120 min',
     },
     {
         name: 'Cargo',
         command: "cargo install-update -l -a | awk '$NF==\"Yes\"'",
         updateCommand: 'cargo install-update -a',
-        blurb: 'Requires cargo-update crate.',
+        interval: 1440,
+        blurb: 'Requires cargo-update · daily',
     },
     {
         name: 'npm (global)',
         command: 'npm outdated -g --parseable',
         updateCommand: 'doas npm update -g',
-        blurb: 'Global npm packages.',
+        interval: 360,
+        blurb: 'Global npm packages · every 6h',
     },
     {
         name: 'uv tools',
         command: "uv tool list --outdated | grep '\\[latest:'",
         updateCommand: 'uv tool upgrade --all',
-        blurb: 'Requires network.',
+        interval: 360,
+        blurb: 'uv tools · every 6h',
     },
 ];
 
@@ -75,6 +81,54 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         showZeroRow.add_prefix(new Gtk.Image({icon_name: 'view-visible-symbolic', pixel_size: 18}));
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
+
+        const permGroup = new Adw.PreferencesGroup({
+            title: 'DNF metadata access',
+            description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
+        });
+        generalPage.add(permGroup);
+
+        const dnfPath = '/usr/lib/sysimage/libdnf5';
+        let permSubtitle = 'Path not present (OK on non-DNF systems)';
+        let needsFix = false;
+        try {
+            const file = Gio.File.new_for_path(dnfPath);
+            if (file.query_exists(null)) {
+                try {
+                    file.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null).close(null);
+                    permSubtitle = 'Readable — no action needed';
+                } catch (e) {
+                    needsFix = true;
+                    permSubtitle = 'Not readable by your user — DNF checks may fail';
+                }
+            }
+        } catch (e) {
+            permSubtitle = 'Could not probe path';
+        }
+
+        const permRow = new Adw.ActionRow({
+            title: dnfPath,
+            subtitle: permSubtitle,
+        });
+        permRow.add_prefix(new Gtk.Image({
+            icon_name: needsFix ? 'dialog-warning-symbolic' : 'emblem-ok-symbolic',
+            pixel_size: 18,
+        }));
+        if (needsFix) {
+            const copyBtn = new Gtk.Button({
+                label: 'Copy fix command',
+                valign: Gtk.Align.CENTER,
+            });
+            const fixCmd = `doas chmod -R a+rX ${dnfPath}`;
+            copyBtn.connect('clicked', () => {
+                try {
+                    const display = Gdk.Display.get_default();
+                    display.get_clipboard().set(fixCmd);
+                } catch (e) {}
+            });
+            permRow.add_suffix(copyBtn);
+        }
+        permGroup.add(permRow);
 
         const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Silence popups, keep icon live.'});
         generalPage.add(quietGroup);
@@ -419,7 +473,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 }));
                 if (!already) {
                     row.connect('activated', () => {
-                        addSourceRow(preset.name, preset.command, preset.updateCommand ?? '');
+                        addSourceRow(preset.name, preset.command, preset.updateCommand ?? '', preset.interval ?? null);
                         saveSources();
                         popover.popdown();
                     });

@@ -64,6 +64,22 @@ function runShell(command) {
 //    or the subprocess failed to spawn at all)
 //  - the command produced no stdout AND wrote to stderr AND exited
 //    non-zero - i.e. it looks like it broke, not like it found nothing
+
+// Run async work over `items` with at most `limit` in flight at once.
+async function mapPool(items, limit, worker) {
+    const results = new Array(items.length);
+    let i = 0;
+    async function run() {
+        while (i < items.length) {
+            const idx = i++;
+            results[idx] = await worker(items[idx], idx);
+        }
+    }
+    const n = Math.min(limit, Math.max(1, items.length));
+    await Promise.all(Array.from({length: n}, () => run()));
+    return results;
+}
+
 function classifyResult({stdout, stderr, exitStatus, spawnFailed}) {
     if (spawnFailed || exitStatus === 127) {
         const reason = stripAnsi(stderr).trim().split('\n')[0] || 'command not found';
@@ -460,9 +476,10 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.add_style_class_name('update-checker-status-line');
         this.menu.addMenuItem(this._statusItem);
 
-        this._historyItem = new PopupMenu.PopupMenuItem('', {reactive: false});
+        this._historyItem = new PopupMenu.PopupMenuItem('', {reactive: true});
         this._historyItem.label.add_style_class_name('update-checker-status-line');
         this._historyItem.visible = false;
+        this._historyItem.connect('activate', () => this._showHistoryDetails());
         this.menu.addMenuItem(this._historyItem);
 
         this._dismissItem = new PopupMenu.PopupMenuItem('Dismiss errors');
@@ -528,6 +545,32 @@ class Indicator extends PanelMenu.Button {
         const showZero = this._settings.get_boolean('show-zero');
         this.visible = this._lastTotal > 0 || showZero ||
             this._lastAnyFailed || this._lastRebootRequired || this._lastOffline;
+        this._syncGroupedStatusIcons();
+    }
+
+    // When 2+ of security / reboot / offline apply, collapse into one chip
+    // with a combined tooltip to avoid crowding the panel.
+    _syncGroupedStatusIcons() {
+        if (!this._securityIcon || !this._rebootIcon || !this._offlineIcon)
+            return;
+        const parts = [];
+        if (this._lastOffline) parts.push('offline');
+        if (this._lastRebootRequired) parts.push('reboot');
+        if (this._lastSecurityCount > 0) parts.push(`${this._lastSecurityCount} security`);
+        const n = (this._lastOffline ? 1 : 0) + (this._lastRebootRequired ? 1 : 0) + (this._lastSecurityCount > 0 ? 1 : 0);
+        if (n >= 2) {
+            this._securityIcon.visible = false;
+            this._rebootIcon.visible = false;
+            this._offlineIcon.visible = true;
+            this._offlineIcon.icon_name = 'dialog-information-symbolic';
+            try { this._offlineIcon.tooltip_text = parts.join(' · '); } catch (e) {}
+        } else {
+            this._offlineIcon.icon_name = 'network-offline-symbolic';
+            try { this._offlineIcon.tooltip_text = this._lastOffline ? 'Offline' : ''; } catch (e) {}
+            this._offlineIcon.visible = !!this._lastOffline;
+            this._rebootIcon.visible = !!this._lastRebootRequired;
+            this._securityIcon.visible = this._lastSecurityCount > 0;
+        }
     }
 
     _updateHeaderSubtitle() {
@@ -878,10 +921,34 @@ class Indicator extends PanelMenu.Button {
             });
             const sp = sparkline(vals);
             const last = vals[vals.length - 1];
-            this._historyItem.label.set_text(`History ${sp}  ${last}`);
+            this._historyItem.label.set_text(`History ${sp}  ${last}  · click`);
             this._historyItem.visible = true;
         } catch (e) {
             this._historyItem.visible = false;
+        }
+    }
+
+    _showHistoryDetails() {
+        try {
+            const hist = this._settings.get_strv('history');
+            if (!hist.length) {
+                Main.notify('Update history', 'No history yet.');
+                return;
+            }
+            const lines = hist.slice(-14).map(h => {
+                const idx = h.lastIndexOf('|');
+                const total = idx !== -1 ? h.slice(idx + 1) : '?';
+                let when = idx !== -1 ? h.slice(0, idx) : h;
+                // Prefer local-looking time from ISO if present
+                try {
+                    const dt = GLib.DateTime.new_from_iso8601(when, null);
+                    if (dt) when = dt.format('%a %H:%M');
+                } catch (e) {}
+                return `${when}  →  ${total}`;
+            });
+            Main.notify('Update history (last checks)', lines.join('\n'));
+        } catch (e) {
+            logError(e, 'UpdateChecker history details');
         }
     }
 
@@ -1067,12 +1134,29 @@ class Indicator extends PanelMenu.Button {
             secIcon.set_style(`color: ${c.secondary};`);
             const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: Clutter.ActorAlign.CENTER});
             titleLabel.set_style(`color: ${c.on_surface};`);
+            // Muted last-checked time from per-source poll map
+            let lastCheckedLabel = null;
+            const lastMs = this._lastSourcePoll.get(src.name);
+            if (lastMs) {
+                const dt = GLib.DateTime.new_from_unix_local(Math.floor(lastMs / 1000));
+                const lastTxt = dt ? dt.format('%H:%M') : '';
+                if (lastTxt) {
+                    lastCheckedLabel = new St.Label({
+                        text: lastTxt,
+                        style_class: 'update-checker-package-version',
+                        y_align: Clutter.ActorAlign.CENTER,
+                    });
+                    lastCheckedLabel.set_style(`color: ${c.on_surface_variant || c.secondary}; font-size: 0.85em;`);
+                }
+            }
             const badgeText = r.status === 'error' ? '!' : `${r.count}`;
             const countLabel = new St.Label({text: badgeText, style_class: 'update-checker-badge', y_align: Clutter.ActorAlign.CENTER});
             countLabel.set_style(`background-color: ${c.secondary_container}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`);
             headerBox.add_child(accent);
             headerBox.add_child(secIcon);
             headerBox.add_child(titleLabel);
+            if (lastCheckedLabel)
+                headerBox.add_child(lastCheckedLabel);
             headerBox.add_child(countLabel);
             const spacer = new St.Widget({x_expand: true});
             headerBox.add_child(spacer);
@@ -1430,9 +1514,13 @@ class Indicator extends PanelMenu.Button {
         // not something worth a notification every single time.
         if (this._updatingSources.size > 0) {
             if (manual) {
+                try {
+                    this._statusItem.label.set_text('Update running — check skipped');
+                    this._headerSubtitle?.set_text('Update running — check skipped');
+                } catch (e) {}
                 Main.notify(
                     'Update Checker',
-                    'A background update is still running - it will refresh automatically when done.'
+                    'A background update is still running — it will refresh automatically when done.'
                 );
             }
             return;
@@ -1532,14 +1620,15 @@ class Indicator extends PanelMenu.Button {
 
         // Run all sources, the reboot check, and the security check
         // concurrently.
+        // Cap concurrent source checks (gentler on CPU/IO with many sources)
         const [, rebootCheckFailed, securityCheckFailed] = await Promise.all([
-            Promise.all(toPoll.map(async (src) => {
+            mapPool(toPoll, 3, async (src) => {
                 const raw = await runShell(src.command);
                 const res = classifyResult(raw);
                 results.push({name: src.name, ...res});
                 this._lastSourcePoll.set(src.name, nowMs);
                 this._lastSourceResults.set(src.name, res);
-            })),
+            }),
             this._checkReboot(),
             this._checkSecurity(),
         ]);
@@ -1568,7 +1657,10 @@ class Indicator extends PanelMenu.Button {
         this._lastTotal = total;
         this._lastAnyFailed = anyFailed;
         this._updateVisibility();
-        this._label.set_text(total > 0 ? `${total}` : (anyFailed ? '!' : ''));
+        // Show count; append ! when some sources failed so stale success isn't implied
+        this._label.set_text(
+            total > 0 ? (anyFailed ? `${total}!` : `${total}`) : (anyFailed ? '!' : '')
+        );
 
         if (total > 0)
             this._icon.icon_name = 'software-update-urgent-symbolic';
@@ -1664,8 +1756,15 @@ export default class UpdateCheckerExtension extends Extension {
                 GLib.source_remove(this._networkDebounceId);
                 this._networkDebounceId = null;
             }
-            if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
+            // Going offline: drop any pending DB-watch check so reconnect
+            // does not flush a queue of deferred ticks at once.
+            if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL) {
+                if (this._dbDebounceId) {
+                    GLib.source_remove(this._dbDebounceId);
+                    this._dbDebounceId = null;
+                }
                 return;
+            }
             this._networkDebounceId = GLib.timeout_add_seconds(
                 GLib.PRIORITY_DEFAULT, 5, () => {
                     this._networkDebounceId = null;
