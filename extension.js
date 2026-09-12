@@ -319,6 +319,7 @@ class Indicator extends PanelMenu.Button {
         this._matugenColors = null;
         this._matugenThemeFile = null;
         this._matugenMonitor = null;
+        this._matugenCss = null; // last applied CSS content (avoid reload when unchanged)
         this._refreshIcon = null;
         this._refreshButton = null;
 
@@ -413,7 +414,28 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(this._rebootItem);
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._resultsSection);
+        // Single capped scroll region for all sources' results. Expanding
+        // "Show all" renders every row, but _resultsScroller's max-height
+        // (derived from the monitor work area, see _updateResultsScrollHeight)
+        // bounds the whole list so the popup can never overflow the screen.
+        // One scroll region — no per-source scrollviews, so wheel navigation
+        // stays smooth across expanded sources.
+        this._resultsScroller = new St.ScrollView({
+            style_class: 'update-checker-results-scroll vfade',
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            x_expand: true,
+        });
+        this._resultsScroller.clip_to_allocation = true;
+        this._resultsSection.box.y_expand = false;
+        this._resultsScroller.add_child(this._resultsSection.box);
+        const resultsWrap = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: '', can_focus: false});
+        resultsWrap.x_expand = true;
+        resultsWrap.add_child(this._resultsScroller);
+        this.menu.addMenuItem(resultsWrap);
+        this._updateResultsScrollHeight();
+        this._monitorsChangedId = Main.layoutManager.connect(
+            'monitors-changed', () => this._updateResultsScrollHeight());
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -459,9 +481,15 @@ class Indicator extends PanelMenu.Button {
         });
 
         this._renderEmpty();
-        // Apply Matugen colors at launch — also re-applied on every popup open (no background watch)
+        // Setup monitor for live Matugen updates. Defer initial theme apply to
+        // the next idle so the panel settles first — avoids shell-wide UI
+        // refresh/flicker caused by St.Theme stylesheet load at enable time.
         this._setupMatugenMonitor();
-        this._applyMatugenTheme();
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            if (!this._destroyed)
+                this._applyMatugenTheme();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
@@ -651,39 +679,52 @@ class Indicator extends PanelMenu.Button {
             const colors = loadMatugenColors();
             this._matugenColors = colors;
             const css = buildMatugenCss(colors);
-            const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), `update-checker-matugen-${Date.now()}.css`]);
-            // Unload previous first so St.Theme sees file as new — try multiple stage sources (Wayland/X11 differ)
-            let theme = null;
-            try {
-                const stage = global.stage ?? global.display?.get_stage?.() ?? Main.layoutManager?.dummyStage ?? null;
-                if (stage) {
-                    const ctx = St.ThemeContext.get_for_stage(stage);
-                    theme = ctx?.get_theme() ?? null;
-                }
-            } catch (e) {}
-            if (!theme) {
+
+            // Fixed path — avoid creating a new file (and forced unload/load)
+            // on every call. Only touch St.Theme when content actually changed.
+            const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
+            const cssChanged = css !== this._matugenCss;
+
+            if (cssChanged) {
+                let theme = null;
                 try {
-                    const ctx2 = St.ThemeContext.get_for_stage(global.stage);
-                    theme = ctx2?.get_theme() ?? null;
+                    const stage = global.stage ?? global.display?.get_stage?.() ?? Main.layoutManager?.dummyStage ?? null;
+                    if (stage) {
+                        const ctx = St.ThemeContext.get_for_stage(stage);
+                        theme = ctx?.get_theme() ?? null;
+                    }
                 } catch (e) {}
+                if (!theme) {
+                    try {
+                        const ctx2 = St.ThemeContext.get_for_stage(global.stage);
+                        theme = ctx2?.get_theme() ?? null;
+                    } catch (e) {}
+                }
+
+                // Unload previous only when we are about to load a different one
+                if (theme && this._matugenThemeFile) {
+                    try { theme.unload_stylesheet(this._matugenThemeFile); } catch (e) {}
+                }
+
+                const ok = GLib.file_set_contents(cachePath, css);
+                if (!ok) throw new Error('file_set_contents failed');
+                const file = Gio.File.new_for_path(cachePath);
+                if (theme) {
+                    theme.load_stylesheet(file);
+                    this._matugenThemeFile = file;
+                    try { this.menu?.box?.queue_relayout(); } catch (e) {}
+                } else {
+                    this._matugenThemeFile = file;
+                }
+                this._matugenCss = css;
+                log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} secondary=${colors.secondary} surface_container=${colors.surface_container} -> ${cachePath}`);
             }
-            if (theme && this._matugenThemeFile) {
-                try { theme.unload_stylesheet(this._matugenThemeFile); } catch (e) {}
-            }
-            const ok = GLib.file_set_contents(cachePath, css);
-            if (!ok) throw new Error('file_set_contents failed');
-            const file = Gio.File.new_for_path(cachePath);
-            if (theme) {
-                theme.load_stylesheet(file);
-                this._matugenThemeFile = file;
-                try { this.menu?.box?.queue_relayout(); } catch (e) {}
-            } else {
-                this._matugenThemeFile = file;
-            }
-            log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} secondary=${colors.secondary} surface_container=${colors.surface_container} -> ${cachePath}`);
-            // Comprehensive inline fallback — guarantees visual update even if St.Theme load is delayed/cached.
-            // Uses Matugen primary family, never -st-accent-color.
+
+            // Always apply inline styles — cheap and guarantees visual update
+            // even if St.Theme load is delayed/cached. Uses Matugen primary
+            // family, never -st-accent-color.
             this._applyInlineMatugenColors(colors);
+
             // Rebuild current results so per-source cards pick up new stylesheet/inline immediately if popup is open
             try {
                 if (this._lastRenderSources?.length && this.menu?.isOpen)
@@ -722,6 +763,7 @@ class Indicator extends PanelMenu.Button {
             } catch (e) {}
             this._matugenThemeFile = null;
         }
+        this._matugenCss = null;
         if (this._matugenMonitor) {
             try { this._matugenMonitor.cancel(); } catch (e) {}
             this._matugenMonitor = null;
@@ -932,9 +974,32 @@ class Indicator extends PanelMenu.Button {
 
     // Rebuilds _resultsSection from cached sources/results — used for expand/collapse
     // without re-running shell commands. Keeps header/badge/update-button logic identical
-    // to the main checkNow render, but slices lines to MAX_VISIBLE when collapsed and
-    // wraps expanded lists in a capped St.ScrollView (260px ≈ 8-9 rows).
+    // to the main checkNow render, but slices lines to MAX_VISIBLE when collapsed and lets
+    // the single capped _resultsScroller handle overflowing expanded lists.
     // Uses live Matugen colors inline (primary etc.) — never -st-accent-color.
+
+    // Caps the results ScrollView via an explicit "height", not max-height.
+    // A CSS max-height clips *allocation* but never lowers the popup's
+    // preferred/natural height, so the BoxPointer would still size the menu
+    // to the full expanded list and push it off-screen. Setting a real height
+    // makes the ScrollView report a bounded preferred height, so the popup
+    // fits and the list scrolls inside. Only applied when content actually
+    // exceeds the cap, so short (collapsed) menus keep their natural size.
+    _updateResultsScrollHeight() {
+        if (!this._resultsScroller)
+            return;
+        // primaryMonitor exists during early startup but work_area may not be
+        // computed yet — fall back to a fixed cap; corrected on the next render.
+        const monitor = Main.layoutManager.primaryMonitor;
+        const workHeight = monitor?.work_area?.height;
+        const cap = workHeight ? Math.max(220, Math.min(520, workHeight - 420)) : 520;
+        const [, natH] = this._resultsSection.box.get_preferred_height(-1);
+        if (natH > cap)
+            this._resultsScroller.set_style(`height: ${cap}px;`);
+        else
+            this._resultsScroller.set_style('');
+    }
+
     _rebuildResultsSection(sources, results, updateCommands) {
         this._resultsSection.removeAll();
         this._sourceRowWidgets.clear();
@@ -1090,9 +1155,8 @@ class Indicator extends PanelMenu.Button {
                     containerBox.add_child(toggleBtn);
                 }
             }
-            // Let the popup itself scroll the whole content as one region —
-            // per-source ScrollViews created nested scroll regions and made
-            // wheel navigation across expanded sources feel sticky.
+            // All sources' containers live inside the single _resultsScroller
+            // ScrollView, so the expanded list scrolls as one capped region.
             containerItem.add_child(containerBox);
             this._resultsSection.addMenuItem(containerItem);
             if (shouldAnimate()) {
@@ -1101,6 +1165,8 @@ class Indicator extends PanelMenu.Button {
                 containerItem.ease({opacity: 255, translation_y: 0, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
             }
         }
+
+        this._updateResultsScrollHeight();
     }
 
     // Run a source's update command without a terminal. If it contains
@@ -1390,6 +1456,7 @@ class Indicator extends PanelMenu.Button {
             warn.label.set_text('No sources configured - add one in Preferences');
             warn.connect('activate', () => Main.notifyError('Update Checker', 'No update sources configured. Open Preferences → Update Sources and add one.'));
             this._resultsSection.addMenuItem(warn);
+            this._updateResultsScrollHeight();
             this._lastTotal = 0;
             this._lastAnyFailed = true;
             this._label.set_text('!');
@@ -1709,6 +1776,9 @@ export default class UpdateCheckerExtension extends Extension {
             this._indicator._destroyed = true;
 
         this._settings = null;
+
+        if (this._indicator?._monitorsChangedId)
+            Main.layoutManager.disconnect(this._indicator._monitorsChangedId);
 
         this._indicator?.destroy();
         this._indicator = null;
