@@ -268,7 +268,7 @@ function buildMatugenCss(c) {
 .update-checker-updating-label { color: ${c.on_secondary_container}; }
 .update-checker-package-line { color: ${c.on_surface_variant}; }
 .update-checker-count { color: ${c.on_surface}; }
-.update-checker-menu .popup-menu-item { border-radius: 8px; margin: 1px 8px; border-color: transparent; border-width: 0; }
+.update-checker-menu .popup-menu-item { border-radius: 8px; margin: 1px 4px; padding-left: 8px; padding-right: 8px; border-color: transparent; border-width: 0; }
 .update-checker-menu .popup-menu-item:hover, .update-checker-menu .popup-menu-item:selected, .update-checker-menu .popup-menu-item:focus { background-color: ${c.surface_container_high}; }
 .update-checker-expand-button { background-color: ${c.surface_container_high}; color: ${c.on_surface_variant}; }
 .update-checker-expand-button:hover { background-color: ${c.secondary_container}; }

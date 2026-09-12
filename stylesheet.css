@@ -36,8 +36,8 @@
     border-radius: 12px;
     border: none;
     background-color: #3f4753; /* primary_container — Matugen */
-    padding: 12px 16px;
-    margin: 6px 8px 10px 8px;
+    padding: 12px 12px;
+    margin: 4px 0px 8px 0px;
     transition-duration: 200ms;
 }
 
@@ -213,12 +213,18 @@
     max-width: 420px;
 }
 
-/* — Scroll container — removed nested scrollviews; popup scrolls as one region */
+/* — Scroll container — one capped scroll region for all sources' results.
+   An explicit height is set inline from JS each render (only when content
+   would overflow), so collapsed/short menus keep their natural size. */
+.update-checker-results-scroll {
+    min-height: 0;
+    margin-bottom: 4px;
+}
 
 .update-checker-expand-button {
     border-radius: 8px;
     padding: 6px 12px;
-    margin: 4px;
+    margin: 2px 4px;
     background-color: #2a2a2b; /* surface_container_high — Matugen */
     color: #c8c6c7; /* on_surface_variant — Matugen */
     font-size: 0.85em;
@@ -242,7 +248,9 @@
    rounded, inset rows instead of default flat list items. Scoped to this menu only. */
 .update-checker-menu .popup-menu-item {
     border-radius: 8px;
-    margin: 1px 8px;
+    margin: 1px 4px;
+    padding-left: 8px;
+    padding-right: 8px;
     border-color: transparent;
     border-width: 0;
 }
