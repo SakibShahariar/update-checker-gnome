@@ -9,6 +9,23 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+/** Remove legacy timestamped matugen CSS files from older builds. */
+function cleanOldMatugenCache(prefix) {
+    try {
+        const dir = Gio.File.new_for_path(GLib.get_user_cache_dir());
+        const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        let info;
+        while ((info = enumerator.next_file(null)) !== null) {
+            const name = info.get_name();
+            if (name.startsWith(prefix) && /^.+-\d+\.css$/.test(name)) {
+                try { dir.get_child(name).delete(null); } catch (e) {}
+            }
+        }
+        enumerator.close(null);
+    } catch (e) {}
+}
+
+
 // Run `sh -c command`, resolving with stdout, stderr, and the exit
 // status. We never reject on non-zero exit - many tools (e.g. `dnf
 // check-update`) exit non-zero simply because updates ARE available -
@@ -769,6 +786,10 @@ class Indicator extends PanelMenu.Button {
             this._matugenThemeFile = null;
         }
         this._matugenCss = null;
+        if (this._matugenDebounceId) {
+            GLib.source_remove(this._matugenDebounceId);
+            this._matugenDebounceId = null;
+        }
         if (this._matugenMonitor) {
             try { this._matugenMonitor.cancel(); } catch (e) {}
             this._matugenMonitor = null;
@@ -780,10 +801,20 @@ class Indicator extends PanelMenu.Button {
         const file = Gio.File.new_for_path(path);
         try {
             this._matugenMonitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._matugenDebounceId = null;
             this._matugenMonitor.connect('changed', (monitor, file, otherFile, eventType) => {
-                if (eventType === Gio.FileMonitorEvent.CHANGED || eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT) {
-                    this._applyMatugenTheme({loadStylesheet: true});
+                if (eventType !== Gio.FileMonitorEvent.CHANGED && eventType !== Gio.FileMonitorEvent.CHANGES_DONE_HINT)
+                    return;
+                if (this._matugenDebounceId) {
+                    GLib.source_remove(this._matugenDebounceId);
+                    this._matugenDebounceId = null;
                 }
+                this._matugenDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                    this._matugenDebounceId = null;
+                    if (!this._destroyed)
+                        this._applyMatugenTheme({loadStylesheet: true});
+                    return GLib.SOURCE_REMOVE;
+                });
             });
         } catch (e) {
             logError(e, 'UpdateChecker matugen monitor failed');
@@ -1609,6 +1640,14 @@ export default class UpdateCheckerExtension extends Extension {
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
         );
+        this._sourcesChangedId = this._settings.connect('changed::sources', () => {
+            if (this._indicator?.menu?.isOpen)
+                this._indicator.checkNow(true);
+        });
+        this._updateCmdsChangedId = this._settings.connect('changed::update-commands', () => {
+            if (this._indicator?.menu?.isOpen)
+                this._indicator.checkNow(true);
+        });
 
         // When connectivity comes back after being offline, refresh
         // automatically - but not instantly. The interface can report
@@ -1704,13 +1743,32 @@ export default class UpdateCheckerExtension extends Extension {
             }
         }
 
-        // Kick off an initial check shortly after enabling, so the panel
-        // isn't blank while the shell finishes starting up.
-        this._startupId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
-            this._indicator.checkNow();
-            this._startupId = null;
-            return GLib.SOURCE_REMOVE;
-        });
+        // Defer initial check until shell startup completes (or ~5–8s).
+        cleanOldMatugenCache('update-checker-matugen-');
+        const runInitialCheck = () => {
+            if (this._startupId) {
+                GLib.source_remove(this._startupId);
+                this._startupId = null;
+            }
+            if (this._startupCompleteId) {
+                try { Main.layoutManager.disconnect(this._startupCompleteId); } catch (e) {}
+                this._startupCompleteId = null;
+            }
+            this._indicator?.checkNow();
+        };
+        this._startupCompleteId = null;
+        if (Main.layoutManager._startingUp) {
+            this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => runInitialCheck());
+            this._startupId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 8, () => {
+                runInitialCheck();
+                return GLib.SOURCE_REMOVE;
+            });
+        } else {
+            this._startupId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+                runInitialCheck();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     _scheduleTimer() {
@@ -1736,6 +1794,10 @@ export default class UpdateCheckerExtension extends Extension {
             GLib.source_remove(this._startupId);
             this._startupId = null;
         }
+        if (this._startupCompleteId) {
+            try { Main.layoutManager.disconnect(this._startupCompleteId); } catch (e) {}
+            this._startupCompleteId = null;
+        }
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = null;
@@ -1743,6 +1805,14 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._showZeroChangedId) {
             this._settings.disconnect(this._showZeroChangedId);
             this._showZeroChangedId = null;
+        }
+        if (this._sourcesChangedId) {
+            this._settings.disconnect(this._sourcesChangedId);
+            this._sourcesChangedId = null;
+        }
+        if (this._updateCmdsChangedId) {
+            this._settings.disconnect(this._updateCmdsChangedId);
+            this._updateCmdsChangedId = null;
         }
         if (this._networkChangedId) {
             this._networkMonitor.disconnect(this._networkChangedId);
