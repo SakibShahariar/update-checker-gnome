@@ -468,10 +468,10 @@ class Indicator extends PanelMenu.Button {
         this.menu.connect('open-state-changed', (menu, open) => {
             if (open) {
                 this._updateRunScriptVisibility();
-                // Defer matugen + header entrance to next idle tick so the
-                // popup frame paints first (avoids click-to-show lag).
+                // Theme changes only happen while the menu is closed (focus
+                // leaves the popup). Skip Matugen on open — colors were already
+                // applied at launch / by the file monitor. Just animate entrance.
                 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                    this._applyMatugenTheme();
                     this._animateHeaderEntrance();
                     return GLib.SOURCE_REMOVE;
                 });
@@ -481,13 +481,12 @@ class Indicator extends PanelMenu.Button {
         });
 
         this._renderEmpty();
-        // Setup monitor for live Matugen updates. Defer initial theme apply to
-        // the next idle so the panel settles first — avoids shell-wide UI
-        // refresh/flicker caused by St.Theme stylesheet load at enable time.
+        // Matugen at launch (deferred) + file monitor. Not on every popup open:
+        // running matugen / changing wallpaper dismisses the menu first.
         this._setupMatugenMonitor();
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             if (!this._destroyed)
-                this._applyMatugenTheme();
+                this._applyMatugenTheme({loadStylesheet: true});
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -674,18 +673,21 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
-    _applyMatugenTheme() {
+    _applyMatugenTheme({loadStylesheet = true} = {}) {
         try {
             const colors = loadMatugenColors();
             this._matugenColors = colors;
             const css = buildMatugenCss(colors);
 
             // Fixed path — avoid creating a new file (and forced unload/load)
-            // on every call. Only touch St.Theme when content actually changed.
+            // on every call. Only touch St.Theme when content actually changed
+            // AND the caller asked for a stylesheet load (popup open / matugen
+            // file change). Launch path uses loadStylesheet:false to avoid
+            // shell-wide UI refresh.
             const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
             const cssChanged = css !== this._matugenCss;
 
-            if (cssChanged) {
+            if (loadStylesheet && cssChanged) {
                 let theme = null;
                 try {
                     const stage = global.stage ?? global.display?.get_stage?.() ?? Main.layoutManager?.dummyStage ?? null;
@@ -718,6 +720,9 @@ class Indicator extends PanelMenu.Button {
                 }
                 this._matugenCss = css;
                 log(`UpdateChecker matugen applied primary=${colors.primary} primary_container=${colors.primary_container} secondary=${colors.secondary} surface_container=${colors.surface_container} -> ${cachePath}`);
+            } else if (cssChanged) {
+                // Still remember content so the next full apply can skip if unchanged
+                this._matugenCss = css;
             }
 
             // Always apply inline styles — cheap and guarantees visual update
@@ -777,7 +782,7 @@ class Indicator extends PanelMenu.Button {
             this._matugenMonitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
             this._matugenMonitor.connect('changed', (monitor, file, otherFile, eventType) => {
                 if (eventType === Gio.FileMonitorEvent.CHANGED || eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT) {
-                    this._applyMatugenTheme();
+                    this._applyMatugenTheme({loadStylesheet: true});
                 }
             });
         } catch (e) {
