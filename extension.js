@@ -361,6 +361,7 @@ class Indicator extends PanelMenu.Button {
             icon_name: 'software-update-available-symbolic',
             style_class: 'system-status-icon',
         });
+        this._updateIconStyle(false);
         this._label = new St.Label({
             text: '',
             y_align: Clutter.ActorAlign.CENTER,
@@ -369,16 +370,19 @@ class Indicator extends PanelMenu.Button {
         this._securityIcon = new St.Icon({
             icon_name: 'security-high-symbolic',
             style_class: 'system-status-icon update-checker-security-icon',
+            y_align: Clutter.ActorAlign.CENTER,
             visible: false,
         });
         this._rebootIcon = new St.Icon({
             icon_name: 'system-shutdown-symbolic',
             style_class: 'system-status-icon update-checker-reboot-icon',
+            y_align: Clutter.ActorAlign.CENTER,
             visible: false,
         });
         this._offlineIcon = new St.Icon({
             icon_name: 'network-offline-symbolic',
             style_class: 'system-status-icon update-checker-offline-icon',
+            y_align: Clutter.ActorAlign.CENTER,
             visible: false,
         });
         box.add_child(this._icon);
@@ -525,6 +529,22 @@ class Indicator extends PanelMenu.Button {
         });
     }
 
+    _updateIconStyle(isUrgent) {
+        if (isUrgent) {
+            // Primary-colored update icon. The urgent glyph
+            // (software-update-urgent-symbolic) is hardcoded orange in the
+            // icon theme and can't be recolored via CSS, so we keep the
+            // symbolic glyph and tint it with live Matugen primary instead.
+            this._icon.add_style_class_name('update-checker-urgent-icon');
+            const c = this._matugenColors || loadMatugenColors();
+            if (c?.primary)
+                this._icon.set_style(`color: ${c.primary};`);
+        } else {
+            this._icon.remove_style_class_name('update-checker-urgent-icon');
+            this._icon.set_style('');
+        }
+    }
+
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
     destroy() {
         try { this._stopRefreshSpin(); } catch (e) {}
@@ -571,6 +591,13 @@ class Indicator extends PanelMenu.Button {
             this._rebootIcon.visible = !!this._lastRebootRequired;
             this._securityIcon.visible = this._lastSecurityCount > 0;
         }
+
+        // Secondary status icons (security / reboot / offline / grouped chip) are
+        // always modifiers beside the main update indicator (which is always
+        // present), so keep them consistently small. Inline icon-size (not the
+        // icon_size property) so it beats the theme's .system-status-icon rule.
+        for (const icon of [this._securityIcon, this._rebootIcon, this._offlineIcon])
+            icon.set_style('icon-size: 12px;');
     }
 
     _updateHeaderSubtitle() {
@@ -892,7 +919,8 @@ class Indicator extends PanelMenu.Button {
         // (they will be rebuilt on next checkNow)
         this._updateVisibility();
         this._label.set_text(this._lastTotal > 0 ? `${this._lastTotal}` : '');
-        this._icon.icon_name = this._lastTotal > 0 ? 'software-update-urgent-symbolic' : 'software-update-available-symbolic';
+        this._icon.icon_name = 'software-update-available-symbolic';
+        this._updateIconStyle(this._lastTotal > 0);
         this._statusItem.label.set_text(`Dismissed — next check ${this._settings.get_int('check-interval-minutes')}m`);
         this._updateHeaderSubtitle();
     }
@@ -1585,6 +1613,7 @@ class Indicator extends PanelMenu.Button {
             this._lastAnyFailed = true;
             this._label.set_text('!');
             this._icon.icon_name = 'dialog-warning-symbolic';
+            this._updateIconStyle(false);
             this._statusItem.label.set_text('No sources configured');
             this._updateVisibility();
             this._checking = false;
@@ -1662,12 +1691,17 @@ class Indicator extends PanelMenu.Button {
             total > 0 ? (anyFailed ? `${total}!` : `${total}`) : (anyFailed ? '!' : '')
         );
 
-        if (total > 0)
-            this._icon.icon_name = 'software-update-urgent-symbolic';
-        else if (anyFailed)
-            this._icon.icon_name = 'dialog-warning-symbolic';
-        else
+        if (total > 0) {
+            // Keep the recolorable symbolic glyph; urgency is shown via primary color
             this._icon.icon_name = 'software-update-available-symbolic';
+            this._updateIconStyle(true);
+        } else if (anyFailed) {
+            this._icon.icon_name = 'dialog-warning-symbolic';
+            this._updateIconStyle(false);
+        } else {
+            this._icon.icon_name = 'software-update-available-symbolic';
+            this._updateIconStyle(false);
+        }
 
         // Energetic: panel icon pulse when new total appears or increases
         if (total > 0 && total !== prevTotal) {

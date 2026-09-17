@@ -8,23 +8,27 @@
 }
 
 .update-checker-reboot-icon {
-    padding-left: 4px;
+    padding-left: 2px;
     opacity: 0.85;
     color: #bac8db; /* tertiary — distinct from error red */
 }
 
 .update-checker-offline-icon {
-    padding-left: 4px;
+    padding-left: 2px;
     opacity: 0.9;
     color: #bdc7dc; /* secondary */
 }
 
 .update-checker-security-icon {
-    padding-left: 4px;
+    padding-left: 2px;
     opacity: 0.85;
     color: #ffb4ab; /* error */
 }
-
+ 
+.update-checker-urgent-icon {
+    color: #bfc7d5; /* primary — Matugen */
+}
+ 
 .update-checker-status-line {
     max-width: 420px;
 }
