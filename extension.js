@@ -166,14 +166,19 @@ class Indicator extends PanelMenu.Button {
         });
         this.menu.addMenuItem(this._rebootItem);
 
-        this._rebootNowItem = new PopupMenu.PopupMenuItem('Reboot Now', {reactive: true});
-        this._rebootNowItem.label.add_style_class_name('update-checker-status-line');
-        this._rebootNowItem.visible = false;
-        this._rebootNowItem.connect('activate', () => {
+        const rebootNowBtn = new St.Button({style_class: 'update-checker-update-button', y_align: Clutter.ActorAlign.CENTER});
+        const rebootBtnBox = new St.BoxLayout({style_class: 'update-checker-update-button-box', y_align: Clutter.ActorAlign.CENTER});
+        rebootBtnBox.add_child(new St.Icon({icon_name: 'system-shutdown-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
+        rebootBtnBox.add_child(new St.Label({text: 'Reboot Now', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
+        rebootNowBtn.set_child(rebootBtnBox);
+        rebootNowBtn.connect('clicked', () => {
             runShell('systemctl reboot');
             Main.notify('Rebooting...', 'System will restart shortly.');
         });
-        this.menu.addMenuItem(this._rebootNowItem);
+        const rebootNowWrapper = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
+        rebootNowWrapper.add_child(rebootNowBtn);
+        this.menu.addMenuItem(rebootNowWrapper);
+        this._rebootNowBtn = rebootNowBtn;
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
         // Single capped scroll region for all sources' results. Expanding
@@ -679,7 +684,7 @@ class Indicator extends PanelMenu.Button {
         this._lastAnyFailed = false;
         this._lastRebootRequired = false;
         this._rebootItem.visible = false;
-        this._rebootNowItem.visible = false;
+        this._rebootNowBtn.visible = false;
         this._securityItem.visible = false;
         this._dismissItem.visible = false;
         // Hide failed per-source rows until next check
@@ -752,7 +757,7 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text('Not checked yet');
         this._rebootIcon.visible = false;
         this._rebootItem.visible = false;
-        this._rebootNowItem.visible = false;
+        this._rebootNowBtn.visible = false;
         this._securityIcon.visible = false;
         this._securityItem.visible = false;
         this._offlineIcon.visible = false;
@@ -1228,7 +1233,7 @@ class Indicator extends PanelMenu.Button {
         this._lastRebootRequired = rebootRequired;
         this._rebootIcon.visible = rebootRequired;
         this._rebootItem.visible = rebootRequired || rebootCheckFailed;
-        this._rebootNowItem.visible = rebootRequired;
+        this._rebootNowBtn.visible = rebootRequired;
         this._rebootFullMessage = rebootMessage || '';
         if (rebootRequired) {
             this._rebootItem.label.set_text(`⟳ ${truncate(rebootMessage || 'Reboot required', 55)}`);
