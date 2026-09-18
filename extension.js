@@ -166,6 +166,15 @@ class Indicator extends PanelMenu.Button {
         });
         this.menu.addMenuItem(this._rebootItem);
 
+        this._rebootNowItem = new PopupMenu.PopupMenuItem('Reboot Now', {reactive: true});
+        this._rebootNowItem.label.add_style_class_name('update-checker-status-line');
+        this._rebootNowItem.visible = false;
+        this._rebootNowItem.connect('activate', () => {
+            runShell('systemctl reboot');
+            Main.notify('Rebooting...', 'System will restart shortly.');
+        });
+        this.menu.addMenuItem(this._rebootNowItem);
+
         this._resultsSection = new PopupMenu.PopupMenuSection();
         // Single capped scroll region for all sources' results. Expanding
         // "Show all" renders every row, but _resultsScroller's max-height
@@ -670,6 +679,7 @@ class Indicator extends PanelMenu.Button {
         this._lastAnyFailed = false;
         this._lastRebootRequired = false;
         this._rebootItem.visible = false;
+        this._rebootNowItem.visible = false;
         this._securityItem.visible = false;
         this._dismissItem.visible = false;
         // Hide failed per-source rows until next check
@@ -742,6 +752,7 @@ class Indicator extends PanelMenu.Button {
         this._statusItem.label.set_text('Not checked yet');
         this._rebootIcon.visible = false;
         this._rebootItem.visible = false;
+        this._rebootNowItem.visible = false;
         this._securityIcon.visible = false;
         this._securityItem.visible = false;
         this._offlineIcon.visible = false;
@@ -1216,6 +1227,7 @@ class Indicator extends PanelMenu.Button {
         this._lastRebootRequired = rebootRequired;
         this._rebootIcon.visible = rebootRequired;
         this._rebootItem.visible = rebootRequired || rebootCheckFailed;
+        this._rebootNowItem.visible = rebootRequired;
         this._rebootFullMessage = rebootMessage || '';
         if (rebootRequired) {
             this._rebootItem.label.set_text(`⟳ ${truncate(rebootMessage || 'Reboot required', 55)}`);
