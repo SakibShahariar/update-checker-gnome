@@ -1143,6 +1143,7 @@ class Indicator extends PanelMenu.Button {
                 this._updatingSources.delete(label);
                 this._updateSyncIconState();
                 this._setRowUpdating(label, false);
+                if (entry.stopped)
                     Main.notify(`${label} update stopped`, 'Stopped before it finished.');
                 else if (ok)
                     Main.notify(`${label} updated`, 'Finished successfully.');
