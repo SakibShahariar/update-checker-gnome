@@ -9,305 +9,11 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-/** Remove legacy timestamped matugen CSS files from older builds. */
-function cleanOldMatugenCache(prefix) {
-    try {
-        const dir = Gio.File.new_for_path(GLib.get_user_cache_dir());
-        const enumerator = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
-        let info;
-        while ((info = enumerator.next_file(null)) !== null) {
-            const name = info.get_name();
-            if (name.startsWith(prefix) && /^.+-\d+\.css$/.test(name)) {
-                try { dir.get_child(name).delete(null); } catch (e) {}
-            }
-        }
-        enumerator.close(null);
-    } catch (e) {}
-}
-
-
-// Run `sh -c command`, resolving with stdout, stderr, and the exit
-// status. We never reject on non-zero exit - many tools (e.g. `dnf
-// check-update`) exit non-zero simply because updates ARE available -
-// so the caller decides what a given exit code/output combo means.
-function runShell(command) {
-    return new Promise((resolve) => {
-        try {
-            const proc = Gio.Subprocess.new(
-                ['/bin/sh', '-c', command],
-                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-            );
-            proc.communicate_utf8_async(null, null, (proc_, res) => {
-                try {
-                    const [, stdout, stderr] = proc_.communicate_utf8_finish(res);
-                    resolve({
-                        stdout: stdout ?? '',
-                        stderr: stderr ?? '',
-                        exitStatus: proc_.get_exit_status(),
-                        spawnFailed: false,
-                    });
-                } catch (e) {
-                    resolve({stdout: '', stderr: String(e), exitStatus: -1, spawnFailed: true});
-                }
-            });
-        } catch (e) {
-            resolve({stdout: '', stderr: String(e), exitStatus: -1, spawnFailed: true});
-        }
-    });
-}
-
-// Classify a source's result. We deliberately don't treat "non-zero
-// exit" alone as failure, since plenty of check-only commands (dnf,
-// grep -c, etc.) use non-zero to mean "found something", not "broke".
-// Only two things get flagged as a real error:
-//  - the shell couldn't even run the command (missing binary: exit 127,
-//    or the subprocess failed to spawn at all)
-//  - the command produced no stdout AND wrote to stderr AND exited
-//    non-zero - i.e. it looks like it broke, not like it found nothing
-
-// Run async work over `items` with at most `limit` in flight at once.
-async function mapPool(items, limit, worker) {
-    const results = new Array(items.length);
-    let i = 0;
-    async function run() {
-        while (i < items.length) {
-            const idx = i++;
-            results[idx] = await worker(items[idx], idx);
-        }
-    }
-    const n = Math.min(limit, Math.max(1, items.length));
-    await Promise.all(Array.from({length: n}, () => run()));
-    return results;
-}
-
-function classifyResult({stdout, stderr, exitStatus, spawnFailed}) {
-    if (spawnFailed || exitStatus === 127) {
-        const reason = stripAnsi(stderr).trim().split('\n')[0] || 'command not found';
-        return {status: 'error', count: 0, message: reason, lines: []};
-    }
-    if (stdout.trim() === '' && stderr.trim() !== '' && exitStatus !== 0) {
-        const reason = stripAnsi(stderr).trim().split('\n')[0];
-        return {status: 'error', count: 0, message: reason, lines: []};
-    }
-    const lines = stripAnsi(stdout).split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    return {status: 'ok', count: lines.length, message: '', lines};
-}
-
-function parseSources(strv) {
-    const sources = [];
-    for (const entry of strv) {
-        const idx = entry.indexOf('|');
-        if (idx === -1)
-            continue;
-        const name = entry.slice(0, idx).trim();
-        const command = entry.slice(idx + 1).trim();
-        if (name && command)
-            sources.push({name, command});
-    }
-    return sources;
-}
-
-// "Name|command" entries, keyed by name, for the optional per-source
-// update commands. Same simple format/parsing as parseSources.
-function parseUpdateCommands(strv) {
-    const map = new Map();
-    for (const entry of strv) {
-        const idx = entry.indexOf('|');
-        if (idx === -1)
-            continue;
-        const name = entry.slice(0, idx).trim();
-        const command = entry.slice(idx + 1).trim();
-        if (name && command)
-            map.set(name, command);
-    }
-    return map;
-}
-
-// Some tools (dnf5 in particular) emit ANSI color escape codes even
-// when their output is piped rather than going to a real terminal.
-// St.Label has no concept of terminal colors, so those bytes would
-// otherwise show up as literal garbage text. Strip them generically so
-// this is fixed for every source, not just the ones we know about.
-function stripAnsi(str) {
-    // eslint-disable-next-line no-control-regex
-    return (str || '').replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-}
-
-// Truncates with an ellipsis, consistently, everywhere a message could
-// otherwise be long enough to stretch the whole popup menu wide. Keep
-// this short - it's the character budget for the WHOLE displayed
-// string, not just this piece, so callers should account for any
-// prefix (icon glyph, "source name - failed:", etc.) they add on top.
-function truncate(str, max) {
-    const s = (str || '').trim();
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-}
-
-function parseIntervals(strv) {
-    const map = new Map();
-    for (const entry of strv) {
-        const idx = entry.indexOf('|');
-        if (idx === -1) continue;
-        const name = entry.slice(0, idx).trim();
-        const val = parseInt(entry.slice(idx + 1).trim(), 10);
-        if (name && Number.isFinite(val) && val >= 5) map.set(name, val);
-    }
-    return map;
-}
-
-function sparkline(values) {
-    if (!values || values.length === 0) return '';
-    const blocks = ['▁','▂','▃','▄','▅','▆','▇','█'];
-    const max = Math.max(...values);
-    const min = Math.min(...values);
-    const range = max - min || 1;
-    return values.map(v => blocks[Math.round(((v - min) / range) * (blocks.length - 1))]).join('');
-}
-
-function hexToRgba(hex, alpha) {
-    if (!hex || !hex.startsWith('#')) return hex;
-    let h = hex.slice(1);
-    if (h.length === 3) h = h.split('').map(c => c + c).join('');
-    const r = parseInt(h.slice(0, 2), 16);
-    const g = parseInt(h.slice(2, 4), 16);
-    const b = parseInt(h.slice(4, 6), 16);
-    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function lightenHex(hex, amount = 0x14) {
-    if (!hex || !hex.startsWith('#')) return hex;
-    let h = hex.slice(1);
-    if (h.length === 3) h = h.split('').map(c => c + c).join('');
-    let r = Math.min(255, parseInt(h.slice(0, 2), 16) + amount);
-    let g = Math.min(255, parseInt(h.slice(2, 4), 16) + amount);
-    let b = Math.min(255, parseInt(h.slice(4, 6), 16) + amount);
-    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
-}
-
-function loadMatugenColors() {
-    // Fallback matches current ~/.config/matugen/matugen-colors.css (dark) — never use -st-accent-color
-    const fallback = {
-        background: '#131314',
-        error: '#ffb4ab',
-        error_container: '#93000a',
-        on_error_container: '#ffdad6',
-        on_primary: '#29313c',
-        on_primary_container: '#dbe3f1',
-        on_secondary_container: '#dfe2eb',
-        on_surface: '#e4e2e3',
-        on_surface_variant: '#c8c6c7',
-        on_tertiary_container: '#d6e4f7',
-        outline: '#919092',
-        outline_variant: '#474748',
-        primary: '#bfc7d5',
-        primary_container: '#3f4753',
-        secondary: '#c3c7cf',
-        secondary_container: '#42474e',
-        surface: '#131314',
-        surface_container: '#1f2021',
-        surface_container_high: '#2a2a2b',
-        tertiary: '#bac8db',
-        tertiary_container: '#3b4858',
-    };
-    const path = GLib.build_filenamev([GLib.get_home_dir(), '.config', 'matugen', 'matugen-colors.css']);
-    try {
-        const file = Gio.File.new_for_path(path);
-        if (!file.query_exists(null)) return fallback;
-        const [ok, contents] = file.load_contents(null);
-        if (!ok) return fallback;
-        const text = new TextDecoder().decode(contents);
-        const map = {};
-        const re = /--([\w_]+)\s*:\s*([^;]+);/g;
-        let m;
-        while ((m = re.exec(text)) !== null) {
-            map[m[1]] = m[2].trim();
-        }
-        const get = (k) => map[k] || fallback[k];
-        return {
-            background: get('background'),
-            error: get('error'),
-            error_container: get('error_container'),
-            on_error_container: get('on_error_container'),
-            on_primary: get('on_primary'),
-            on_primary_container: get('on_primary_container'),
-            on_secondary_container: get('on_secondary_container'),
-            on_surface: get('on_surface'),
-            on_surface_variant: get('on_surface_variant'),
-            on_tertiary_container: get('on_tertiary_container'),
-            outline: get('outline'),
-            outline_variant: get('outline_variant'),
-            primary: get('primary'),
-            primary_container: get('primary_container'),
-            secondary: get('secondary'),
-            secondary_container: get('secondary_container'),
-            surface: get('surface'),
-            surface_container: get('surface_container'),
-            surface_container_high: get('surface_container_high'),
-            tertiary: get('tertiary'),
-            tertiary_container: get('tertiary_container'),
-        };
-    } catch (e) {
-        return fallback;
-    }
-}
-
-function hasMotion() {
-    try {
-        const stSettings = St.Settings.get();
-        if (stSettings && 'enable_animations' in stSettings && stSettings.enable_animations === false)
-            return false;
-        if (St.ReducedMotion) {
-            const {reducedMotion} = stSettings;
-            if (reducedMotion === St.ReducedMotion.REDUCE) return false;
-        }
-    } catch (e) {}
-    try {
-        const clutterSettings = Clutter.Settings.get_default?.();
-        if (clutterSettings && 'enable_animations' in clutterSettings && clutterSettings.enable_animations === false)
-            return false;
-    } catch (e) {}
-    return true;
-}
-function shouldAnimate() { return hasMotion(); }
-
-function buildMatugenCss(c) {
-    // Mirrors stylesheet.css but with live Matugen hex values — GNOME: no outline borders (was KDE-like)
-    return `
-.update-checker-header-card { background-color: ${c.primary_container}; border-color: transparent; border-width: 0; }
-.update-checker-header-icon-box { background-color: ${c.primary}; }
-.update-checker-header-icon { color: ${c.on_primary}; }
-.update-checker-header-title { color: ${c.on_primary_container}; }
-.update-checker-header-subtitle { color: ${hexToRgba(c.on_primary_container, 0.75)}; }
-.update-checker-refresh-button { color: ${c.on_primary_container}; }
-.update-checker-refresh-button:hover { background-color: ${hexToRgba(c.secondary, 0.18)}; }
-.update-checker-refresh-button:active { background-color: ${hexToRgba(c.tertiary, 0.22)}; }
-.update-checker-accent { background-color: ${c.primary}; }
-.update-checker-section-title { color: ${c.on_surface}; }
-.update-checker-section-icon { color: ${c.secondary}; }
-.update-checker-badge { background-color: ${c.secondary_container}; border-color: transparent; border-width: 0; color: ${c.on_secondary_container}; }
-.update-checker-update-button { background-color: ${c.tertiary_container}; border-color: transparent; border-width: 0; color: ${c.on_tertiary_container}; }
-.update-checker-update-button:hover { background-color: ${lightenHex(c.tertiary_container, 0x14)}; }
-.update-checker-update-button:active { background-color: ${lightenHex(c.tertiary_container, 0x22)}; }
-.update-checker-container { background-color: ${c.surface_container}; border-color: transparent; border-width: 0; }
-.update-checker-container-empty { color: ${c.on_surface_variant}; }
-.update-checker-package-row:hover { background-color: ${c.surface_container_high}; }
-.update-checker-package-name { color: ${c.on_surface}; }
-.update-checker-package-version { color: ${c.secondary}; }
-.update-checker-security-icon, .update-checker-warning-icon, .update-checker-stop-icon { color: ${c.error}; }
-.update-checker-reboot-icon { color: ${c.tertiary}; }
-.update-checker-offline-icon { color: ${c.secondary}; }
-.update-checker-run-icon { color: ${c.primary}; }
-.update-checker-updating-label { color: ${c.on_secondary_container}; }
-.update-checker-package-line { color: ${c.on_surface_variant}; }
-.update-checker-count { color: ${c.on_surface}; }
-.update-checker-menu .popup-menu-item { border-radius: 8px; margin: 1px 4px; padding-left: 8px; padding-right: 8px; border-color: transparent; border-width: 0; }
-.update-checker-menu .popup-menu-item:hover, .update-checker-menu .popup-menu-item:selected, .update-checker-menu .popup-menu-item:focus { background-color: ${c.surface_container_high}; }
-.update-checker-expand-button { background-color: ${c.surface_container_high}; color: ${c.on_surface_variant}; }
-.update-checker-expand-button:hover { background-color: ${c.secondary_container}; }
-.update-checker-expand-button:active { background-color: ${c.outline_variant}; }
-`;
-}
+import {
+    runShell, mapPool, classifyResult, parseSources, parseUpdateCommands,
+    truncate, parseIntervals, sparkline, hexToRgba, hasMotion, shouldAnimate,
+} from './lib/utils.js';
+import {cleanOldMatugenCache, loadMatugenColors, buildMatugenCss} from './lib/theming.js';
 
 const MAX_VISIBLE = 8;
 
@@ -335,6 +41,11 @@ class Indicator extends PanelMenu.Button {
         // we need the live Gio.Subprocess handle to support stopping,
         // and the start time to show elapsed seconds while it runs.
         this._updatingSources = new Map();
+        // Tracks whether the panel icon currently shows the "sync in
+        // progress" state, so _updateSyncIconState() only touches the
+        // style class on an actual transition instead of on every
+        // elapsed-time tick while an update runs.
+        this._syncIconActive = false;
         // Name -> {countLabel, runButton, updatingLabel, stopButton} -
         // live references to each row's widgets, refreshed on every
         // checkNow() rebuild. Lets an in-progress update mutate its own
@@ -357,10 +68,12 @@ class Indicator extends PanelMenu.Button {
         this._refreshButton = null;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
+        box.spacing = 0;
         this._icon = new St.Icon({
             icon_name: 'software-update-available-symbolic',
             style_class: 'system-status-icon',
         });
+        this._icon.set_style('margin-right: 4px;');
         this._updateIconStyle(false);
         this._label = new St.Label({
             text: '',
@@ -371,18 +84,21 @@ class Indicator extends PanelMenu.Button {
             icon_name: 'security-high-symbolic',
             style_class: 'system-status-icon update-checker-security-icon',
             y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.START,
             visible: false,
         });
         this._rebootIcon = new St.Icon({
             icon_name: 'system-shutdown-symbolic',
             style_class: 'system-status-icon update-checker-reboot-icon',
             y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.START,
             visible: false,
         });
         this._offlineIcon = new St.Icon({
             icon_name: 'network-offline-symbolic',
             style_class: 'system-status-icon update-checker-offline-icon',
             y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.START,
             visible: false,
         });
         box.add_child(this._icon);
@@ -545,6 +261,29 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
+    // Ambient "something is happening" signal on the panel icon itself,
+    // for when a background update is running and the popup is closed --
+    // previously the only way to see progress was to reopen the menu and
+    // find the row again. Only touches the icon on an actual start/stop
+    // transition (guarded by _syncIconActive), not on every elapsed-time
+    // tick while an update runs.
+    _updateSyncIconState() {
+        const active = this._updatingSources.size > 0;
+        if (active === this._syncIconActive)
+            return;
+        this._syncIconActive = active;
+        this._icon.icon_name = active
+            ? 'emblem-synchronizing-symbolic'
+            : 'software-update-available-symbolic';
+        if (active) {
+            this._icon.add_style_class_name('update-checker-syncing-icon');
+            this._setTooltip(this._icon, 'Update in progress…');
+        } else {
+            this._icon.remove_style_class_name('update-checker-syncing-icon');
+            try { this._icon.tooltip_text = ''; } catch (e) {}
+        }
+    }
+
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
     destroy() {
         try { this._stopRefreshSpin(); } catch (e) {}
@@ -665,29 +404,47 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
-    _animateBadge(badge) {
-        if (!badge || !hasMotion())
+    // Shared "pop in with a settle" bounce: scale up past 1.0
+    // (EASE_OUT_BACK), squash back down slightly (EASE_IN_OUT_QUAD), then
+    // settle exactly to 1.0 (EASE_OUT_BACK). Used for the per-source count
+    // label bounce-in; startOpacity/delay let callers vary the entrance
+    // without duplicating the three-stage sequence itself.
+    _animateBounceIn(actor, {startOpacity = 180, delay = 0} = {}) {
+        if (!actor || !hasMotion())
             return;
         try {
-            badge.set_pivot_point(0.5, 0.5);
-            badge.set_scale(0.55, 0.55);
-            badge.opacity = 180;
-            badge.ease({
+            actor.set_pivot_point(0.5, 0.5);
+            actor.set_scale(0.55, 0.55);
+            actor.opacity = startOpacity;
+            actor.ease({
                 scale_x: 1.45, scale_y: 1.45, opacity: 255,
-                duration: 140, mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                delay, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_BACK,
                 onComplete: () => {
-                    if (this._destroyed || !badge.get_stage()) return;
-                    badge.ease({
+                    if (this._destroyed || !actor.get_stage()) return;
+                    actor.ease({
                         scale_x: 0.92, scale_y: 0.92,
                         duration: 90, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
                         onComplete: () => {
-                            if (this._destroyed || !badge.get_stage()) return;
-                            badge.ease({scale_x: 1, scale_y: 1, duration: 110, mode: Clutter.AnimationMode.EASE_OUT_BACK});
+                            if (this._destroyed || !actor.get_stage()) return;
+                            actor.ease({scale_x: 1, scale_y: 1, duration: 110, mode: Clutter.AnimationMode.EASE_OUT_BACK});
                         },
                     });
                 },
             });
         } catch (e) {}
+    }
+
+    // Shared "fade + slide up into place" entrance: actor starts invisible
+    // and offset by translationY, then eases to opacity 255 / translation_y
+    // 0 on EASE_OUT_QUAD. Used for each source's header row, its results
+    // container, and each individual package line (with a stagger delay).
+    // No-ops on reduced motion even if a caller forgets to guard the call.
+    _fadeSlideIn(actor, {translationY = -6, duration = 220, delay = 0} = {}) {
+        if (!actor || !hasMotion())
+            return;
+        actor.opacity = 0;
+        actor.translation_y = translationY;
+        actor.ease({opacity: 255, translation_y: 0, delay, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
     }
 
     _animatePanelPulse() {
@@ -834,7 +591,7 @@ class Indicator extends PanelMenu.Button {
             if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${c.primary};`);
             if (this._headerIcon) this._headerIcon.set_style(`color: ${c.on_primary};`);
             if (this._headerTitle) this._headerTitle.set_style(`color: ${c.on_primary_container};`);
-            if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(c.on_primary_container, 0.75)};`);
+            if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(c.on_primary_container, 0.85)};`);
             // Inline for already-rendered per-source widgets (if popup already open before expand rebuild)
             // We can't enumerate all containerBox widgets easily, but _rebuildResultsSection will handle new ones.
             // Apply to source row widgets still alive
@@ -1025,6 +782,7 @@ class Indicator extends PanelMenu.Button {
                 throw new Error('Could not parse terminal command');
             const proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
             this._updatingSources.set(key, {proc, isTerminal: true});
+            this._updateSyncIconState();
             proc.wait_async(null, (proc_, res) => {
                 try {
                     proc_.wait_finish(res);
@@ -1037,6 +795,7 @@ class Indicator extends PanelMenu.Button {
                 if (!this._sourceRowWidgets)
                     return;
                 this._updatingSources.delete(key);
+                this._updateSyncIconState();
                 // Only re-check if nothing else is still in flight -
                 // checkNow() already guards this itself, but skip the
                 // call entirely rather than let it early-return for no
@@ -1193,6 +952,8 @@ class Indicator extends PanelMenu.Button {
             updatingLabel.set_style(`color: ${c.on_secondary_container};`);
             const stopButton = new St.Button({style_class: 'update-checker-stop-icon', visible: false, child: new St.Icon({icon_name: 'process-stop-symbolic', icon_size: 14})});
             stopButton.set_style(`color: ${c.error};`);
+            this._setTooltip(stopButton, `Stop updating ${src.name}`);
+            stopButton.accessible_name = `Stop updating ${src.name}`;
             stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
             if (canUpdate) {
                 runButton = new St.Button({style_class: 'update-checker-update-button', y_align: Clutter.ActorAlign.CENTER});
@@ -1201,6 +962,7 @@ class Indicator extends PanelMenu.Button {
                 btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
                 btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
                 runButton.set_child(btnBox);
+                runButton.accessible_name = `Update ${src.name}`;
                 runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
                 headerBox.add_child(runButton);
             }
@@ -1214,23 +976,11 @@ class Indicator extends PanelMenu.Button {
                 this._setRowUpdating(src.name, true);
             // Energetic: badge bounce + button hover scale (delay-based, no GLib source to leak)
             if (hasMotion()) {
-                countLabel.opacity = 0;
-                countLabel.set_scale(0.55, 0.55);
-                countLabel.ease({opacity: 255, scale_x: 1.45, scale_y: 1.45, delay: 80, duration: 140, mode: Clutter.AnimationMode.EASE_OUT_BACK,
-                    onComplete: () => {
-                        if (this._destroyed || !countLabel.get_stage()) return;
-                        countLabel.ease({scale_x: 0.92, scale_y: 0.92, duration: 90, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                            onComplete: () => {
-                                if (this._destroyed || !countLabel.get_stage()) return;
-                                countLabel.ease({scale_x: 1, scale_y: 1, duration: 110, mode: Clutter.AnimationMode.EASE_OUT_BACK});
-                            }});
-                    }});
+                this._animateBounceIn(countLabel, {startOpacity: 0, delay: 80});
                 if (runButton)
                     this._addButtonHoverScale(runButton);
                 // Header slide-in per source
-                headerItem.opacity = 0;
-                headerItem.translation_y = -6;
-                headerItem.ease({opacity: 255, translation_y: 0, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                this._fadeSlideIn(headerItem);
             }
 
             const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
@@ -1282,9 +1032,7 @@ class Indicator extends PanelMenu.Button {
                         row.style_class = 'update-checker-package-row';
                     }
                     if (hasMotion()) {
-                        row.opacity = 0;
-                        row.translation_y = -4;
-                        row.ease({opacity: 255, translation_y: 0, delay: idx * 35, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                        this._fadeSlideIn(row, {translationY: -4, delay: idx * 35});
                     }
                     containerBox.add_child(row);
                 }
@@ -1308,9 +1056,7 @@ class Indicator extends PanelMenu.Button {
             containerItem.add_child(containerBox);
             this._resultsSection.addMenuItem(containerItem);
             if (shouldAnimate()) {
-                containerItem.opacity = 0;
-                containerItem.translation_y = -4;
-                containerItem.ease({opacity: 255, translation_y: 0, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                this._fadeSlideIn(containerItem, {translationY: -4, duration: 200});
             }
         }
 
@@ -1337,6 +1083,16 @@ class Indicator extends PanelMenu.Button {
             return;
         }
 
+        // Background mode has no terminal to prompt for a password, so any
+        // doas/sudo prefix is stripped and the whole line is re-run under
+        // pkexec instead (graphical, PolicyKit-mediated auth). NOTE: this
+        // elevates the *entire* command, not just the prefixed clause -- a
+        // command that mixes privileged and unprivileged tools in one line
+        // (e.g. "doas dnf update -y && flatpak update -y") will run the
+        // Flatpak half as root too, which writes into root's Flatpak
+        // profile instead of the invoking user's. Keep privileged and
+        // unprivileged update steps in separate sources/commands rather
+        // than combining them here.
         const hasPrivilege = /\b(?:doas|sudo)\s+/.test(command);
         const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
@@ -1348,6 +1104,7 @@ class Indicator extends PanelMenu.Button {
 
             const entry = {proc, startTime: GLib.get_monotonic_time(), stopped: false, tickId: null};
             this._updatingSources.set(label, entry);
+            this._updateSyncIconState();
             this._setRowUpdating(label, true, '0s');
 
             entry.tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
@@ -1373,8 +1130,8 @@ class Indicator extends PanelMenu.Button {
                 if (!this._sourceRowWidgets)
                     return;
                 this._updatingSources.delete(label);
+                this._updateSyncIconState();
                 this._setRowUpdating(label, false);
-                if (entry.stopped)
                     Main.notify(`${label} update stopped`, 'Stopped before it finished.');
                 else if (ok)
                     Main.notify(`${label} updated`, 'Finished successfully.');
@@ -1406,6 +1163,7 @@ class Indicator extends PanelMenu.Button {
             });
         } catch (e) {
             this._updatingSources.delete(label);
+            this._updateSyncIconState();
             this._setRowUpdating(label, false);
             Main.notifyError('Update Checker', `Could not run update: ${e.message}`);
         }
@@ -1766,13 +1524,16 @@ export default class UpdateCheckerExtension extends Extension {
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
         );
+        // Re-check immediately on either change, regardless of whether the
+        // popup is currently open -- consistent with every other checkNow()
+        // trigger (reconnect, package-db watch), so editing Sources/commands
+        // in Preferences doesn't leave stale results sitting until the next
+        // scheduled poll.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
-            if (this._indicator?.menu?.isOpen)
-                this._indicator.checkNow(true);
+            this._indicator?.checkNow(true);
         });
-        this._updateCmdsChangedId = this._settings.connect('changed::update-commands', () => {
-            if (this._indicator?.menu?.isOpen)
-                this._indicator.checkNow(true);
+        this._updateCmdsChangedId = this._settings.connect('changed::source-update-commands', () => {
+            this._indicator?.checkNow(true);
         });
 
         // When connectivity comes back after being offline, refresh

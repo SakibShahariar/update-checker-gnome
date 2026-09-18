@@ -19,13 +19,16 @@ jobs:
       - name: Install glib-compile-schemas
         run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev-bin
 
+      - name: Syntax check
+        run: node --check extension.js && node --check prefs.js && node --check lib/utils.js && node --check lib/theming.js
+
       - name: Compile schema
         run: glib-compile-schemas schemas/
 
       - name: Package extension
         run: |
           mkdir -p dist/update-checker@local
-          cp -r extension.js prefs.js metadata.json stylesheet.css README.md schemas dist/update-checker@local/
+          cp -r extension.js prefs.js metadata.json stylesheet.css README.md schemas lib dist/update-checker@local/
           cd dist
           zip -r update-checker@local.zip update-checker@local
 

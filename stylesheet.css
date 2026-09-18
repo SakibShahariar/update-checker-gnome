@@ -8,25 +8,32 @@
 }
 
 .update-checker-reboot-icon {
-    padding-left: 2px;
-    opacity: 0.85;
+    padding-left: 0px;
+    opacity: 0.9;
     color: #bac8db; /* tertiary — distinct from error red */
 }
 
 .update-checker-offline-icon {
-    padding-left: 2px;
+    padding-left: 0px;
     opacity: 0.9;
     color: #bdc7dc; /* secondary */
 }
 
 .update-checker-security-icon {
-    padding-left: 2px;
-    opacity: 0.85;
+    padding-left: 0px;
+    opacity: 0.9;
     color: #ffb4ab; /* error */
 }
  
 .update-checker-urgent-icon {
     color: #bfc7d5; /* primary — Matugen */
+}
+
+/* Ambient "an update is running" state on the panel icon itself, so
+   progress is visible even with the popup closed. */
+.update-checker-syncing-icon {
+    color: #c3c7cf; /* secondary — Matugen */
+    opacity: 0.9;
 }
  
 .update-checker-status-line {
@@ -65,7 +72,7 @@
 
 .update-checker-header-subtitle {
     font-size: 0.9em;
-    color: rgba(219, 227, 241, 0.75); /* on_primary_container @ 75% — Matugen */
+    color: rgba(219, 227, 241, 0.85); /* on_primary_container @ 85% — Matugen */
 }
 
 .update-checker-refresh-button {
@@ -180,22 +187,9 @@
     color: #c3c7cf; /* secondary — Matugen */
 }
 
-/* legacy - kept for failed rows / fallback */
-.update-checker-count {
-    font-weight: bold;
-    padding-left: 12px;
-    color: #e4e2e3; /* on_surface — Matugen */
-}
-
 .update-checker-warning-icon {
     color: #ffb4ab; /* error — Matugen */
     padding-left: 12px;
-}
-
-.update-checker-run-icon {
-    padding-left: 8px;
-    opacity: 0.85;
-    color: #bfc7d5; /* primary — Matugen */
 }
 
 .update-checker-updating-label {
@@ -206,15 +200,8 @@
 
 .update-checker-stop-icon {
     padding-left: 8px;
-    opacity: 0.85;
+    opacity: 0.9;
     color: #ffb4ab; /* error */
-}
-
-.update-checker-package-line {
-    font-size: 90%;
-    color: #c8c6c7; /* on_surface_variant — Matugen */
-    padding-left: 24px;
-    max-width: 420px;
 }
 
 /* — Scroll container — one capped scroll region for all sources' results.

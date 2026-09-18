@@ -69,7 +69,7 @@
     <key name="source-update-commands" type="as">
       <default>['DNF|doas dnf update --refresh -y &amp;&amp; doas dnf autoremove -y', 'Flatpak|flatpak update -y &amp;&amp; flatpak uninstall --unused -y']</default>
       <summary>Per-source update commands</summary>
-      <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action.</description>
+      <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal (or, with "background-updates" enabled, runs it via pkexec with no terminal) and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action. In background mode, any doas/sudo prefix is stripped and the *entire* line is re-run elevated, so avoid combining privileged and unprivileged tools in one command.</description>
     </key>
 
     <key name="background-updates" type="b">
