@@ -8,7 +8,11 @@
 
 Click the icon for a per-source breakdown, `Check Now`, or `Run Update Script` (your fish script, with `doas` prompts).
 
-### Features
+## Contents
+
+[Features](#features) · [Install](#install) · [How it works](#how-it-works) · [Panel](#panel) · [Settings](#settings) · [Uninstall](#uninstall)
+
+## Features
 
 | | |
 |---|---|
@@ -22,7 +26,7 @@ Click the icon for a per-source breakdown, `Check Now`, or `Run Update Script` (
 | ▶️ **Background** | `pkexec` graphical prompt, elapsed + stop |
 | 🎨 **Matugen** | Header, badges, buttons track your wallpaper palette live |
 
-### Install
+## Install
 
 ```bash
 # from release
@@ -39,7 +43,7 @@ Prefs: `gnome-extensions prefs update-checker@local` or panel → `Settings…`
 
 Reload: Wayland logout, X11 `Alt+F2` → `r`
 
-### How it works
+## How it works
 
 Runs each source via `sh -c`, counts non-empty stdout lines. Nothing auto-installed.
 
@@ -54,13 +58,13 @@ Default DNF: `dnf check-update -q --refresh --color=never | grep -E '^\S+\.\S+\s
 * Presets: `+ Add Source` → DNF / Flatpak / Cargo / npm / uv / Custom
 </details>
 
-### Panel
+## Panel
 
 * `3` = updates, `!` = failed, `1` + `🛡`/`⟳`/`offline` icons.
 * Click source → expand package names (first token), run button if update command set.
 * `Dismiss errors` clears `!` until next poll.
 
-### Settings
+## Settings
 
 **General** — interval, notify, always show, quiet hours, watch DBs  
 **Sources** — per-source check + `On click →` update + `Every [60] min`  
@@ -81,9 +85,10 @@ Default DNF: `dnf check-update -q --refresh --color=never | grep -E '^\S+\.\S+\s
 * `Run Update Script` always terminal.
 </details>
 
-### Uninstall
+## Uninstall
 
 ```bash
 gnome-extensions disable update-checker@local
 rm -rf ~/.local/share/gnome-shell/extensions/update-checker@local
+dconf reset -f /org/gnome/shell/extensions/update-checker/
 ```
