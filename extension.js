@@ -80,6 +80,7 @@ class Indicator extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'update-checker-label',
         });
+        this._label.visible = false;
         this._securityIcon = new St.Icon({
             icon_name: 'security-high-symbolic',
             style_class: 'system-status-icon update-checker-security-icon',
@@ -325,13 +326,18 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
-    // Slowly rotate the panel icon while a background update is running, so
-    // the loading state is obvious at a glance even with the popup closed.
+    // Slowly rotate the panel icon (and the header icon circle glyph) while a
+    // background update is running, so the loading state is obvious even with
+    // the popup closed.
     _startIconSpin() {
         this._stopIconSpin();
         try {
             this._icon.set_pivot_point(0.5, 0.5);
             this._icon.set_rotation_angle(Clutter.RotateAxis.Z, 0);
+            if (this._headerIcon) {
+                this._headerIcon.set_pivot_point(0.5, 0.5);
+                this._headerIcon.set_rotation_angle(Clutter.RotateAxis.Z, 0);
+            }
         } catch (e) {}
         this._spinId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000 / 45, () => {
             if (this._destroyed || !this._syncIconActive)
@@ -339,6 +345,9 @@ class Indicator extends PanelMenu.Button {
             try {
                 this._icon.set_rotation_angle(Clutter.RotateAxis.Z,
                     (this._icon.get_rotation_angle(Clutter.RotateAxis.Z) + 12) % 360);
+                if (this._headerIcon && !this._destroyed)
+                    this._headerIcon.set_rotation_angle(Clutter.RotateAxis.Z,
+                        (this._headerIcon.get_rotation_angle(Clutter.RotateAxis.Z) + 12) % 360);
             } catch (e) {}
             return GLib.SOURCE_CONTINUE;
         });
@@ -350,6 +359,7 @@ class Indicator extends PanelMenu.Button {
             this._spinId = null;
         }
         try { this._icon?.set_rotation_angle(Clutter.RotateAxis.Z, 0); } catch (e) {}
+        try { this._headerIcon?.set_rotation_angle(Clutter.RotateAxis.Z, 0); } catch (e) {}
     }
 
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
@@ -374,6 +384,17 @@ class Indicator extends PanelMenu.Button {
         this.visible = this._lastTotal > 0 || showZero ||
             this._lastAnyFailed || this._lastRebootRequired || this._lastOffline;
         this._syncGroupedStatusIcons();
+    }
+
+    // Panel count — plain bold text next to the icon, styled like
+    // github-notifier (no pill background, capped at 99+, hidden when empty).
+    _setCountBadge(text) {
+        // github-notifier caps the badge at 99 (shows "99+" beyond that).
+        let shown = text;
+        if (shown && /^\d+$/.test(shown) && parseInt(shown, 10) > 99)
+            shown = '99+';
+        this._label.text = shown;
+        this._label.visible = !!shown;
     }
 
     // When 2+ of security / reboot / offline apply, collapse into one chip
@@ -824,7 +845,7 @@ class Indicator extends PanelMenu.Button {
         // Hide failed per-source rows until next check
         // (they will be rebuilt on next checkNow)
         this._updateVisibility();
-        this._label.set_text(this._lastTotal > 0 ? `${this._lastTotal}` : '');
+        this._setCountBadge(this._lastTotal > 0 ? `${this._lastTotal}` : '');
         this._icon.icon_name = 'software-update-available-symbolic';
         this._updateIconStyle(this._lastTotal > 0);
         this._statusItem.label.set_text(`Dismissed — next check ${this._settings.get_int('check-interval-minutes')}m`);
@@ -887,7 +908,7 @@ class Indicator extends PanelMenu.Button {
     }
 
     _renderEmpty() {
-        this._label.set_text('');
+        this._setCountBadge('');
         this._statusItem.label.set_text('Not checked yet');
         this._rebootIcon.visible = false;
         this._rebootItem.visible = false;
@@ -1148,10 +1169,18 @@ class Indicator extends PanelMenu.Button {
                 clickable.connect('clicked', () => Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error'));
                 containerBox.add_child(clickable);
             } else if (r.count === 0) {
-                const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
-                emptyBox.set_style(`color: ${c.on_surface_variant};`);
-                emptyBox.add_child(new St.Icon({icon_name: 'emblem-ok-symbolic', icon_size: 16}));
-                emptyBox.add_child(new St.Label({text: 'No updates available', style_class: ''}));
+                const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true, vertical: true});
+                emptyBox.spacing = 2;
+                const emptyRow = new St.BoxLayout({style_class: '', x_align: Clutter.ActorAlign.CENTER});
+                emptyRow.spacing = 6;
+                emptyRow.add_child(new St.Icon({icon_name: 'emblem-ok-symbolic', icon_size: 16}));
+                const okLabel = new St.Label({text: 'All up to date', style_class: 'update-checker-package-name'});
+                okLabel.set_style(`color: ${c.on_surface};`);
+                emptyRow.add_child(okLabel);
+                emptyBox.add_child(emptyRow);
+                const hintLabel = new St.Label({text: `${src.name} checks are automatic`, style_class: '', x_align: Clutter.ActorAlign.CENTER});
+                hintLabel.set_style(`color: ${hexToRgba(c.on_surface_variant, 0.8)}; font-size: 0.85em;`);
+                emptyBox.add_child(hintLabel);
                 containerBox.add_child(emptyBox);
             } else {
                 const isExpanded = this._expandedSources.has(src.name);
@@ -1168,7 +1197,7 @@ class Indicator extends PanelMenu.Button {
                     nameLabel.set_style(`color: ${c.on_surface};`);
                     rowBox.add_child(nameLabel);
                     if (version) {
-                        const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version'});
+                        const verLabel = new St.Label({text: truncate(version, 24), style_class: 'update-checker-package-version', y_align: Clutter.ActorAlign.CENTER, x_align: Clutter.ActorAlign.END});
                         verLabel.set_style(`color: ${c.secondary};`);
                         rowBox.add_child(verLabel);
                     }
@@ -1528,7 +1557,7 @@ class Indicator extends PanelMenu.Button {
             this._updateResultsScrollHeight();
             this._lastTotal = 0;
             this._lastAnyFailed = true;
-            this._label.set_text('!');
+            this._setCountBadge('!');
             this._icon.icon_name = 'dialog-warning-symbolic';
             this._updateIconStyle(false);
             this._statusItem.label.set_text('No sources configured');
@@ -1604,7 +1633,7 @@ class Indicator extends PanelMenu.Button {
         this._lastAnyFailed = anyFailed;
         this._updateVisibility();
         // Show count; append ! when some sources failed so stale success isn't implied
-        this._label.set_text(
+        this._setCountBadge(
             total > 0 ? (anyFailed ? `${total}!` : `${total}`) : (anyFailed ? '!' : '')
         );
 

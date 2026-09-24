@@ -3,7 +3,7 @@
 }
 
 .update-checker-label {
-    padding-left: 2px;
+    margin-left: 4px;
     font-weight: bold;
 }
 
@@ -153,10 +153,10 @@
    GNOME: no outline border (was KDE-like), just filled surface */
 .update-checker-container {
     border-radius: 12px;
-    border: none;
+    border: 1px solid rgba(71, 71, 72, 0.45); /* outline_variant @ 45% — Matugen */
     background-color: rgba(31, 32, 33, 0.85); /* surface_container @ 85% — Matugen */
     padding: 4px;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
     transition-duration: 200ms;
 }
 
