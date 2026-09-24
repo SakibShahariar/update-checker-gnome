@@ -179,6 +179,7 @@ class Indicator extends PanelMenu.Button {
         rebootNowWrapper.add_child(rebootNowBtn);
         this.menu.addMenuItem(rebootNowWrapper);
         this._rebootNowBtn = rebootNowBtn;
+        this._bindButtonStates(rebootNowBtn, c => this._primaryButtonStates(c));
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
         // Single capped scroll region for all sources' results. Expanding
@@ -237,9 +238,27 @@ class Indicator extends PanelMenu.Button {
             if (open) {
                 this._updateRunScriptVisibility();
                 // Theme changes only happen while the menu is closed (focus
-                // leaves the popup). Skip Matugen on open — colors were already
-                // applied at launch / by the file monitor. Just animate entrance.
+                // leaves the popup), so the matugen file monitor's rebuild
+                // guard (this.menu.isOpen) can never run for them. Re-apply
+                // matugen on open instead: reads the palette fresh, and since
+                // the menu is now open it also rebuilds every results row with
+                // current inline colors — so nothing stays stale from the last
+                // render until the next check or logout.
                 GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                    if (this._destroyed)
+                        return GLib.SOURCE_REMOVE;
+                    // Follow github-notifier's pattern exactly: re-assert the
+                    // matugen stylesheet AND unconditionally rebuild every
+                    // result row on open, so each row is created fresh with the
+                    // current palette baked in as inline styles. No dependence
+                    // on the stylesheet surviving a shell theme reload.
+                    this._applyMatugenTheme({loadStylesheet: true, force: true});
+                    if (this._lastRenderSources?.length) {
+                        log(`UpdateChecker popup open: rebuilding ${this._lastRenderSources.length} rows with current palette primary=${this._matugenColors?.primary ?? 'n/a'}`);
+                        this._rebuildResultsSection(this._lastRenderSources, this._lastRenderResults, this._lastRenderUpdateCommands);
+                    } else {
+                        log('UpdateChecker popup open: no cached rows to rebuild');
+                    }
                     this._animateHeaderEntrance();
                     return GLib.SOURCE_REMOVE;
                 });
@@ -249,8 +268,7 @@ class Indicator extends PanelMenu.Button {
         });
 
         this._renderEmpty();
-        // Matugen at launch (deferred) + file monitor. Not on every popup open:
-        // running matugen / changing wallpaper dismisses the menu first.
+        // Matugen at launch (deferred) + file monitor + re-apply on popup open.
         this._setupMatugenMonitor();
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             if (!this._destroyed)
@@ -286,21 +304,58 @@ class Indicator extends PanelMenu.Button {
         if (active === this._syncIconActive)
             return;
         this._syncIconActive = active;
-        this._icon.icon_name = active
-            ? 'emblem-synchronizing-symbolic'
-            : 'software-update-available-symbolic';
         if (active) {
+            this._icon.icon_name = 'content-loading-symbolic';
             this._icon.add_style_class_name('update-checker-syncing-icon');
+            // Match the theme's main accent (primary) so the loading state
+            // stays on-palette; the spinning glyph distinguishes it as busy.
+            const c = this._matugenColors || loadMatugenColors();
+            const color = c?.primary ?? '#bfc7d5';
+            this._icon.set_style(`margin-right: 4px; color: ${color};`);
             this._setTooltip(this._icon, 'Update in progress…');
+            this._startIconSpin();
         } else {
+            this._stopIconSpin();
             this._icon.remove_style_class_name('update-checker-syncing-icon');
+            this._icon.icon_name = 'software-update-available-symbolic';
+            // Restore the pre-sync inline color (urgent primary or none).
+            this._icon.set_style('');
+            this._updateIconStyle(this._lastTotal > 0);
             try { this._icon.tooltip_text = ''; } catch (e) {}
         }
+    }
+
+    // Slowly rotate the panel icon while a background update is running, so
+    // the loading state is obvious at a glance even with the popup closed.
+    _startIconSpin() {
+        this._stopIconSpin();
+        try {
+            this._icon.set_pivot_point(0.5, 0.5);
+            this._icon.set_rotation_angle(Clutter.RotateAxis.Z, 0);
+        } catch (e) {}
+        this._spinId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000 / 45, () => {
+            if (this._destroyed || !this._syncIconActive)
+                return GLib.SOURCE_REMOVE;
+            try {
+                this._icon.set_rotation_angle(Clutter.RotateAxis.Z,
+                    (this._icon.get_rotation_angle(Clutter.RotateAxis.Z) + 12) % 360);
+            } catch (e) {}
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _stopIconSpin() {
+        if (this._spinId) {
+            try { GLib.source_remove(this._spinId); } catch (e) {}
+            this._spinId = null;
+        }
+        try { this._icon?.set_rotation_angle(Clutter.RotateAxis.Z, 0); } catch (e) {}
     }
 
     // Ensure matugen stylesheet is unloaded when indicator is destroyed
     destroy() {
         try { this._stopRefreshSpin(); } catch (e) {}
+        try { this._stopIconSpin(); } catch (e) {}
         this._removeMatugenTheme();
         super.destroy();
     }
@@ -517,7 +572,54 @@ class Indicator extends PanelMenu.Button {
         } catch (e) {}
     }
 
-    _setTooltip(actor, text) {
+    // Buttons with an inline background-color (Reboot Now, per-source Update,
+    // expand toggle) shadow their class :hover/:active rules in St, so CSS
+    // press states never show. Re-implement base/hover/pressed states via
+    // pointer events, swapping the inline style. get(c) is re-evaluated per
+    // event against the live palette, so a theme switch mid-interaction stays
+    // correct. Colors: hexToRgba(...) alpha strings.
+    _bindButtonStates(button, getStates) {
+        if (!button || button._ucStatesBound)
+            return;
+        button._ucStatesBound = true;
+        let hovering = false;
+        let pressed = false;
+        const apply = () => {
+            if (this._destroyed)
+                return;
+            const c = this._matugenColors || loadMatugenColors();
+            const s = getStates(c);
+            const bg = pressed ? s.active : hovering ? s.hover : s.base;
+            try {
+                button.set_style(`background-color: ${bg}; color: ${s.color}; border-color: transparent; border-width: 0;`);
+            } catch (e) {}
+        };
+        button.connect('enter-event', () => { hovering = true; apply(); });
+        button.connect('leave-event', () => { hovering = false; pressed = false; apply(); });
+        button.connect('button-press-event', () => {
+            if (hovering) {
+                pressed = true;
+                apply();
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        button.connect('button-release-event', () => {
+            pressed = false;
+            apply();
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    // Shared filled primary-button states (Update / Reboot Now buttons).
+    _primaryButtonStates(c) {
+        return {
+            base: c.primary,
+            hover: lightenHex(c.primary, 0x14),
+            active: lightenHex(c.primary, 0x22),
+            color: c.on_primary,
+        };
+    }
+        _setTooltip(actor, text) {
         if (!actor || text == null)
             return;
         try {
@@ -531,8 +633,23 @@ class Indicator extends PanelMenu.Button {
         }
     }
 
-    _applyMatugenTheme({loadStylesheet = true} = {}) {
+    _applyMatugenTheme({loadStylesheet = true, force = false} = {}) {
         try {
+            // force: a shell theme reload (matugen's own user-theme toggle in
+            // merge-layout.sh swaps the whole theme) drops stylesheets the
+            // extension loaded via load_stylesheet, while the cached
+            // _matugenCss makes them look unchanged. Reset that state so the
+            // next apply re-loads the stylesheet even if the content is the
+            // same as last time.
+            if (force && this._matugenThemeFile) {
+                try {
+                    const stage = global.stage;
+                    const theme = stage ? St.ThemeContext.get_for_stage(stage)?.get_theme() ?? null : null;
+                    if (theme) theme.unload_stylesheet(this._matugenThemeFile);
+                } catch (e) {}
+                this._matugenThemeFile = null;
+                this._matugenCss = null;
+            }
             const colors = loadMatugenColors();
             this._matugenColors = colors;
             const css = buildMatugenCss(colors);
@@ -540,10 +657,10 @@ class Indicator extends PanelMenu.Button {
             // Fixed path — avoid creating a new file (and forced unload/load)
             // on every call. Only touch St.Theme when content actually changed
             // AND the caller asked for a stylesheet load (popup open / matugen
-            // file change). Launch path uses loadStylesheet:false to avoid
-            // shell-wide UI refresh.
+            // file change). Every caller passes loadStylesheet:true.
             const cachePath = GLib.build_filenamev([GLib.get_user_cache_dir(), 'update-checker-matugen.css']);
             const cssChanged = css !== this._matugenCss;
+            log(`UpdateChecker apply: force=${force} cssChanged=${cssChanged} loadStylesheet=${loadStylesheet} primary=${colors.primary}`);
 
             if (loadStylesheet && cssChanged) {
                 let theme = null;
@@ -601,17 +718,34 @@ class Indicator extends PanelMenu.Button {
     _applyInlineMatugenColors(c) {
         try {
             log(`UpdateChecker inline matugen: headerBox bg=${c.primary_container} hasHeaderBox=${!!this._headerBox}`);
-            if (this._headerBox) this._headerBox.set_style(`background-color: ${c.primary_container}; border-color: transparent; border-width: 0;`);
-            if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${c.primary};`);
+            if (this._headerBox) this._headerBox.set_style(`background-color: ${hexToRgba(c.primary_container, 0.85)}; border-color: transparent; border-width: 0;`);
+            if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${hexToRgba(c.primary, 0.9)};`);
             if (this._headerIcon) this._headerIcon.set_style(`color: ${c.on_primary};`);
             if (this._headerTitle) this._headerTitle.set_style(`color: ${c.on_primary_container};`);
             if (this._headerSubtitle) this._headerSubtitle.set_style(`color: ${hexToRgba(c.on_primary_container, 0.85)};`);
+            // Small persistent header/footer controls: recolor inline too so
+            // they never sit on the hardcoded stylesheet.css values.
+            if (this._refreshButton) this._refreshButton.set_style(`color: ${c.on_primary_container};`);
+            if (this._rebootNowBtn) this._rebootNowBtn.set_style(`background-color: ${c.primary}; color: ${c.on_primary}; border-color: transparent; border-width: 0;`);
+            // Panel icon: its current state decides the inline color
+            // (urgent/syncing=primary, normal=none -> shell theme default).
+            // Recolor live so a theme switch mid-update or mid-urgency
+            // doesn't leave last session's palette on it.
+            try {
+                if (this._icon?.has_style_class_name?.('update-checker-syncing-icon'))
+                    this._icon.set_style(`margin-right: 4px; color: ${c.primary};`);
+                else if (this._icon?.has_style_class_name?.('update-checker-urgent-icon'))
+                    this._icon.set_style(`color: ${c.primary};`);
+            } catch (e) {}
+            if (this._securityIcon) this._securityIcon.set_style(`icon-size: 12px; color: ${c.error};`);
+            if (this._rebootIcon) this._rebootIcon.set_style(`icon-size: 12px; color: ${c.primary};`);
+            if (this._offlineIcon) this._offlineIcon.set_style(`icon-size: 12px; color: ${c.secondary};`);
             // Inline for already-rendered per-source widgets (if popup already open before expand rebuild)
             // We can't enumerate all containerBox widgets easily, but _rebuildResultsSection will handle new ones.
             // Apply to source row widgets still alive
             for (const [, w] of this._sourceRowWidgets ?? []) {
-                try { if (w.countLabel) w.countLabel.set_style(`background-color: ${c.secondary_container}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`); } catch (e) {}
-                try { if (w.runButton) w.runButton.set_style(`background-color: ${c.tertiary_container}; color: ${c.on_tertiary_container}; border-color: transparent; border-width: 0;`); } catch (e) {}
+                try { if (w.countLabel) w.countLabel.set_style(`background-color: ${hexToRgba(c.secondary_container, 0.85)}; color: ${c.on_secondary_container}; border-color: transparent; border-width: 0;`); } catch (e) {}
+                try { if (w.runButton) w.runButton.set_style(`background-color: ${c.primary}; color: ${c.on_primary}; border-color: transparent; border-width: 0;`); } catch (e) {}
                 try { if (w.updatingLabel) w.updatingLabel.set_style(`color: ${c.on_secondary_container};`); } catch (e) {}
             }
             try { this.menu?.box?.queue_relayout(); } catch (e) {}
@@ -907,6 +1041,7 @@ class Indicator extends PanelMenu.Button {
     }
 
     _rebuildResultsSection(sources, results, updateCommands) {
+        log(`UpdateChecker rebuildResults: ${sources.length} sources, palette=${this._matugenColors ? 'cached' : 'fresh-read'}`);
         this._resultsSection.removeAll();
         this._sourceRowWidgets.clear();
         const c = this._matugenColors || loadMatugenColors();
@@ -973,13 +1108,14 @@ class Indicator extends PanelMenu.Button {
             stopButton.connect('clicked', () => this._stopSourceUpdate(src.name));
             if (canUpdate) {
                 runButton = new St.Button({style_class: 'update-checker-update-button', y_align: Clutter.ActorAlign.CENTER});
-                runButton.set_style(`background-color: ${c.tertiary_container}; color: ${c.on_tertiary_container}; border-color: transparent; border-width: 0;`);
+                runButton.set_style(`background-color: ${c.primary}; color: ${c.on_primary}; border-color: transparent; border-width: 0;`);
                 const btnBox = new St.BoxLayout({style_class: 'update-checker-update-button-box', y_align: Clutter.ActorAlign.CENTER});
                 btnBox.add_child(new St.Icon({icon_name: 'software-update-available-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
                 btnBox.add_child(new St.Label({text: 'Update', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
                 runButton.set_child(btnBox);
                 runButton.accessible_name = `Update ${src.name}`;
                 runButton.connect('clicked', () => this._runSourceUpdate(updateCommand, src.name));
+                this._bindButtonStates(runButton, c => this._primaryButtonStates(c));
                 headerBox.add_child(runButton);
             }
             headerBox.add_child(updatingLabel);
@@ -1028,7 +1164,6 @@ class Indicator extends PanelMenu.Button {
                     const version = parts[2] || parts[1] || '';
                     const rowBox = new St.BoxLayout({style_class: '', x_expand: true});
                     rowBox.spacing = 8;
-                    rowBox.add_child(new St.Icon({icon_name: 'go-up-symbolic', icon_size: 12, style_class: ''}));
                     const nameLabel = new St.Label({text: truncate(pkgName, 42), style_class: 'update-checker-package-name', x_expand: true});
                     nameLabel.set_style(`color: ${c.on_surface};`);
                     rowBox.add_child(nameLabel);
@@ -1057,12 +1192,18 @@ class Indicator extends PanelMenu.Button {
                     const btnLabel = isExpanded ? 'Show less' : `Show all (${r.lines.length}) — ${remaining} more`;
                     const iconName = isExpanded ? 'go-up-symbolic' : 'go-down-symbolic';
                     const toggleBtn = new St.Button({style_class: 'update-checker-expand-button', x_expand: true});
-                    toggleBtn.set_style(`background-color: ${c.surface_container_high}; color: ${c.on_surface_variant};`);
+                    toggleBtn.set_style(`background-color: ${hexToRgba(c.surface_container_high, 0.85)}; color: ${c.on_surface_variant};`);
                     const btnBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-update-button-box'});
                     btnBox.add_child(new St.Icon({icon_name: iconName, icon_size: 12, y_align: Clutter.ActorAlign.CENTER}));
                     btnBox.add_child(new St.Label({text: btnLabel, y_align: Clutter.ActorAlign.CENTER}));
                     toggleBtn.set_child(btnBox);
                     toggleBtn.connect('clicked', () => this._toggleSourceExpanded(src.name));
+                    this._bindButtonStates(toggleBtn, c => ({
+                        base: hexToRgba(c.surface_container_high, 0.85),
+                        hover: hexToRgba(c.secondary_container, 0.85),
+                        active: hexToRgba(c.outline_variant, 0.85),
+                        color: c.on_surface_variant,
+                    }));
                     if (hasMotion()) this._addButtonHoverScale(toggleBtn);
                     containerBox.add_child(toggleBtn);
                 }

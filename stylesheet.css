@@ -10,7 +10,7 @@
 .update-checker-reboot-icon {
     padding-left: 0px;
     opacity: 0.9;
-    color: #bac8db; /* tertiary — distinct from error red */
+    color: #bfc7d5; /* primary — matches theme accent */
 }
 
 .update-checker-offline-icon {
@@ -32,7 +32,7 @@
 /* Ambient "an update is running" state on the panel icon itself, so
    progress is visible even with the popup closed. */
 .update-checker-syncing-icon {
-    color: #c3c7cf; /* secondary — Matugen */
+    color: #bfc7d5; /* primary — Matugen */
     opacity: 0.9;
 }
  
@@ -46,7 +46,7 @@
 .update-checker-header-card {
     border-radius: 12px;
     border: none;
-    background-color: #3f4753; /* primary_container — Matugen */
+    background-color: rgba(63, 71, 83, 0.85); /* primary_container @ 85% — Matugen */
     padding: 12px 12px;
     margin: 4px 0px 8px 0px;
     transition-duration: 200ms;
@@ -56,7 +56,7 @@
     width: 40px;
     height: 40px;
     border-radius: 20px;
-    background-color: #bfc7d5; /* primary — Matugen */
+    background-color: rgba(191, 199, 213, 0.9); /* primary @ 90% — Matugen */
     transition-duration: 200ms;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .update-checker-refresh-button:active {
-    background-color: rgba(186, 200, 219, 0.22); /* tertiary 22% — Matugen */
+    background-color: rgba(191, 199, 213, 0.22); /* primary 22% — Matugen */
 }
 
 /* — Section header — PkgUpdateWidget.qml:293 accent + badge + button row */
@@ -115,7 +115,7 @@
 .update-checker-badge {
     border-radius: 8px;
     padding: 1px 8px;
-    background-color: #42474e; /* secondary_container — Matugen */
+    background-color: rgba(66, 71, 78, 0.85); /* secondary_container @ 85% — Matugen */
     border: none;
     color: #dfe2eb; /* on_secondary_container — Matugen */
     font-size: 0.85em;
@@ -127,17 +127,17 @@
     border-radius: 999px; /* GNOME pill */
     padding: 4px 12px;
     border: none;
-    background-color: #3b4858; /* tertiary_container — Matugen */
-    color: #d6e4f7; /* on_tertiary_container — Matugen */
+    background-color: #bfc7d5; /* primary — Matugen */
+    color: #29313c; /* on_primary — Matugen */
     transition-duration: 150ms;
 }
 
 .update-checker-update-button:hover {
-    background-color: #4f5c6c; /* tertiary_container lightened — Matugen */
+    background-color: #d3dbe9; /* primary lightened — Matugen */
 }
 
 .update-checker-update-button:active {
-    background-color: #5d6a7a;
+    background-color: #e1e9f7;
 }
 
 .update-checker-update-button-box {
@@ -154,7 +154,7 @@
 .update-checker-container {
     border-radius: 12px;
     border: none;
-    background-color: #1f2021; /* surface_container — Matugen */
+    background-color: rgba(31, 32, 33, 0.85); /* surface_container @ 85% — Matugen */
     padding: 4px;
     margin-bottom: 10px;
     transition-duration: 200ms;
@@ -173,7 +173,7 @@
 }
 
 .update-checker-package-row:hover {
-    background-color: #2a2a2b; /* surface_container_high — Matugen */
+    background-color: rgba(42, 42, 43, 0.85); /* surface_container_high @ 85% — Matugen */
     border-radius: 8px;
 }
 
@@ -216,18 +216,18 @@
     border-radius: 8px;
     padding: 6px 12px;
     margin: 2px 4px;
-    background-color: #2a2a2b; /* surface_container_high — Matugen */
+    background-color: rgba(42, 42, 43, 0.85); /* surface_container_high @ 85% — Matugen */
     color: #c8c6c7; /* on_surface_variant — Matugen */
     font-size: 0.85em;
     transition-duration: 150ms;
 }
 
 .update-checker-expand-button:hover {
-    background-color: #42474e; /* secondary_container — Matugen */
+    background-color: rgba(66, 71, 78, 0.85); /* secondary_container @ 85% — Matugen */
 }
 
 .update-checker-expand-button:active {
-    background-color: #474748; /* outline_variant — Matugen */
+    background-color: rgba(71, 71, 72, 0.85); /* outline_variant @ 85% — Matugen */
 }
 
 /* widen popup - DMS 480px -> GNOME neutral ~440px — scoped to this extension only */
@@ -249,5 +249,5 @@
 .update-checker-menu .popup-menu-item:hover,
 .update-checker-menu .popup-menu-item:selected,
 .update-checker-menu .popup-menu-item:focus {
-    background-color: #2a2a2b; /* surface_container_high — Matugen */
+    background-color: rgba(42, 42, 43, 0.85); /* surface_container_high @ 85% — Matugen */
 }
