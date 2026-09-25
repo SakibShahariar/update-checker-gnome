@@ -110,12 +110,6 @@
 
 .update-checker-section-icon {
     color: #c3c7cf; /* secondary — Matugen */
-    /* The symbolic icon renders taller than the title's cap-height, and both
-       end up top-anchored in the row regardless of the y_align set in JS
-       (no vertical slack in the row for Clutter to act on), so the icon
-       visibly hangs lower than "DNF". Nudge it up with a CSS margin instead,
-       since that's guaranteed to apply purely from a stylesheet reload. */
-    margin-top: -3px;
 }
 
 .update-checker-badge {
