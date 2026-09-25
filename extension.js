@@ -121,7 +121,7 @@ class Indicator extends PanelMenu.Button {
         const headerIcon = new St.Icon({icon_name: 'system-software-install-symbolic', icon_size: 20, style_class: 'update-checker-header-icon'});
         this._headerIcon = headerIcon;
         iconBox.add_child(headerIcon);
-        const headerTextBox = new St.BoxLayout({vertical: true, y_align: Clutter.ActorAlign.CENTER, style_class: ''});
+        const headerTextBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, y_align: Clutter.ActorAlign.CENTER, style_class: ''});
         this._headerTitle = new St.Label({text: 'Package Updates', style_class: 'update-checker-header-title'});
         this._headerSubtitle = new St.Label({text: 'Checking…', style_class: 'update-checker-header-subtitle'});
         headerTextBox.add_child(this._headerTitle);
@@ -1184,7 +1184,7 @@ class Indicator extends PanelMenu.Button {
             }
 
             const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
-            const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
+            const containerBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'update-checker-container'});
             containerBox.set_style(`background-color: transparent; border-color: transparent; border-width: 0;`);
             if (r.status === 'error') {
                 const errBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
@@ -1196,7 +1196,7 @@ class Indicator extends PanelMenu.Button {
                 clickable.connect('clicked', () => Main.notifyError(`${src.name} check failed`, r.message || 'Unknown error'));
                 containerBox.add_child(clickable);
             } else if (r.count === 0) {
-                const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true, vertical: true});
+                const emptyBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true, orientation: Clutter.Orientation.VERTICAL});
                 emptyBox.spacing = 2;
                 const emptyRow = new St.BoxLayout({style_class: '', x_align: Clutter.ActorAlign.CENTER});
                 emptyRow.spacing = 6;
