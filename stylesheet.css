@@ -231,8 +231,13 @@
 }
 
 /* widen popup - DMS 480px -> GNOME neutral ~440px — scoped to this extension only */
+/* Also override the default (near-opaque) .popup-menu-content background so the
+   footer chrome (separator, status line, History/Check Now/Settings) picks up the
+   same translucent Matugen surface tone as the header card and list container,
+   instead of sitting on GNOME's stock opaque backdrop. */
 .update-checker-menu {
     min-width: 480px;
+    background-color: rgba(31, 32, 33, 0.85); /* surface_container @ 85% — matches .update-checker-container */
 }
 
 /* Stock popup items (security/reboot/status/footer) — match themed surfaces with

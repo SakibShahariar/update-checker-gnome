@@ -1091,7 +1091,7 @@ class Indicator extends PanelMenu.Button {
             const headerBox = new St.BoxLayout({x_expand: true, style_class: 'update-checker-section-header'});
             const accent = new St.Widget({style_class: 'update-checker-accent'});
             accent.set_style(`background-color: ${c.primary};`);
-            const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon'});
+            const secIcon = new St.Icon({icon_name: getIcon(src.name), icon_size: 16, style_class: 'update-checker-section-icon', y_align: Clutter.ActorAlign.CENTER});
             secIcon.set_style(`color: ${c.secondary};`);
             const titleLabel = new St.Label({text: src.name, style_class: 'update-checker-section-title', y_align: Clutter.ActorAlign.CENTER});
             titleLabel.set_style(`color: ${c.on_surface};`);
