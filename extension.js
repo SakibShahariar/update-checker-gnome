@@ -742,12 +742,12 @@ class Indicator extends PanelMenu.Button {
     _applyInlineMatugenColors(c) {
         try {
             log(`UpdateChecker inline matugen: headerBox bg=${c.primary_container} hasHeaderBox=${!!this._headerBox}`);
-            if (this._headerBox) this._headerBox.set_style(`background-color: ${hexToRgba(c.primary_container, 0.85)}; border-color: transparent; border-width: 0;`);
+            if (this._headerBox) this._headerBox.set_style(`background-color: ${hexToRgba(c.primary_container, 0.55)}; border-color: transparent; border-width: 0;`);
             // Whole popup background — same surface_container token the package-list
             // container uses, kept translucent (unlike the container's opaque fill)
             // so the footer chrome reads as one consistent, on-theme surface instead
             // of the static stylesheet.css gray.
-            if (this._menuBox) this._menuBox.set_style(`background-color: ${hexToRgba(c.surface_container, 0.85)};`);
+            if (this._menuBox) this._menuBox.set_style(`background-color: ${hexToRgba(c.surface_container, 0.55)};`);
             if (this._headerIconBox) this._headerIconBox.set_style(`background-color: ${hexToRgba(c.primary, 0.9)};`);
             if (this._headerIcon) this._headerIcon.set_style(`color: ${c.on_primary};`);
             if (this._headerTitle) this._headerTitle.set_style(`color: ${c.on_primary_container};`);

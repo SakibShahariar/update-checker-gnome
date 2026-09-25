@@ -236,7 +236,7 @@
    list container and the rest of the Matugen-driven palette. */
 .update-checker-menu {
     min-width: 480px;
-    background-color: rgba(31, 32, 33, 0.85);
+    background-color: rgba(31, 32, 33, 0.55);
 }
 
 /* Stock popup items (security/reboot/status/footer) — match themed surfaces with
