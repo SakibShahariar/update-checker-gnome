@@ -154,7 +154,7 @@
 .update-checker-container {
     border-radius: 12px;
     border: 1px solid rgba(71, 71, 72, 0.45); /* outline_variant @ 45% — Matugen */
-    background-color: rgba(31, 32, 33, 0.85); /* surface_container @ 85% — Matugen */
+    background-color: transparent;
     padding: 4px;
     margin-bottom: 14px;
     transition-duration: 200ms;

@@ -1166,7 +1166,7 @@ class Indicator extends PanelMenu.Button {
 
             const containerItem = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
             const containerBox = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'update-checker-container'});
-            containerBox.set_style(`background-color: ${hexToRgba(c.surface_container, 0.55)}; border-color: transparent; border-width: 0;`);
+            containerBox.set_style(`background-color: transparent; border-color: transparent; border-width: 0;`);
             if (r.status === 'error') {
                 const errBox = new St.BoxLayout({style_class: 'update-checker-container-empty', x_expand: true});
                 errBox.set_style(`color: ${c.on_surface_variant};`);
