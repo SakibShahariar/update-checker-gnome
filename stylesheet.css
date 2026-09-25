@@ -82,6 +82,10 @@
     transition-duration: 150ms;
 }
 
+.update-checker-header-button-box {
+    spacing: 4px;
+}
+
 .update-checker-refresh-button:hover {
     background-color: rgba(195, 199, 207, 0.18); /* secondary 18% — Matugen */
 }

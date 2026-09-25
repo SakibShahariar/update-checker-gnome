@@ -67,6 +67,7 @@ class Indicator extends PanelMenu.Button {
         this._matugenCss = null; // last applied CSS content (avoid reload when unchanged)
         this._refreshIcon = null;
         this._refreshButton = null;
+        this._settingsButton = null;
 
         const box = new St.BoxLayout({style_class: 'update-checker-box'});
         box.spacing = 0;
@@ -133,12 +134,28 @@ class Indicator extends PanelMenu.Button {
         this._setTooltip(refreshBtn, 'Check now');
         refreshBtn.accessible_name = 'Check now';
         if (hasMotion()) this._addButtonHoverScale(refreshBtn);
+        const settingsIcon = new St.Icon({icon_name: 'emblem-system-symbolic', icon_size: 16});
+        const settingsBtn = new St.Button({style_class: 'update-checker-refresh-button', child: settingsIcon});
+        settingsBtn.connect('clicked', () => this._ext.openPreferences());
+        this._setTooltip(settingsBtn, 'Settings');
+        settingsBtn.accessible_name = 'Settings';
+        if (hasMotion()) this._addButtonHoverScale(settingsBtn);
+        const headerButtonBox = new St.BoxLayout({style_class: 'update-checker-header-button-box'});
+        headerButtonBox.add_child(refreshBtn);
+        headerButtonBox.add_child(settingsBtn);
         headerBox.add_child(headerLeft);
-        headerBox.add_child(refreshBtn);
+        headerBox.add_child(headerButtonBox);
         this._headerItem.add_child(headerBox);
         this.menu.addMenuItem(this._headerItem);
         this._refreshIcon = refreshIcon;
         this._refreshButton = refreshBtn;
+        this._settingsButton = settingsBtn;
+
+        this._stopAllItem = new PopupMenu.PopupMenuItem('Stop Updating', {reactive: true});
+        this._stopAllItem.label.add_style_class_name('update-checker-status-line');
+        this._stopAllItem.visible = false;
+        this._stopAllItem.connect('activate', () => this._stopAllUpdates());
+        this.menu.addMenuItem(this._stopAllItem);
 
         this._offlineItem = new PopupMenu.PopupMenuItem('Offline', {reactive: false});
         this._offlineItem.visible = false;
@@ -219,24 +236,18 @@ class Indicator extends PanelMenu.Button {
         this._historyItem.label.add_style_class_name('update-checker-status-line');
         this._historyItem.visible = false;
         this._historyItem.connect('activate', () => this._showHistoryDetails());
-        this.menu.addMenuItem(this._historyItem);
+        // Not added to the menu — kept only so the internal history
+        // tracking (_pushHistory/_updateHistoryItem) has a label to write
+        // to without needing extra null-guards elsewhere.
 
         this._dismissItem = new PopupMenu.PopupMenuItem('Dismiss errors');
         this._dismissItem.visible = false;
         this._dismissItem.connect('activate', () => this._dismissErrors());
         this.menu.addMenuItem(this._dismissItem);
 
-        const checkNowItem = new PopupMenu.PopupMenuItem('Check Now');
-        checkNowItem.connect('activate', () => this.checkNow(true));
-        this.menu.addMenuItem(checkNowItem);
-
         this._runScriptItem = new PopupMenu.PopupMenuItem('Run Update Script');
         this._runScriptItem.connect('activate', () => this._runUpdateScript());
         this.menu.addMenuItem(this._runScriptItem);
-
-        const settingsItem = new PopupMenu.PopupMenuItem('Settings…');
-        settingsItem.connect('activate', () => this._ext.openPreferences());
-        this.menu.addMenuItem(settingsItem);
 
         this.menu.connect('open-state-changed', (menu, open) => {
             if (open) {
@@ -305,6 +316,8 @@ class Indicator extends PanelMenu.Button {
     // tick while an update runs.
     _updateSyncIconState() {
         const active = this._updatingSources.size > 0;
+        if (this._stopAllItem)
+            this._stopAllItem.visible = active;
         if (active === this._syncIconActive)
             return;
         this._syncIconActive = active;
@@ -755,6 +768,7 @@ class Indicator extends PanelMenu.Button {
             // Small persistent header/footer controls: recolor inline too so
             // they never sit on the hardcoded stylesheet.css values.
             if (this._refreshButton) this._refreshButton.set_style(`color: ${c.on_primary_container};`);
+            if (this._settingsButton) this._settingsButton.set_style(`color: ${c.on_primary_container};`);
             if (this._rebootNowBtn) this._rebootNowBtn.set_style(`background-color: ${c.primary}; color: ${c.on_primary}; border-color: transparent; border-width: 0;`);
             // Panel icon: its current state decides the inline color
             // (urgent/syncing=primary, normal=none -> shell theme default).
@@ -1030,6 +1044,11 @@ class Indicator extends PanelMenu.Button {
             // Already exited on its own right as we tried to stop it -
             // harmless, the completion callback will still run.
         }
+    }
+
+    _stopAllUpdates() {
+        for (const label of [...this._updatingSources.keys()])
+            this._stopSourceUpdate(label);
     }
 
     _toggleSourceExpanded(name) {
