@@ -172,6 +172,7 @@ class Indicator extends PanelMenu.Button {
         rebootBtnBox.add_child(new St.Icon({icon_name: 'system-shutdown-symbolic', icon_size: 14, y_align: Clutter.ActorAlign.CENTER}));
         rebootBtnBox.add_child(new St.Label({text: 'Reboot Now', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
         rebootNowBtn.set_child(rebootBtnBox);
+        rebootNowBtn.accessible_name = 'Reboot Now';
         rebootNowBtn.connect('clicked', () => {
             runShell('systemctl reboot');
             Main.notify('Rebooting...', 'System will restart shortly.');
@@ -181,6 +182,7 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(rebootNowWrapper);
         this._rebootNowBtn = rebootNowBtn;
         this._bindButtonStates(rebootNowBtn, c => this._primaryButtonStates(c));
+        if (hasMotion()) this._addButtonHoverScale(rebootNowBtn);
 
         this._resultsSection = new PopupMenu.PopupMenuSection();
         // Single capped scroll region for all sources' results. Expanding
