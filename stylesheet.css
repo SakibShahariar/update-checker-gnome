@@ -242,7 +242,7 @@
 /* Stock popup items (security/reboot/status/footer) — match themed surfaces with
    rounded, inset rows instead of default flat list items. Scoped to this menu only. */
 .update-checker-menu .popup-menu-item {
-    border-radius: 8px;
+    border-radius: 12px;
     margin: 1px 4px;
     padding-left: 8px;
     padding-right: 8px;
