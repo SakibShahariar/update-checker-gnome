@@ -9,5 +9,6 @@
   ],
   "url": "https://github.com/SakibShahariar/update-checker-gnome",
   "version": 7,
-  "settings-schema": "org.gnome.shell.extensions.update-checker"
+  "settings-schema": "org.gnome.shell.extensions.update-checker",
+  "license": "GPL-3.0-only"
 }
