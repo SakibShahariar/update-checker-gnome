@@ -1524,7 +1524,7 @@ class Indicator extends PanelMenu.Button {
                 } catch (e) {}
                 Main.notify(
                     'Update Checker',
-                    'A background update is still running — it will refresh automatically when done.'
+                    'An update command is still running — counts will refresh automatically when it finishes.'
                 );
             }
             return;
