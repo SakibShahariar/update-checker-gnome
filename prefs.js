@@ -204,7 +204,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Checks run as your user via /bin/sh -c. Background updates may run elevated through pkexec; only add commands you trust. Each check prints one line per update. Names must be unique and cannot contain |.',
+            description: 'Checks run as your user via /bin/sh -c. Background updates may run elevated through pkexec; only add commands you trust. The default DNF update command uses doas; switch it to sudo if doas is unavailable. Each check prints one line per update. Names must be unique and cannot contain |.',
         });
         sourcesPage.add(sourcesGroup);
 
