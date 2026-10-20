@@ -236,9 +236,7 @@ class Indicator extends PanelMenu.Button {
         this._historyItem.label.add_style_class_name('update-checker-status-line');
         this._historyItem.visible = false;
         this._historyItem.connect('activate', () => this._showHistoryDetails());
-        // Not added to the menu — kept only so the internal history
-        // tracking (_pushHistory/_updateHistoryItem) has a label to write
-        // to without needing extra null-guards elsewhere.
+        this.menu.addMenuItem(this._historyItem);
 
         this._dismissItem = new PopupMenu.PopupMenuItem('Dismiss errors');
         this._dismissItem.visible = false;
