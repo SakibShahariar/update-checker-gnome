@@ -28,12 +28,6 @@ jobs:
       - name: Validate extension metadata and license
         run: |
           node -e "const fs = require('node:fs'); const m = JSON.parse(fs.readFileSync('metadata.json', 'utf8')); if (m.license !== 'GPL-3.0-only') process.exit(1); if (m.uuid !== 'update-checker@SakibShahariar.github.io') process.exit(1); if (!fs.readFileSync('LICENSE', 'utf8').startsWith('GNU GENERAL PUBLIC LICENSE\\nVersion 3')) process.exit(1)"
-      - name: Validate settings schema
-        run: glib-compile-schemas --strict --dry-run schemas/
-
-      - name: Check patch whitespace
-        run: git diff --check
- LICENSE
 
       - name: Validate settings schema
         run: glib-compile-schemas --strict --dry-run schemas/
