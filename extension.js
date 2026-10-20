@@ -8,6 +8,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import {
     runShell, mapPool, classifyResult, parseSources, parseUpdateCommands,
@@ -191,17 +192,30 @@ class Indicator extends PanelMenu.Button {
         rebootBtnBox.add_child(new St.Label({text: 'Reboot Now', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
         rebootNowBtn.set_child(rebootBtnBox);
         rebootNowBtn.accessible_name = 'Reboot Now';
-        rebootNowBtn.connect('clicked', async () => {
-            const result = await runShell('systemctl reboot');
-            if (result.spawnFailed || result.exitStatus !== 0) {
-                const detail = (result.stderr || '').trim().split('\n')[0];
-                Main.notifyError(
-                    'Reboot failed',
-                    detail || `systemctl reboot exited with status ${result.exitStatus}.`
-                );
-                return;
-            }
-            Main.notify('Rebooting...', 'System accepted the reboot request.');
+        rebootNowBtn.connect('clicked', () => {
+            const dialog = new ModalDialog.ModalDialog();
+            dialog.contentLayout.add_child(new St.Label({
+                text: 'Are you sure you want to restart this system? Save your work first.',
+                style_class: 'prompt-dialog-description',
+                x_expand: true,
+            }));
+            dialog.setButtons([
+                {
+                    label: 'Cancel',
+                    action: () => dialog.close(),
+                    key: Clutter.KEY_Escape,
+                },
+                {
+                    label: 'Reboot Now',
+                    action: () => {
+                        dialog.close();
+                        this._requestReboot();
+                    },
+                    default: true,
+                    key: Clutter.KEY_Return,
+                },
+            ]);
+            dialog.open();
         });
         const rebootNowWrapper = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
         rebootNowWrapper.add_child(rebootNowBtn);
@@ -618,6 +632,19 @@ class Indicator extends PanelMenu.Button {
     // pointer events, swapping the inline style. get(c) is re-evaluated per
     // event against the live palette, so a theme switch mid-interaction stays
     // correct. Colors: hexToRgba(...) alpha strings.
+    async _requestReboot() {
+        const result = await runShell('systemctl reboot');
+        if (result.spawnFailed || result.exitStatus !== 0) {
+            const detail = (result.stderr || '').trim().split('\n')[0];
+            Main.notifyError(
+                'Reboot failed',
+                detail || `systemctl reboot exited with status ${result.exitStatus}.`
+            );
+            return;
+        }
+        Main.notify('Rebooting...', 'System accepted the reboot request.');
+    }
+
     _bindButtonStates(button, getStates) {
         if (!button || button._ucStatesBound)
             return;
