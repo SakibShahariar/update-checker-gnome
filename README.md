@@ -86,7 +86,7 @@ Commands run as your logged-in user unless the command itself requests elevation
 - **Background mode** uses `pkexec` for a graphical privilege prompt. The extension removes a leading `doas`/`sudo` from the configured command and runs the command elevated; avoid combining privileged and unprivileged tools in one command.
 - **Run Update Script** launches the script path configured in Advanced settings. It remains a separate action and is not rewritten for background mode.
 
-Update actions are user-triggered. The extension is an update monitor, not an automatic updater.
+Update actions are user-triggered. The extension is an update monitor, not an automatic updater. Disabling the extension does **not** cancel an update command that is already running; stop it from the popup first if you need to cancel it. A package manager or elevated child process may continue after the panel indicator disappears.
 
 ## Panel and popup
 
