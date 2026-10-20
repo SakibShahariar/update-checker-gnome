@@ -191,9 +191,17 @@ class Indicator extends PanelMenu.Button {
         rebootBtnBox.add_child(new St.Label({text: 'Reboot Now', style_class: 'update-checker-update-button-label', y_align: Clutter.ActorAlign.CENTER}));
         rebootNowBtn.set_child(rebootBtnBox);
         rebootNowBtn.accessible_name = 'Reboot Now';
-        rebootNowBtn.connect('clicked', () => {
-            runShell('systemctl reboot');
-            Main.notify('Rebooting...', 'System will restart shortly.');
+        rebootNowBtn.connect('clicked', async () => {
+            const result = await runShell('systemctl reboot');
+            if (result.spawnFailed || result.exitStatus !== 0) {
+                const detail = (result.stderr || '').trim().split('\n')[0];
+                Main.notifyError(
+                    'Reboot failed',
+                    detail || `systemctl reboot exited with status ${result.exitStatus}.`
+                );
+                return;
+            }
+            Main.notify('Rebooting...', 'System accepted the reboot request.');
         });
         const rebootNowWrapper = new PopupMenu.PopupBaseMenuItem({reactive: false, style_class: ''});
         rebootNowWrapper.add_child(rebootNowBtn);
