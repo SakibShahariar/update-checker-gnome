@@ -30,14 +30,16 @@ The default DNF, security-update, and reboot checks are Fedora-oriented. Other d
 
 ## Install
 
+The extension UUID is `update-checker@SakibShahariar.github.io`. Existing settings are preserved across the UUID change because the GSettings schema ID and path remain unchanged. If you previously installed `update-checker@local`, disable/uninstall that extension and install this version using the new UUID. GNOME's enabled-extension list is keyed by UUID, so you may need to enable the new UUID once.
+
 ### From a GNOME extension ZIP
 
 Use GNOME's extension installer so the extension is placed in its UUID-named directory:
 
 ```sh
-gnome-extensions install --force ./update-checker@local.zip
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@local/schemas/
-gnome-extensions enable update-checker@local
+gnome-extensions install --force ./update-checker@SakibShahariar.github.io.zip
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io/schemas/
+gnome-extensions enable update-checker@SakibShahariar.github.io
 ```
 
 Replace the ZIP path with the location of your downloaded archive.
@@ -46,15 +48,15 @@ Replace the ZIP path with the location of your downloaded archive.
 
 ```sh
 git clone https://github.com/SakibShahariar/update-checker-gnome.git \
-  ~/.local/share/gnome-shell/extensions/update-checker@local
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@local/schemas/
-gnome-extensions enable update-checker@local
+  ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io/schemas/
+gnome-extensions enable update-checker@SakibShahariar.github.io
 ```
 
 Open settings with:
 
 ```sh
-gnome-extensions prefs update-checker@local
+gnome-extensions prefs update-checker@SakibShahariar.github.io
 ```
 
 You can also open **Settings** from the extension's popup. If GNOME does not discover or activate the extension immediately, log out and back in; on X11, restarting GNOME Shell may also be possible with **Alt+F2**, then **r**.
@@ -110,9 +112,8 @@ The extension reads Matugen colors from `~/.config/matugen/matugen-colors.css` a
 ## Uninstall
 
 ```sh
-gnome-extensions disable update-checker@local
-rm -rf ~/.local/share/gnome-shell/extensions/update-checker@local
-dconf reset -f /org/gnome/shell/extensions/update-checker/
+gnome-extensions disable update-checker@SakibShahariar.github.io
+rm -rf ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
 ```
 
-If you installed the extension using GNOME's extension installer, these commands remove its installed directory and reset its settings.
+These commands remove the installed extension. Settings are intentionally not reset, so they remain available if you reinstall it. To erase settings manually, run `dconf reset -f /org/gnome/shell/extensions/update-checker/`.
