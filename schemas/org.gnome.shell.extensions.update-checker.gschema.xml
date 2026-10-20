@@ -69,13 +69,13 @@
     <key name="source-update-commands" type="as">
       <default>['DNF|doas dnf update --refresh -y &amp;&amp; doas dnf autoremove -y', 'Flatpak|flatpak update -y &amp;&amp; flatpak uninstall --unused -y']</default>
       <summary>Per-source update commands</summary>
-      <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal (or, with "background-updates" enabled, runs it via pkexec with no terminal) and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action. In background mode, any doas/sudo prefix is stripped and the *entire* line is re-run elevated, so avoid combining privileged and unprivileged tools in one command.</description>
+      <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal (or, with "background-updates" enabled, runs it via pkexec with no terminal) and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action. In background mode, doas/sudo/pkexec command prefixes are stripped and the *entire* line is re-run through pkexec; other elevation tools such as su -c are not rewritten. This elevates every command in the line, so avoid combining privileged and unprivileged tools in one command.</description>
     </key>
 
     <key name="background-updates" type="b">
       <default>false</default>
       <summary>Run per-source updates in the background, no terminal</summary>
-      <description>When enabled, clicking a source's update in the panel menu runs it in the background instead of opening a terminal. Any "doas"/"sudo" in the command is stripped and the whole command is re-run through pkexec, which shows a graphical password prompt instead. A notification reports success or failure. This only affects per-source update commands, not "Run Update Script" - an external script's contents can't be safely rewritten this way.</description>
+      <description>When enabled, clicking a source's update in the panel menu runs it in the background instead of opening a terminal. "doas", "sudo", and "pkexec" command prefixes are stripped and the whole command is re-run through pkexec, which shows a graphical password prompt instead. Other elevation tools such as "su -c" are not rewritten. A notification reports success or failure. This only affects per-source update commands, not "Run Update Script" - an external script's contents can't be safely rewritten this way.</description>
     </key>
 
     <key name="check-security-updates" type="b">
