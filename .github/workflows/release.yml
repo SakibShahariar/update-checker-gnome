@@ -28,7 +28,7 @@ jobs:
       - name: Package extension
         run: |
           mkdir -p dist/update-checker@SakibShahariar.github.io
-          cp -r extension.js prefs.js metadata.json stylesheet.css README.md schemas lib dist/update-checker@SakibShahariar.github.io/
+          cp -r extension.js prefs.js metadata.json stylesheet.css README.md LICENSE schemas lib dist/update-checker@SakibShahariar.github.io/
           cd dist
           zip -r update-checker@SakibShahariar.github.io.zip update-checker@SakibShahariar.github.io
 
