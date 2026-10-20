@@ -25,11 +25,9 @@ jobs:
       - name: Check JavaScript syntax
         run: node --check extension.js && node --check prefs.js && node --check lib/utils.js && node --check lib/theming.js
 
-      - name: Validate extension metadata
+      - name: Validate extension metadata and license
         run: |
-          node -e "const m = JSON.parse(require('node:fs').readFileSync('metadata.json', 'utf8')); if (m.license !== 'GPL-3.0-only') process.exit(1); if (m.uuid !== 'update-checker@SakibShahariar.github.io') process.exit(1)"
-      - name: Check declared license and UUID
-        run: test -s LICENSE && grep -q '^GNU GENERAL PUBLIC LICENSE
+          node -e "const fs = require('node:fs'); const m = JSON.parse(fs.readFileSync('metadata.json', 'utf8')); if (m.license !== 'GPL-3.0-only') process.exit(1); if (m.uuid !== 'update-checker@SakibShahariar.github.io') process.exit(1); if (!fs.readFileSync('LICENSE', 'utf8').startsWith('GNU GENERAL PUBLIC LICENSE\\nVersion 3')) process.exit(1)"
       - name: Validate settings schema
         run: glib-compile-schemas --strict --dry-run schemas/
 
