@@ -117,3 +117,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.githu
 ```
 
 These commands remove the installed extension. Settings are intentionally not reset, so they remain available if you reinstall it. To erase settings manually, run `dconf reset -f /org/gnome/shell/extensions/update-checker/`.
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0 only** (`GPL-3.0-only`). See [LICENSE](LICENSE) for the complete license text.
