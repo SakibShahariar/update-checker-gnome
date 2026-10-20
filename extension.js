@@ -275,10 +275,7 @@ class Indicator extends PanelMenu.Button {
                     // on the stylesheet surviving a shell theme reload.
                     this._applyMatugenTheme({loadStylesheet: true, force: true});
                     if (this._lastRenderSources?.length) {
-                        log(`UpdateChecker popup open: rebuilding ${this._lastRenderSources.length} rows with current palette primary=${this._matugenColors?.primary ?? 'n/a'}`);
                         this._rebuildResultsSection(this._lastRenderSources, this._lastRenderResults, this._lastRenderUpdateCommands);
-                    } else {
-                        log('UpdateChecker popup open: no cached rows to rebuild');
                     }
                     this._animateHeaderEntrance();
                     return GLib.SOURCE_REMOVE;
