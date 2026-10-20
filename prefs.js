@@ -204,7 +204,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Each check prints one line per update. Update command runs when you click the source.',
+            description: 'Each check prints one line per update. Names must be unique and cannot contain |. Update command runs when you click the source.',
         });
         sourcesPage.add(sourcesGroup);
 
@@ -238,6 +238,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const intervalValues = [];
             const seen = new Set();
             let hasDuplicate = false;
+            let hasInvalidName = false;
             for (const r of sourceRows) {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
@@ -246,6 +247,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 r.nameEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
+                if (name.includes('|')) {
+                    r.nameEntry.add_css_class('error');
+                    r.nameEntry.set_tooltip_text('Source names cannot contain |');
+                    hasInvalidName = true;
+                    continue;
+                }
                 if (seen.has(name)) {
                     r.nameEntry.add_css_class('error');
                     r.nameEntry.set_tooltip_text(`Duplicate "${name}"`);
@@ -258,7 +265,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     updateValues.push(`${name}|${updateCommand}`);
                 intervalValues.push(`${name}|${interval}`);
             }
-            if (hasDuplicate) {
+            if (hasDuplicate || hasInvalidName) {
                 updateBannerVisibility();
                 return;
             }
