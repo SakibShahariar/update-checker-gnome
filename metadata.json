@@ -1,5 +1,5 @@
 {
-  "uuid": "update-checker@local",
+  "uuid": "update-checker@SakibShahariar.github.io",
   "name": "Update Checker",
   "description": "Periodically checks for pending system updates (DNF, Flatpak, and any other sources you configure) and shows the count in the top panel. Click the icon for a breakdown, or to launch your own update script.",
   "shell-version": [
