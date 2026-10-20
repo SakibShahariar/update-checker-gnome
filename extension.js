@@ -634,8 +634,10 @@ class Indicator extends PanelMenu.Button {
     // correct. Colors: hexToRgba(...) alpha strings.
     async _requestReboot() {
         const result = await runShell('systemctl reboot');
-        if (result.spawnFailed || result.exitStatus !== 0) {
-            const detail = (result.stderr || '').trim().split('\n')[0];
+        if (result.spawnFailed || result.timedOut || result.exitStatus !== 0) {
+            const detail = result.timedOut
+                ? `Command timed out after ${Math.round(result.timeoutMs / 1000)} seconds.`
+                : (result.stderr || '').trim().split('\n')[0];
             Main.notifyError(
                 'Reboot failed',
                 detail || `systemctl reboot exited with status ${result.exitStatus}.`
