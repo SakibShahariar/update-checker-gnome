@@ -1246,12 +1246,12 @@ class Indicator extends PanelMenu.Button {
         this._updateResultsScrollHeight();
     }
 
-    // Run a source's update command without a terminal. If it contains
-    // doas/sudo, those are stripped and the whole command is re-run
-    // through pkexec instead, which shows its own graphical password
-    // prompt - covers multi-command lines like "doas a && doas b" too,
-    // since running doas a second time *inside* an already-root pkexec
-    // shell would just fail.
+    // Run a source's update command without a terminal. Recognized
+    // doas/sudo/pkexec wrappers are stripped before the whole command is
+    // re-run through pkexec, which provides graphical PolicyKit auth.
+    // This also avoids nested pkexec calls and handles multi-command lines
+    // such as "sudo a && sudo b". Commands using other elevation tools,
+    // including "su -c", are not rewritten.
     _runInBackground(command, label) {
         if (this._updatingSources.has(label)) {
             Main.notify(`${label} update already running`, 'Wait for it to finish first.');
@@ -1276,8 +1276,8 @@ class Indicator extends PanelMenu.Button {
         // profile instead of the invoking user's. Keep privileged and
         // unprivileged update steps in separate sources/commands rather
         // than combining them here.
-        const hasPrivilege = /\b(?:doas|sudo)\s+/.test(command);
-        const cleaned = command.replace(/\b(?:doas|sudo)\s+/g, '');
+        const hasPrivilege = /\b(?:doas|sudo|pkexec)\s+/.test(command);
+        const cleaned = command.replace(/\b(?:doas|sudo|pkexec)\s+/g, '');
         const argv = hasPrivilege ? ['pkexec', 'sh', '-c', cleaned] : ['sh', '-c', cleaned];
 
         Main.notify(`Updating ${label}...`, 'Running in background.');
