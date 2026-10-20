@@ -12,7 +12,7 @@ import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import {
     runShell, mapPool, classifyResult, parseSources, parseUpdateCommands,
-    truncate, parseIntervals, sparkline, hexToRgba, hasMotion, shouldAnimate,
+    truncate, parseIntervals, hexToRgba, hasMotion, shouldAnimate,
 } from './lib/utils.js';
 import {cleanOldMatugenCache, loadMatugenColors, buildMatugenCss} from './lib/theming.js';
 
@@ -253,12 +253,6 @@ class Indicator extends PanelMenu.Button {
         this._statusItem = new PopupMenu.PopupMenuItem('Checking...', {reactive: false});
         this._statusItem.label.add_style_class_name('update-checker-status-line');
         this.menu.addMenuItem(this._statusItem);
-
-        this._historyItem = new PopupMenu.PopupMenuItem('', {reactive: true});
-        this._historyItem.label.add_style_class_name('update-checker-status-line');
-        this._historyItem.visible = false;
-        this._historyItem.connect('activate', () => this._showHistoryDetails());
-        this.menu.addMenuItem(this._historyItem);
 
         this._dismissItem = new PopupMenu.PopupMenuItem('Dismiss errors');
         this._dismissItem.visible = false;
@@ -906,61 +900,6 @@ class Indicator extends PanelMenu.Button {
         this._updateHeaderSubtitle();
     }
 
-    _pushHistory(total) {
-        try {
-            const now = GLib.DateTime.new_now_local().format_iso8601();
-            const hist = this._settings.get_strv('history');
-            hist.push(`${now}|${total}`);
-            while (hist.length > 14) hist.shift();
-            this._settings.set_strv('history', hist);
-        } catch (e) {}
-        this._updateHistoryItem();
-    }
-
-    _updateHistoryItem() {
-        try {
-            const hist = this._settings.get_strv('history');
-            if (hist.length < 2) {
-                this._historyItem.visible = false;
-                return;
-            }
-            const vals = hist.map(h => {
-                const idx = h.lastIndexOf('|');
-                return idx !== -1 ? parseInt(h.slice(idx + 1), 10) || 0 : 0;
-            });
-            const sp = sparkline(vals);
-            const last = vals[vals.length - 1];
-            this._historyItem.label.set_text(`History ${sp}  ${last}  · click`);
-            this._historyItem.visible = true;
-        } catch (e) {
-            this._historyItem.visible = false;
-        }
-    }
-
-    _showHistoryDetails() {
-        try {
-            const hist = this._settings.get_strv('history');
-            if (!hist.length) {
-                Main.notify('Update history', 'No history yet.');
-                return;
-            }
-            const lines = hist.slice(-14).map(h => {
-                const idx = h.lastIndexOf('|');
-                const total = idx !== -1 ? h.slice(idx + 1) : '?';
-                let when = idx !== -1 ? h.slice(0, idx) : h;
-                // Prefer local-looking time from ISO if present
-                try {
-                    const dt = GLib.DateTime.new_from_iso8601(when, null);
-                    if (dt) when = dt.format('%a %H:%M');
-                } catch (e) {}
-                return `${when}  →  ${total}`;
-            });
-            Main.notify('Update history (last checks)', lines.join('\n'));
-        } catch (e) {
-            logError(e, 'UpdateChecker history details');
-        }
-    }
-
     _renderEmpty() {
         this._setCountBadge('');
         this._statusItem.label.set_text('Not checked yet');
@@ -976,7 +915,6 @@ class Indicator extends PanelMenu.Button {
         this._updateVisibility();
         this._updateHeaderSubtitle();
         if (this._dismissItem) this._dismissItem.visible = false;
-        if (this._historyItem) this._updateHistoryItem();
     }
 
     // Launches a command in a terminal, same as before, but now tracked
@@ -1747,10 +1685,7 @@ class Indicator extends PanelMenu.Button {
             );
         }
         this._lastNotifiedTotal = total;
-        // History + dismiss visibility
-        this._pushHistory(total);
         this._dismissItem.visible = anyFailed || rebootCheckFailed || securityCheckFailed;
-        this._updateHistoryItem();
         this._checking = false;
         this._updateHeaderSubtitle();
     }

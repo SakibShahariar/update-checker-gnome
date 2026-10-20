@@ -10,7 +10,6 @@ Update Checker checks package sources on a schedule and shows their pending-upda
 
 - **Update counts:** DNF and Flatpak are configured by default; add custom shell commands for Cargo, npm, uv, or other tools.
 - **Per-source controls:** configure a check command, optional update command, and per-source interval.
-- **Update history:** a sparkline of the last 14 recorded totals.
 - **Security updates:** show a separate security-update count without adding it to the total again.
 - **Reboot status:** optional check for whether a reboot is needed after updates.
 - **Offline handling:** retain the last known counts while offline and refresh after reconnecting.
