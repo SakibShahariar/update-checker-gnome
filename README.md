@@ -106,6 +106,12 @@ Update actions are user-triggered. The extension is an update monitor, not an au
 
 The default global interval is 60 minutes. Quiet hours suppress supported notifications; they do not stop checks or hide the panel status.
 
+## Integration summary
+
+The extension publishes a lightweight status snapshot through the `summary-json` GSettings key in the existing schema (`org.gnome.shell.extensions.update-checker`, path `/org/gnome/shell/extensions/update-checker/`). Integrations can read the string and parse its JSON without reimplementing package-manager checks. The object includes `version` (currently `1`), `total` (`-1` until a full check completes), `securityCount`, `lastCheck`, `busy`, `rebootRequired`, `offline`, and `failed`. Treat the payload as a snapshot that may change during a check; do not write to this key from an integration.
+
+For example, a consumer can read it with `gsettings get org.gnome.shell.extensions.update-checker summary-json`. The schema must be installed and compiled on the system, as it is for the extension itself.
+
 ## Matugen theming
 
 The extension reads Matugen colors from `~/.config/matugen/matugen-colors.css` and applies them to its popup. If your Matugen setup writes the palette elsewhere, configure Matugen to also generate this file. Palette changes are picked up without requiring a GNOME Shell restart.
