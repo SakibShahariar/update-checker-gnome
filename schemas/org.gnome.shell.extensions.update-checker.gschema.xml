@@ -102,6 +102,12 @@
       <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
     </key>
 
+    <key name="skip-on-battery" type="b">
+      <default>false</default>
+      <summary>Skip background checks on battery power</summary>
+      <description>When enabled, automatic update checks are paused while UPower reports that the system is on battery. Manual Check now remains available.</description>
+    </key>
+
     <key name="summary-json" type="s">
       <default>'{}'</default>
       <summary>Machine-readable update summary</summary>
