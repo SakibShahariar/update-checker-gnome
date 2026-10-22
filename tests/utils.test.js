@@ -1,6 +1,7 @@
 import System from 'system';
 import {
     runShell,
+    mapPool,
     classifyResult,
     parseSources,
     parseUpdateCommands,
@@ -83,6 +84,20 @@ async function main() {
         'three-digit hex colors should expand correctly');
     assert(lightenHex('#f0f0f0') === '#ffffff',
         'lightenHex should clamp channels at white');
+
+    let activeWorkers = 0;
+    let peakWorkers = 0;
+    const mapped = await mapPool([1, 2, 3, 4, 5], 2, async value => {
+        activeWorkers++;
+        peakWorkers = Math.max(peakWorkers, activeWorkers);
+        await Promise.resolve();
+        activeWorkers--;
+        return value * 2;
+    });
+    equal(mapped, [2, 4, 6, 8, 10],
+        'mapPool should preserve input order and return every worker result');
+    assert(peakWorkers === 2,
+        'mapPool should respect its configured concurrency limit');
 
     const ok = await runShell("printf 'first\\nsecond\\n'");
     assert(!ok.spawnFailed && !ok.timedOut && ok.exitStatus === 0,
