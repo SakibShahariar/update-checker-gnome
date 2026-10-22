@@ -12,8 +12,9 @@ import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import {
     runShell, mapPool, classifyResult, parseSources, parseUpdateCommands,
-    truncate, parseIntervals, hexToRgba, hasMotion, shouldAnimate,
+    truncate, parseIntervals, hexToRgba,
 } from './lib/utils.js';
+import {hasMotion, shouldAnimate} from './lib/motion.js';
 import {cleanOldMatugenCache, loadMatugenColors, buildMatugenCss} from './lib/theming.js';
 
 const MAX_VISIBLE = 8;
