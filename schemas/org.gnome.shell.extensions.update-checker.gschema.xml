@@ -90,6 +90,12 @@
       <description>A shell command whose stdout line count is the number of pending security updates specifically (a subset of the main sources' total, not added on top of it). The default filters DNF's --security flag through the same header-stripping pattern used for the main DNF source.</description>
     </key>
 
+    <key name="security-advisory-command" type="s">
+      <default>'dnf updateinfo list --security --updates'</default>
+      <summary>Security advisory metadata command</summary>
+      <description>Optional command that prints available security advisory identifiers or severity metadata. Only a matching line from its output is shown, and only when security updates are detected. The default is Fedora/DNF-oriented; set it to an empty string to disable.</description>
+    </key>
+
     <key name="reboot-check-command" type="s">
       <default>'out=$(dnf needs-restarting -r 2&gt;&amp;1); code=$?; if [ "$code" = "1" ] &amp;&amp; printf "%s" "$out" | grep -qi reboot; then echo "Reboot required to finish pending updates"; elif [ "$code" != "0" ]; then printf "%s\n" "$out" &gt;&amp;2; exit 1; fi'</default>
       <summary>Reboot check command</summary>
