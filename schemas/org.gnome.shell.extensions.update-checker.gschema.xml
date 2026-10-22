@@ -102,6 +102,12 @@
       <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
     </key>
 
+    <key name="ignored-packages" type="as">
+      <default>[]</default>
+      <summary>Ignored package or app identifiers</summary>
+      <description>Exact identifiers to exclude from successful source results. The first whitespace-delimited token on each output line is matched. Ignoring packages can hide security updates; use this only for packages you intentionally do not want counted.</description>
+    </key>
+
     <key name="source-intervals" type="as">
       <default>[]</default>
       <summary>Per-source intervals</summary>
