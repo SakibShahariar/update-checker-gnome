@@ -108,6 +108,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         ignoredPackagesRow.add_suffix(ignoredPackagesEntry);
         generalGroup.add(ignoredPackagesRow);
 
+        const batteryRow = new Adw.SwitchRow({
+            title: 'Pause background checks on battery',
+            subtitle: 'Manual Check now still runs',
+        });
+        batteryRow.add_prefix(new Gtk.Image({icon_name: 'battery-good-symbolic', pixel_size: 18}));
+        settings.bind('skip-on-battery', batteryRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(batteryRow);
+
         const permGroup = new Adw.PreferencesGroup({
             title: 'DNF metadata access',
             description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
