@@ -1015,7 +1015,7 @@ class Indicator extends PanelMenu.Button {
         // the update was stopped.
         const signalGroup = (signal) => {
             const identifier = entry.proc.get_identifier();
-            if (!identifier || !/^\\d+$/.test(identifier))
+            if (!identifier || !/^\d+$/.test(identifier))
                 return;
             try {
                 const killer = Gio.Subprocess.new(
