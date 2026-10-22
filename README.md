@@ -15,6 +15,7 @@ Update Checker checks package sources on a schedule and shows their pending-upda
 - **Reboot status:** optional check for whether a reboot is needed after updates.
 - **Offline handling:** retain the last known counts while offline and refresh after reconnecting.
 - **Notifications and quiet hours:** optionally notify when the total increases, with configurable quiet hours.
+- **Battery-aware polling:** optionally pause automatic checks while UPower reports battery power; manual Check now remains available.
 - **Database watches:** optionally recheck after watched DNF or Flatpak state changes.
 - **Update actions:** run a source-specific command in a terminal or, optionally, in the background with a graphical privilege prompt.
 - **Update script:** launch your own update script from the menu.
