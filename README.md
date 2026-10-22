@@ -101,9 +101,9 @@ Update actions are user-triggered. The extension is an update monitor, not an au
 
 ## Settings
 
-- **General:** global check interval, notifications, visibility at zero, quiet hours, and package-database watches.
-- **Sources:** check commands, optional update commands, and per-source intervals.
-- **Advanced:** reboot and security checks, update-script path, terminal command, and background-update behavior. In background mode, `doas`, `sudo`, and `pkexec` command prefixes are normalized to a single graphical `pkexec` elevation; other elevation tools such as `su -c` are not rewritten.
+- **General:** global check interval, notifications, visibility at zero, quiet hours, package-database watches, exact ignored package/app identifiers, and optional battery-aware polling.
+- **Sources:** check commands, optional update commands, and per-source intervals. Presets include DNF, Flatpak, and optional fwupd firmware checks.
+- **Advanced:** reboot and security checks, optional security-advisory metadata command, update-script path, terminal command, and background-update behavior. In background mode, `doas`, `sudo`, and `pkexec` command prefixes are normalized to a single graphical `pkexec` elevation; other elevation tools such as `su -c` are not rewritten.
 
 The default global interval is 60 minutes. Quiet hours suppress supported notifications; they do not stop checks or hide the panel status.
 
