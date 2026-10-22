@@ -95,7 +95,7 @@ Update actions are user-triggered. The extension is an update monitor, not an au
 - Expand a source to inspect its reported package lines.
 - Security updates and reboot-required status are shown separately; security updates are already included in the main total.
 - Use **Check now** to refresh immediately, or **Dismiss errors** to clear displayed errors until the next check.
-- While a background update is running, the popup provides progress and stop controls.
+- While a background update is running, the popup provides elapsed-time and stop controls. Stop sends a termination signal to the update's process group, then force-kills it after a short grace period if it is still tracked. This is best-effort for commands that deliberately daemonize or hand work to an unrelated service.
 
 ## Settings
 
