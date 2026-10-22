@@ -70,7 +70,7 @@ Default sources:
 - **DNF:** `dnf check-update -q --refresh --color=never`, filtered to remove non-package output.
 - **Flatpak:** `flatpak remote-ls --updates`.
 
-A command's output and exit status are interpreted together because some package managers return a non-zero exit status when updates are available. Missing commands and likely command failures are shown as errors in the popup.
+A command's output and exit status are interpreted together because some package managers return a non-zero exit status when updates are available. Each check has a 120-second timeout; a timed-out command is shown as an error rather than as an empty update list. Checks run in their own process group so a timeout also terminates ordinary child processes instead of leaving them holding output pipes open. Missing commands and likely command failures are shown as errors in the popup.
 
 ### Add or customize a source
 
