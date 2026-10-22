@@ -4,39 +4,34 @@
 
 ![GNOME 49–51](https://img.shields.io/badge/GNOME-49--51-blue) ![Fedora 43–44](https://img.shields.io/badge/Fedora-43--44-blue)
 
-Update Checker checks package sources on a schedule and shows their pending-update counts in the panel. Click the indicator for a per-source breakdown, **Check now**, or an optional update action. It can also follow a Matugen-generated palette live.
+Update Checker checks package sources on a schedule and shows pending-update counts in the panel. Open the indicator for a per-source breakdown, **Check now**, or an optional update action.
 
 ## Features
 
-- **Update counts:** DNF and Flatpak are configured by default; add custom shell commands for Cargo, npm, uv, or other tools. The Sources page also offers an optional fwupd firmware preset (requires `fwupdmgr` and `jq`).
-- **Per-source controls:** configure a check command, optional update command, and per-source interval.
-- **Ignored packages:** exclude exact package/app identifiers from counts in General settings. This can hide security fixes, so only ignore items you intentionally do not want tracked.
-- **Security updates:** show a separate security-update count without adding it to the total again, plus a short advisory/severity line when the configured metadata command returns a matching line.
-- **Reboot status:** optional check for whether a reboot is needed after updates.
-- **Offline handling:** retain the last known counts while offline and refresh after reconnecting.
-- **Notifications and quiet hours:** optionally notify when the total increases, with configurable quiet hours.
-- **Battery- and network-aware polling:** optionally pause automatic checks while UPower reports battery power or NetworkManager reports a metered connection; manual Check now remains available.
-- **Database watches:** optionally recheck after watched DNF or Flatpak state changes.
-- **Update actions:** run a source-specific command in a terminal or, optionally, in the background with a graphical privilege prompt.
-- **Update script:** launch your own update script from the menu.
-- **Matugen theming:** popup colors follow your generated wallpaper palette and refresh when it changes.
+- DNF and Flatpak sources by default, with custom commands for other package managers and tools.
+- Optional fwupd firmware checks, security-update counts, reboot status, and advisory details.
+- Configurable polling intervals, notifications, quiet hours, ignored package identifiers, and package-database watches.
+- Optional battery- and metered-network-aware polling.
+- Terminal or background update actions, plus a configurable update script.
+- Optional live Matugen popup theming.
+- A machine-readable GSettings summary for other extensions and integrations.
+
+Update Checker is a monitor, not an automatic updater: finding updates does **not** install them. Update actions are user-triggered.
 
 ## Requirements
 
 - GNOME Shell **49, 50, or 51**.
-- DNF is the default system-package source; Flatpak is an additional default source. You can replace or remove either and configure other sources.
-- `glib-compile-schemas` to compile the extension's settings schema during a manual installation.
-- [Matugen](https://github.com/InioX/matugen) is optional. Without a readable generated palette, the extension uses its fallback styling.
+- DNF is the default system-package source; Flatpak is also configured by default.
+- `glib-compile-schemas` for manual installation.
+- [Matugen](https://github.com/InioX/matugen) is optional.
 
-The default DNF, security-update, and reboot checks are Fedora-oriented. Other distributions should configure commands appropriate to their package manager.
+The default DNF, security, and reboot checks are Fedora-oriented. On other distributions, configure commands suitable for your package manager and operating system.
 
 ## Install
 
-The extension UUID is `update-checker@SakibShahariar.github.io`. Existing settings are preserved across the UUID change because the GSettings schema ID and path remain unchanged. If you previously installed `update-checker@local`, disable/uninstall that extension and install this version using the new UUID. GNOME's enabled-extension list is keyed by UUID, so you may need to enable the new UUID once.
+The extension UUID is `update-checker@SakibShahariar.github.io`. If you previously installed `update-checker@local`, disable or uninstall that extension and install this version. Settings are preserved because the GSettings schema ID and path remain unchanged; you may need to enable the new UUID once.
 
 ### From a GNOME extension ZIP
-
-Use GNOME's extension installer so the extension is placed in its UUID-named directory:
 
 ```sh
 gnome-extensions install --force ./update-checker@SakibShahariar.github.io.zip
@@ -44,13 +39,12 @@ glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibS
 gnome-extensions enable update-checker@SakibShahariar.github.io
 ```
 
-Replace the ZIP path with the location of your downloaded archive.
+Replace the ZIP path with your downloaded archive.
 
 ### From Git
 
 ```sh
-git clone https://github.com/SakibShahariar/update-checker-gnome.git \
-  ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
+git clone https://github.com/SakibShahariar/update-checker-gnome.git ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
 glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io/schemas/
 gnome-extensions enable update-checker@SakibShahariar.github.io
 ```
@@ -61,61 +55,29 @@ Open settings with:
 gnome-extensions prefs update-checker@SakibShahariar.github.io
 ```
 
-You can also open **Settings** from the extension's popup. If GNOME does not discover or activate the extension immediately, log out and back in; on X11, restarting GNOME Shell may also be possible with **Alt+F2**, then **r**.
+If GNOME does not discover or activate the extension immediately, log out and back in. On X11, restarting GNOME Shell may also be possible with **Alt+F2**, then **r**.
 
-## How checks work
+## Use
 
-Each source is configured as **Name|shell command**. The command runs through `/bin/sh -c`; the extension counts the non-empty lines written to standard output. Configure commands that print **one line per pending update**. It does not install updates automatically just because it finds them.
+- The panel indicator shows the total pending-update count. Enable **Always show** to keep it visible at zero.
+- Expand a source in the popup to inspect its reported update lines.
+- Security updates are shown separately but are already included in the total.
+- **Check now** runs an immediate check; **Dismiss errors** clears displayed errors until the next check.
+- The default global check interval is 60 minutes. Each source can override it.
 
-Default sources:
+Each source's check command should print **one non-empty output line per pending update**. Commands run through `/bin/sh -c`; failures and checks that exceed the 120-second timeout are reported as errors. Review custom commands before saving them.
 
-- **DNF:** `dnf check-update -q --refresh --color=never`, filtered to remove non-package output.
-- **Flatpak:** `flatpak remote-ls --updates`.
+For full details on source commands, polling policies, ignored packages, privilege handling, security/reboot checks, and Matugen, see the [configuration guide](docs/configuration.md).
 
-A command's output and exit status are interpreted together because some package managers return a non-zero exit status when updates are available. Each check has a 120-second timeout; a timed-out command is shown as an error rather than as an empty update list. Checks run in their own process group so a timeout also terminates ordinary child processes instead of leaving them holding output pipes open. Missing commands and likely command failures are shown as errors in the popup.
+## Integration
 
-### Add or customize a source
+Other extensions can read the versioned `summary-json` GSettings snapshot without duplicating package-manager checks:
 
-Open **Settings → Sources** and add a preset or custom entry. Each source can have:
-- a check command;
-- an optional update command shown when that source has updates;
-- its own interval, or the global interval.
+```sh
+gsettings get org.gnome.shell.extensions.update-checker summary-json
+```
 
-Commands run as your logged-in user unless the command itself requests elevation. Review custom commands before saving them. The default update commands use `doas` for DNF and Flatpak; change them if your system uses `sudo` or a different package manager.
-
-### Update actions
-
-- **Terminal mode** opens the configured terminal and runs the source's update command interactively.
-- **Background mode** uses `pkexec` for a graphical privilege prompt. The extension removes a leading `doas`/`sudo` from the configured command and runs the command elevated; avoid combining privileged and unprivileged tools in one command.
-- **Run Update Script** launches the script path configured in Advanced settings. It remains a separate action and is not rewritten for background mode.
-
-Update actions are user-triggered. The extension is an update monitor, not an automatic updater. Disabling the extension does **not** cancel an update command that is already running; stop it from the popup first if you need to cancel it. A package manager or elevated child process may continue after the panel indicator disappears.
-
-## Panel and popup
-
-- The panel indicator shows the total number of pending updates. Enable **Always show** to keep it visible when the count is zero.
-- Expand a source to inspect its reported package lines.
-- Security updates and reboot-required status are shown separately; security updates are already included in the main total.
-- Use **Check now** to refresh immediately, or **Dismiss errors** to clear displayed errors until the next check.
-- While a background update is running, the popup provides elapsed-time and stop controls. Stop sends a termination signal to the update's process group, then force-kills it after a short grace period if it is still tracked. This is best-effort for commands that deliberately daemonize or hand work to an unrelated service.
-
-## Settings
-
-- **General:** global check interval, notifications, visibility at zero, quiet hours, package-database watches, exact ignored package/app identifiers, and optional battery-aware polling.
-- **Sources:** check commands, optional update commands, and per-source intervals. Presets include DNF, Flatpak, and optional fwupd firmware checks.
-- **Advanced:** reboot and security checks, optional security-advisory metadata command, update-script path, terminal command, and background-update behavior. In background mode, `doas`, `sudo`, and `pkexec` command prefixes are normalized to a single graphical `pkexec` elevation; other elevation tools such as `su -c` are not rewritten.
-
-The default global interval is 60 minutes. Quiet hours suppress supported notifications; they do not stop checks or hide the panel status.
-
-## Integration summary
-
-The extension publishes a lightweight status snapshot through the `summary-json` GSettings key in the existing schema (`org.gnome.shell.extensions.update-checker`, path `/org/gnome/shell/extensions/update-checker/`). Integrations can read the string and parse its JSON without reimplementing package-manager checks. The object includes `version` (currently `1`), `total` (`-1` until a full check completes), `securityCount`, `lastCheck`, `busy`, `rebootRequired`, `offline`, and `failed`. Treat the payload as a snapshot that may change during a check; do not write to this key from an integration.
-
-For example, a consumer can read it with `gsettings get org.gnome.shell.extensions.update-checker summary-json`. The schema must be installed and compiled on the system, as it is for the extension itself.
-
-## Matugen theming
-
-The extension reads Matugen colors from `~/.config/matugen/matugen-colors.css` and applies them to its popup. If your Matugen setup writes the palette elsewhere, configure Matugen to also generate this file. Palette changes are picked up without requiring a GNOME Shell restart.
+See the [integration guide](docs/integration.md) for the schema, fields, and consumer guidance.
 
 ## Uninstall
 
@@ -124,8 +86,12 @@ gnome-extensions disable update-checker@SakibShahariar.github.io
 rm -rf ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
 ```
 
-These commands remove the installed extension. Settings are intentionally not reset, so they remain available if you reinstall it. To erase settings manually, run `dconf reset -f /org/gnome/shell/extensions/update-checker/`.
+These commands remove the installed extension but preserve its settings. To erase settings manually:
+
+```sh
+dconf reset -f /org/gnome/shell/extensions/update-checker/
+```
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0 only** (`GPL-3.0-only`). See [LICENSE](LICENSE) for the complete license text.
+Licensed under **GNU General Public License v3.0 only** (`GPL-3.0-only`). See [LICENSE](LICENSE).
