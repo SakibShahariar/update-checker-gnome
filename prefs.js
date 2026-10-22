@@ -21,6 +21,13 @@ const PRESET_SOURCES = [
         blurb: 'Flathub · every 120 min',
     },
     {
+        name: 'Firmware (fwupd)',
+        command: "fwupdmgr get-updates --json | jq -r '.Devices[]? | select((.Releases // []) | length > 0) | [.Name, (.Releases[0].Version // \"\")] | @tsv'",
+        updateCommand: 'doas fwupdmgr update',
+        interval: 360,
+        blurb: 'Requires fwupd and jq · every 6h',
+    },
+    {
         name: 'Cargo',
         command: "cargo install-update -l -a | awk '$NF==\"Yes\"'",
         updateCommand: 'cargo install-update -a',
