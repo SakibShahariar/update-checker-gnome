@@ -44,7 +44,7 @@ async function main() {
         ['Flatpak', 'flatpak update'],
     ], 'update commands should be keyed by source name, with the last duplicate winning');
 
-    equal([...parseIntervals(['DNF|60', 'Cargo|1440', 'Bad|4', 'broken', 'Nope|abc']).entries()],
+    equal([...parseIntervals(['DNF|60', 'Cargo|1440', 'Bad|4', 'broken', 'Nope|abc', 'Suffix|60minutes', 'Decimal|5.5']).entries()],
         [['DNF', 60], ['Cargo', 1440]],
         'interval parsing should reject malformed and too-short intervals');
 
