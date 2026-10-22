@@ -77,7 +77,7 @@ async function main() {
 
     assert(stripAnsi('\u001b[1;31mred\u001b[0m') === 'red',
         'ANSI escapes should be stripped');
-    assert(truncate('  a long message  ', 8) === 'a long m…',
+    assert(truncate('  a long message  ', 8) === 'a long …',
         'truncation should trim and stay within the requested character budget');
     assert(hexToRgba('#abc', 0.5) === 'rgba(170, 187, 204, 0.5)',
         'three-digit hex colors should expand correctly');
