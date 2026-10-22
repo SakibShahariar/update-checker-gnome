@@ -82,6 +82,32 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
+        const ignoredPackagesRow = new Adw.ActionRow({
+            title: 'Ignored packages / apps',
+            subtitle: 'Comma-separated exact identifiers. Ignored updates are excluded from counts; this can hide security fixes.',
+        });
+        const ignoredPackagesEntry = new Gtk.Entry({
+            text: settings.get_strv('ignored-packages').join(', '),
+            placeholder_text: 'e.g. package-name, org.example.App',
+            width_chars: 28,
+            valign: Gtk.Align.CENTER,
+        });
+        ignoredPackagesEntry.set_tooltip_text('Exact first-column identifiers to ignore. Leave empty to count everything.');
+        const saveIgnoredPackages = () => {
+            const names = [...new Set(ignoredPackagesEntry.get_text()
+                .split(',')
+                .map(name => name.trim())
+                .filter(Boolean))];
+            settings.set_strv('ignored-packages', names);
+        };
+        ignoredPackagesEntry.connect('activate', saveIgnoredPackages);
+        ignoredPackagesEntry.connect('notify::has-focus', widget => {
+            if (!widget.has_focus)
+                saveIgnoredPackages();
+        });
+        ignoredPackagesRow.add_suffix(ignoredPackagesEntry);
+        generalGroup.add(ignoredPackagesRow);
+
         const permGroup = new Adw.PreferencesGroup({
             title: 'DNF metadata access',
             description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
