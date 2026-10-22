@@ -1005,15 +1005,43 @@ class Indicator extends PanelMenu.Button {
 
     _stopSourceUpdate(label) {
         const entry = this._updatingSources.get(label);
-        if (!entry)
+        if (!entry || entry.stopped)
             return;
         entry.stopped = true;
-        try {
-            entry.proc.force_exit();
-        } catch (e) {
-            // Already exited on its own right as we tried to stop it -
-            // harmless, the completion callback will still run.
-        }
+
+        // The tracked process is a session leader, so signal the entire
+        // update process group rather than only the shell/pkexec wrapper.
+        // This prevents package managers from continuing after the UI says
+        // the update was stopped.
+        const signalGroup = (signal) => {
+            const identifier = entry.proc.get_identifier();
+            if (!identifier || !/^\\d+$/.test(identifier))
+                return;
+            try {
+                const killer = Gio.Subprocess.new(
+                    ['/usr/bin/kill', `-${signal}`, '--', `-${identifier}`],
+                    Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+                );
+                killer.wait_async(null, (killerProc, result) => {
+                    try { killerProc.wait_finish(result); } catch (e) {}
+                });
+            } catch (e) {
+                // Completion callback still owns UI cleanup; a failed signal
+                // must not make the extension throw from a button handler.
+            }
+        };
+
+        signalGroup('TERM');
+        // Give package managers a short chance to clean up before forcing
+        // termination. Keep this timer tied to the same tracked entry so a
+        // completed update cannot cause a later signal against a reused PID.
+        entry.stopTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, 2000, () => {
+                entry.stopTimeoutId = null;
+                if (this._updatingSources.get(label) === entry)
+                    signalGroup('KILL');
+                return GLib.SOURCE_REMOVE;
+            });
     }
 
     _stopAllUpdates() {
@@ -1282,10 +1310,19 @@ class Indicator extends PanelMenu.Button {
 
         Main.notify(`Updating ${label}...`, 'Running in background.');
         try {
+            // Isolate each background update in its own session/process group
+            // so Stop Updating can terminate the package manager and its children.
             const proc = Gio.Subprocess.new(
-                argv, Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+                ['/usr/bin/setsid', ...argv],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
 
-            const entry = {proc, startTime: GLib.get_monotonic_time(), stopped: false, tickId: null};
+            const entry = {
+                proc,
+                startTime: GLib.get_monotonic_time(),
+                stopped: false,
+                tickId: null,
+                stopTimeoutId: null,
+            };
             this._updatingSources.set(label, entry);
             this._updateSyncIconState();
             this._setRowUpdating(label, true, '0s');
@@ -1300,6 +1337,10 @@ class Indicator extends PanelMenu.Button {
                 if (entry.tickId) {
                     GLib.source_remove(entry.tickId);
                     entry.tickId = null;
+                }
+                if (entry.stopTimeoutId) {
+                    GLib.source_remove(entry.stopTimeoutId);
+                    entry.stopTimeoutId = null;
                 }
                 let ok = false, stderr = '';
                 try {
