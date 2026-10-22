@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
+import {setupNetworkWatch} from './lib/network-watch.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -39,106 +40,7 @@ export default class UpdateCheckerExtension extends Extension {
             this._indicator?.checkNow(true);
         });
 
-        // When connectivity comes back after being offline, refresh
-        // automatically - but not instantly. The interface can report
-        // "available" a moment before DNS/routing actually work (right
-        // after reconnecting), so checking immediately can produce a
-        // real but misleading "failed to download metadata" error. Wait
-        // a few seconds for things to settle first, and if it flaps
-        // offline again before that timer fires, cancel rather than
-        // check on a connection that's already gone again.
-        this._networkMonitor = Gio.NetworkMonitor.get_default();
-        this._networkDebounceId = null;
-        const scheduleReconnectCheck = () => {
-            if (this._networkDebounceId) {
-                GLib.source_remove(this._networkDebounceId);
-                this._networkDebounceId = null;
-            }
-            // Going offline: drop any pending DB-watch check so reconnect
-            // does not flush a queue of deferred ticks at once.
-            if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL) {
-                if (this._dbDebounceId) {
-                    GLib.source_remove(this._dbDebounceId);
-                    this._dbDebounceId = null;
-                }
-                return;
-            }
-            this._networkDebounceId = GLib.timeout_add_seconds(
-                GLib.PRIORITY_DEFAULT, 5, () => {
-                    this._networkDebounceId = null;
-                    if (this._networkMonitor.get_connectivity() === Gio.NetworkConnectivity.FULL)
-                        this._indicator.checkNow();
-                    return GLib.SOURCE_REMOVE;
-                }
-            );
-        };
-        this._networkChangedId = this._networkMonitor.connect(
-            'network-changed', () => scheduleReconnectCheck());
-        // Belt-and-braces: 'network-changed' is documented around the
-        // coarser network-available property, so also watch the
-        // connectivity property directly in case a captive-portal login
-        // completing (PORTAL -> FULL, with network-available true the
-        // whole time) doesn't fire the former on its own.
-        this._connectivityChangedId = this._networkMonitor.connect(
-            'notify::connectivity', () => scheduleReconnectCheck());
-
-        // Watch DNF's and Flatpak's own state directories directly, so
-        // an update run ANY way - your own terminal, another tool, this
-        // extension - triggers a fresh check, not just the scheduled
-        // timer. A single package operation touches these directories
-        // several times in a row, so this is debounced the same way as
-        // the network-reconnect check above: wait a few seconds after
-        // the LAST change before actually checking.
-        this._dbWatchPaths = [
-            '/usr/lib/sysimage/libdnf5', // dnf5 state (modern Fedora)
-            '/var/lib/rpm',              // traditional rpmdb location
-            '/var/lib/flatpak',          // system-wide Flatpak installs
-            GLib.build_filenamev([GLib.get_home_dir(), '.local/share/flatpak']),
-        ];
-        this._dbMonitors = [];
-        this._dbDebounceId = null;
-        if (this._settings.get_boolean('watch-package-db')) {
-            for (const path of this._dbWatchPaths) {
-                try {
-                    const monitor = Gio.File.new_for_path(path).monitor_directory(
-                        Gio.FileMonitorFlags.NONE, null);
-                    monitor.connect('changed', () => {
-                        // Skip scheduling if offline or an update is running - checkNow()
-                        // would just early-return anyway (and we avoid waking the disk
-                        // for nothing). The update's own completion already triggers
-                        // a fresh check, so nothing is lost.
-                        if (this._indicator._updatingSources.size > 0)
-                            return;
-                        if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
-                            return;
-                        if (this._dbDebounceId)
-                            GLib.source_remove(this._dbDebounceId);
-                        this._dbDebounceId = GLib.timeout_add_seconds(
-                            GLib.PRIORITY_DEFAULT, 4, () => {
-                                this._dbDebounceId = null;
-                                // Re-check guards at fire time too (state may have changed)
-                                if (this._indicator._updatingSources.size > 0)
-                                    return GLib.SOURCE_REMOVE;
-                                if (this._networkMonitor.get_connectivity() !== Gio.NetworkConnectivity.FULL)
-                                    return GLib.SOURCE_REMOVE;
-                                // DB changed externally (e.g. dnf in your own terminal):
-                                // force a full refresh bypassing per-source interval
-                                // cache, otherwise the 60m cache would hide the change
-                                // until the next scheduled tick / manual "Check Now".
-                                this._indicator._lastSourcePoll.clear();
-                                this._indicator._lastSourceResults.clear();
-                                this._indicator.checkNow();
-                                return GLib.SOURCE_REMOVE;
-                            }
-                        );
-                    });
-                    this._dbMonitors.push(monitor);
-                } catch (e) {
-                    // Path doesn't exist or isn't watchable on this
-                    // system - harmless, just skip it.
-                }
-            }
-        }
+        this._networkWatchCleanup = setupNetworkWatch(this);
 
         // Defer initial check until shell startup completes (or ~5–8s).
         cleanOldMatugenCache('update-checker-matugen-');
@@ -215,27 +117,8 @@ export default class UpdateCheckerExtension extends Extension {
             this._settings.disconnect(this._ignoredPackagesChangedId);
             this._ignoredPackagesChangedId = null;
         }
-        if (this._networkChangedId) {
-            this._networkMonitor.disconnect(this._networkChangedId);
-            this._networkChangedId = null;
-        }
-        if (this._connectivityChangedId) {
-            this._networkMonitor.disconnect(this._connectivityChangedId);
-            this._connectivityChangedId = null;
-        }
-        if (this._networkDebounceId) {
-            GLib.source_remove(this._networkDebounceId);
-            this._networkDebounceId = null;
-        }
-        this._networkMonitor = null;
-
-        if (this._dbDebounceId) {
-            GLib.source_remove(this._dbDebounceId);
-            this._dbDebounceId = null;
-        }
-        for (const monitor of this._dbMonitors ?? [])
-            monitor.cancel();
-        this._dbMonitors = [];
+        this._networkWatchCleanup?.();
+        this._networkWatchCleanup = null;
 
         // Any background update's elapsed-time tick timer is tracked on
         // the indicator, not here - clear those too so they don't keep
