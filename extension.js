@@ -11,7 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import {
-    runShell, mapPool, classifyResult, parseSources, parseUpdateCommands,
+    runShell, mapPool, classifyResult, filterIgnoredPackages, parseSources, parseUpdateCommands,
     truncate, parseIntervals, hexToRgba,
 } from './lib/utils.js';
 import {hasMotion, shouldAnimate} from './lib/motion.js';
@@ -1638,7 +1638,8 @@ class Indicator extends PanelMenu.Button {
         const [, rebootCheckFailed, securityCheckFailed] = await Promise.all([
             mapPool(toPoll, 3, async (src) => {
                 const raw = await runShell(src.command);
-                const res = classifyResult(raw);
+                const res = filterIgnoredPackages(
+                    classifyResult(raw), this._settings.get_strv('ignored-packages'));
                 results.push({name: src.name, ...res});
                 this._lastSourcePoll.set(src.name, nowMs);
                 this._lastSourceResults.set(src.name, res);
@@ -1757,6 +1758,11 @@ export default class UpdateCheckerExtension extends Extension {
             this._indicator?.checkNow(true);
         });
         this._updateCmdsChangedId = this._settings.connect('changed::source-update-commands', () => {
+            this._indicator?.checkNow(true);
+        });
+        this._ignoredPackagesChangedId = this._settings.connect('changed::ignored-packages', () => {
+            this._indicator?._lastSourcePoll.clear();
+            this._indicator?._lastSourceResults.clear();
             this._indicator?.checkNow(true);
         });
 
@@ -1931,6 +1937,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._updateCmdsChangedId) {
             this._settings.disconnect(this._updateCmdsChangedId);
             this._updateCmdsChangedId = null;
+        }
+        if (this._ignoredPackagesChangedId) {
+            this._settings.disconnect(this._ignoredPackagesChangedId);
+            this._ignoredPackagesChangedId = null;
         }
         if (this._networkChangedId) {
             this._networkMonitor.disconnect(this._networkChangedId);
