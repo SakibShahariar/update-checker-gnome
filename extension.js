@@ -39,6 +39,9 @@ export default class UpdateCheckerExtension extends Extension {
             this._indicator?._lastSourceResults.clear();
             this._indicator?.checkNow(true);
         });
+        this._securityAdvisoryChangedId = this._settings.connect('changed::security-advisory-command', () => {
+            this._indicator?.checkNow(true);
+        });
 
         this._networkWatchCleanup = setupNetworkWatch(this);
 
@@ -116,6 +119,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._ignoredPackagesChangedId) {
             this._settings.disconnect(this._ignoredPackagesChangedId);
             this._ignoredPackagesChangedId = null;
+        }
+        if (this._securityAdvisoryChangedId) {
+            this._settings.disconnect(this._securityAdvisoryChangedId);
+            this._securityAdvisoryChangedId = null;
         }
         this._networkWatchCleanup?.();
         this._networkWatchCleanup = null;
