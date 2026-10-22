@@ -429,7 +429,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 continue;
             const n = entry.slice(0, idx).trim();
             const rawValue = entry.slice(idx + 1).trim();
-            if (!/^\\d+$/.test(rawValue))
+            if (!/^\d+$/.test(rawValue))
                 continue;
             const v = Number(rawValue);
             if (n && Number.isSafeInteger(v) && v >= 5) existingIntervals.set(n, v);
