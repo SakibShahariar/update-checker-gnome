@@ -123,6 +123,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('skip-on-battery', batteryRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(batteryRow);
 
+        const meteredRow = new Adw.SwitchRow({
+            title: 'Pause background checks on metered networks',
+            subtitle: 'Uses NetworkManager metered-state detection; manual Check now still runs',
+        });
+        meteredRow.add_prefix(new Gtk.Image({icon_name: 'network-cellular-signal-excellent-symbolic', pixel_size: 18}));
+        settings.bind('skip-on-metered', meteredRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(meteredRow);
+
         const permGroup = new Adw.PreferencesGroup({
             title: 'DNF metadata access',
             description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
