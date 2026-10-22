@@ -42,6 +42,10 @@ export default class UpdateCheckerExtension extends Extension {
         this._securityAdvisoryChangedId = this._settings.connect('changed::security-advisory-command', () => {
             this._indicator?.checkNow(true);
         });
+        this._powerPolicyChangedIds = [
+            this._settings.connect('changed::skip-on-battery', () => this._indicator?.checkNow()),
+            this._settings.connect('changed::skip-on-metered', () => this._indicator?.checkNow()),
+        ];
 
         this._networkWatchCleanup = setupNetworkWatch(this);
 
@@ -124,6 +128,9 @@ export default class UpdateCheckerExtension extends Extension {
             this._settings.disconnect(this._securityAdvisoryChangedId);
             this._securityAdvisoryChangedId = null;
         }
+        for (const id of this._powerPolicyChangedIds ?? [])
+            this._settings.disconnect(id);
+        this._powerPolicyChangedIds = [];
         this._networkWatchCleanup?.();
         this._networkWatchCleanup = null;
 
