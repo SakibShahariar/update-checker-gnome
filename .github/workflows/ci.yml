@@ -19,8 +19,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install schema validation tools
-        run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev-bin
+      - name: Install test and schema tools
+        run: sudo apt-get update && sudo apt-get install -y gjs libglib2.0-dev-bin
 
       - name: Check JavaScript syntax
         run: node --check extension.js && node --check prefs.js && node --check lib/utils.js && node --check lib/theming.js
@@ -28,6 +28,9 @@ jobs:
       - name: Validate extension metadata and license
         run: |
           node -e "const fs = require('node:fs'); const m = JSON.parse(fs.readFileSync('metadata.json', 'utf8')); if (m.license !== 'GPL-3.0-only') process.exit(1); if (m.uuid !== 'update-checker@SakibShahariar.github.io') process.exit(1); if (!fs.readFileSync('LICENSE', 'utf8').startsWith('GNU GENERAL PUBLIC LICENSE\\nVersion 3')) process.exit(1)"
+
+      - name: Run utility regression tests
+        run: gjs -m tests/utils.test.js
 
       - name: Validate settings schema
         run: glib-compile-schemas --strict --dry-run schemas/
