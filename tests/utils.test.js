@@ -3,6 +3,7 @@ import {
     runShell,
     mapPool,
     classifyResult,
+    filterIgnoredPackages,
     parseSources,
     parseUpdateCommands,
     parseIntervals,
@@ -56,6 +57,21 @@ async function main() {
         timedOut: false,
     }), {status: 'ok', count: 2, message: '', lines: ['foo', 'bar']},
     'non-zero package-manager status with output should still count updates');
+
+    equal(filterIgnoredPackages(
+        {status: 'ok', count: 3, message: '', lines: ['firefox.x86_64 1 2', 'org.example.App stable 2', 'kernel-core.x86_64 3 4']},
+        ['firefox.x86_64', 'org.example.App']
+    ), {status: 'ok', count: 1, message: '', lines: ['kernel-core.x86_64 3 4']},
+    'ignored identifiers should be removed exactly and the count recalculated');
+
+    const sourceError = {status: 'error', count: 0, message: 'network unavailable', lines: []};
+    assert(filterIgnoredPackages(sourceError, ['anything']) === sourceError,
+        'ignored identifiers must not hide source errors');
+    equal(filterIgnoredPackages(
+        {status: 'ok', count: 1, message: '', lines: ['firefox.x86_64 1 2']},
+        ['firefox']
+    ), {status: 'ok', count: 1, message: '', lines: ['firefox.x86_64 1 2']},
+    'ignore matching must be exact rather than matching package-name prefixes');
 
     equal(classifyResult({
         stdout: '',
