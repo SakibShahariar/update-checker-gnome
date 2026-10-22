@@ -11,7 +11,7 @@ Update Checker checks package sources on a schedule and shows their pending-upda
 - **Update counts:** DNF and Flatpak are configured by default; add custom shell commands for Cargo, npm, uv, or other tools. The Sources page also offers an optional fwupd firmware preset (requires `fwupdmgr` and `jq`).
 - **Per-source controls:** configure a check command, optional update command, and per-source interval.
 - **Ignored packages:** exclude exact package/app identifiers from counts in General settings. This can hide security fixes, so only ignore items you intentionally do not want tracked.
-- **Security updates:** show a separate security-update count without adding it to the total again.
+- **Security updates:** show a separate security-update count without adding it to the total again, plus a short advisory/severity line when the configured metadata command returns a matching line.
 - **Reboot status:** optional check for whether a reboot is needed after updates.
 - **Offline handling:** retain the last known counts while offline and refresh after reconnecting.
 - **Notifications and quiet hours:** optionally notify when the total increases, with configurable quiet hours.
