@@ -23,7 +23,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gjs libglib2.0-dev-bin
 
       - name: Check JavaScript syntax
-        run: node --check extension.js && node --check prefs.js && node --check lib/indicator.js && node --check lib/network-watch.js && node --check lib/utils.js && node --check lib/motion.js && node --check lib/theming.js && node --check tests/utils.test.js
+        run: node --check extension.js && node --check prefs.js && node --check lib/indicator.js && node --check lib/checks.js && node --check lib/network-watch.js && node --check lib/utils.js && node --check lib/motion.js && node --check lib/theming.js && node --check tests/utils.test.js
 
       - name: Validate extension metadata and license
         run: |
