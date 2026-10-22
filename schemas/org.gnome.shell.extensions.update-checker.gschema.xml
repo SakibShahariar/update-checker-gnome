@@ -102,6 +102,12 @@
       <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
     </key>
 
+    <key name="summary-json" type="s">
+      <default>'{}'</default>
+      <summary>Machine-readable update summary</summary>
+      <description>Read-only-by-convention JSON snapshot for integrations such as material-panel. Version 1 fields: version, total, securityCount, lastCheck, busy, rebootRequired, offline, and failed. A total of -1 means no successful full check has completed yet.</description>
+    </key>
+
     <key name="ignored-packages" type="as">
       <default>[]</default>
       <summary>Ignored package or app identifiers</summary>
