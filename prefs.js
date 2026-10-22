@@ -428,8 +428,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             if (idx === -1)
                 continue;
             const n = entry.slice(0, idx).trim();
-            const v = parseInt(entry.slice(idx + 1).trim(), 10);
-            if (n && Number.isFinite(v)) existingIntervals.set(n, v);
+            const rawValue = entry.slice(idx + 1).trim();
+            if (!/^\\d+$/.test(rawValue))
+                continue;
+            const v = Number(rawValue);
+            if (n && Number.isSafeInteger(v) && v >= 5) existingIntervals.set(n, v);
         }
         for (const entry of settings.get_strv('sources')) {
             const idx = entry.indexOf('|');
