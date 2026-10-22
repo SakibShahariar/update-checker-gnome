@@ -57,6 +57,7 @@ class Indicator extends PanelMenu.Button {
         // itself entirely while a background update is running.
         this._sourceRowWidgets = new Map();
         this._checking = false;
+            this._publishSummary();
         this._destroyed = false;
         this._lastSourcePoll = new Map(); // name -> epoch ms
         this._lastSourceResults = new Map(); // name -> {status,count,message,lines}
@@ -1506,10 +1507,30 @@ class Indicator extends PanelMenu.Button {
         return failed;
     }
 
+    _publishSummary() {
+        if (!this._settings)
+            return;
+        try {
+            this._settings.set_string('summary-json', JSON.stringify({
+                version: 1,
+                total: this._lastTotal,
+                securityCount: this._lastSecurityCount,
+                lastCheck: this._lastCheckTimeStr ?? '',
+                busy: this._checking,
+                rebootRequired: this._lastRebootRequired,
+                offline: this._lastOffline,
+                failed: this._lastAnyFailed,
+            }));
+        } catch (e) {
+            log(`UpdateChecker could not publish summary: ${e}`);
+        }
+    }
+
     async checkNow(manual = false) {
         try { return await this._checkNowInner(manual); } catch (e) {
             log(`UpdateChecker checkNow FAILED: ${e}\n${e.stack}`);
             this._checking = false;
+            this._publishSummary();
         }
     }
 
@@ -1539,6 +1560,7 @@ class Indicator extends PanelMenu.Button {
             return;
         }
         this._checking = true;
+        this._publishSummary();
         this._updateHeaderSubtitle();
 
         // get_network_available() alone only means "there's a route" -
@@ -1572,6 +1594,7 @@ class Indicator extends PanelMenu.Button {
             this._statusItem.label.set_text(
                 truncate(`Offline - showing results from ${when}${countPart}`, 55));
             this._checking = false;
+            this._publishSummary();
             this._updateHeaderSubtitle();
             return;
         }
@@ -1602,6 +1625,7 @@ class Indicator extends PanelMenu.Button {
             this._statusItem.label.set_text('No sources configured');
             this._updateVisibility();
             this._checking = false;
+            this._publishSummary();
             this._updateHeaderSubtitle();
             return;
         }
@@ -1730,6 +1754,7 @@ class Indicator extends PanelMenu.Button {
         this._lastNotifiedTotal = total;
         this._dismissItem.visible = anyFailed || rebootCheckFailed || securityCheckFailed;
         this._checking = false;
+            this._publishSummary();
         this._updateHeaderSubtitle();
     }
 });
