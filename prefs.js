@@ -629,6 +629,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('security-check-command', securityCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         securityGroup.add(securityCommandRow);
 
+        const advisoryCommandRow = new Adw.EntryRow({title: 'Advisory metadata command'});
+        advisoryCommandRow.add_prefix(new Gtk.Image({icon_name: 'dialog-information-symbolic', pixel_size: 16}));
+        advisoryCommandRow.set_tooltip_text('Optional command that prints security advisory IDs or severity metadata; only matching output is shown.');
+        settings.bind('security-advisory-command', advisoryCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(advisoryCommandRow);
+
         const scriptGroup = new Adw.PreferencesGroup({title: 'Update Script', description: 'Optional script via Run Update Script menu.'});
         advancedPage.add(scriptGroup);
 
