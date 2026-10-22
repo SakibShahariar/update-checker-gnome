@@ -127,7 +127,7 @@ export default class UpdateCheckerExtension extends Extension {
                                 // until the next scheduled tick / manual "Check Now".
                                 this._indicator._lastSourcePoll.clear();
                                 this._indicator._lastSourceResults.clear();
-                                this._indicator.checkNow(true);
+                                this._indicator.checkNow();
                                 return GLib.SOURCE_REMOVE;
                             }
                         );
