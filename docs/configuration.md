@@ -1,6 +1,6 @@
 # Configuration
 
-All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker@SakibShahariar.github.io`).
+All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`).
 
 ## Sources
 
