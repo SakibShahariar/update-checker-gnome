@@ -1,10 +1,10 @@
-# Update Checker
+# Update Checker for Fedora
 
 > Pending updates at a glance — in your GNOME top panel.
 
 ![GNOME 49–51](https://img.shields.io/badge/GNOME-49--51-blue) ![Fedora 43–44](https://img.shields.io/badge/Fedora-43--44-blue)
 
-Update Checker checks package sources on a schedule and shows pending-update counts in the panel. Open the indicator for a per-source breakdown, **Check now**, or an optional update action.
+Update Checker for Fedora checks package sources on a schedule and shows pending-update counts in the panel. Open the indicator for a per-source breakdown, **Check now**, or an optional update action.
 
 ## Features
 
@@ -16,7 +16,7 @@ Update Checker checks package sources on a schedule and shows pending-update cou
 - Optional live Matugen popup theming.
 - A machine-readable GSettings summary for other extensions and integrations.
 
-Update Checker is a monitor, not an automatic updater: finding updates does **not** install them. Update actions are user-triggered.
+Update Checker for Fedora is a monitor, not an automatic updater: finding updates does **not** install them. Update actions are user-triggered.
 
 ## Requirements
 
