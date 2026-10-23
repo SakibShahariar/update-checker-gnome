@@ -27,13 +27,13 @@ jobs:
 
       - name: Package extension
         run: |
-          mkdir -p dist/update-checker@SakibShahariar.github.io
-          cp -r extension.js prefs.js metadata.json stylesheet.css README.md LICENSE schemas lib dist/update-checker@SakibShahariar.github.io/
+          mkdir -p dist/update-checker-fedora@SakibShahariar.github.io
+          cp -r extension.js prefs.js metadata.json stylesheet.css README.md LICENSE schemas lib dist/update-checker-fedora@SakibShahariar.github.io/
           cd dist
-          zip -r update-checker@SakibShahariar.github.io.zip update-checker@SakibShahariar.github.io
+          zip -r update-checker-fedora@SakibShahariar.github.io.zip update-checker-fedora@SakibShahariar.github.io
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/update-checker@SakibShahariar.github.io.zip
+          files: dist/update-checker-fedora@SakibShahariar.github.io.zip
           generate_release_notes: true
