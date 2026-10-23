@@ -16,7 +16,7 @@ Review custom commands before saving them. When a source check or per-source upd
 - **Metered-network polling:** optionally pause automatic checks when NetworkManager reports a metered connection.
 - **Database watches:** optionally recheck when watched DNF or Flatpak state changes.
 - **Offline handling:** the last known counts are retained while offline and refreshed after reconnecting.
-- **Quiet hours:** suppress supported notifications; they do not stop checks or hide panel status.
+- **Quiet hours:** start and end are configured in whole local hours (0–23), not minute precision. Setting the same start and end hour means quiet hours last all day. Quiet hours suppress supported notifications; they do not stop checks or hide panel status.
 - **Notifications:** optionally notify when the total pending-update count increases.
 - **Always show:** keep the panel indicator visible when no updates are pending.
 
