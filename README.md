@@ -29,14 +29,16 @@ This release targets GNOME Shell 49–51; older versions are not listed because 
 
 ## Install
 
-The extension UUID is `update-checker@SakibShahariar.github.io`. If you previously installed `update-checker@local`, disable or uninstall that extension and install this version. Settings are preserved because the GSettings schema ID and path remain unchanged; you may need to enable the new UUID once.
+The extension UUID is `update-checker-fedora@SakibShahariar.github.io`.
+
+If you previously installed `update-checker@SakibShahariar.github.io` (or the older `update-checker@local`), disable and uninstall the old extension before enabling this one to avoid duplicate panel indicators. The GSettings schema ID and path are unchanged, so the new UUID continues to use the existing settings.
 
 ### From a GNOME extension ZIP
 
 ```sh
-gnome-extensions install --force ./update-checker@SakibShahariar.github.io.zip
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io/schemas/
-gnome-extensions enable update-checker@SakibShahariar.github.io
+gnome-extensions install --force ./update-checker-fedora@SakibShahariar.github.io.zip
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker-fedora@SakibShahariar.github.io/schemas/
+gnome-extensions enable update-checker-fedora@SakibShahariar.github.io
 ```
 
 Replace the ZIP path with your downloaded archive.
@@ -44,15 +46,15 @@ Replace the ZIP path with your downloaded archive.
 ### From Git
 
 ```sh
-git clone https://github.com/SakibShahariar/update-checker-gnome.git ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io/schemas/
-gnome-extensions enable update-checker@SakibShahariar.github.io
+git clone https://github.com/SakibShahariar/update-checker-gnome.git ~/.local/share/gnome-shell/extensions/update-checker-fedora@SakibShahariar.github.io
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/update-checker-fedora@SakibShahariar.github.io/schemas/
+gnome-extensions enable update-checker-fedora@SakibShahariar.github.io
 ```
 
 Open settings with:
 
 ```sh
-gnome-extensions prefs update-checker@SakibShahariar.github.io
+gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io
 ```
 
 If GNOME does not discover or activate the extension immediately, log out and back in. On X11, restarting GNOME Shell may also be possible with **Alt+F2**, then **r**.
@@ -82,8 +84,8 @@ See the [integration guide](docs/integration.md) for the schema, fields, and con
 ## Uninstall
 
 ```sh
-gnome-extensions disable update-checker@SakibShahariar.github.io
-rm -rf ~/.local/share/gnome-shell/extensions/update-checker@SakibShahariar.github.io
+gnome-extensions disable update-checker-fedora@SakibShahariar.github.io
+rm -rf ~/.local/share/gnome-shell/extensions/update-checker-fedora@SakibShahariar.github.io
 ```
 
 These commands remove the installed extension but preserve its settings. To erase settings manually:
