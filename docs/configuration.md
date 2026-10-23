@@ -8,7 +8,7 @@ Each source has a name and a shell check command. The extension runs the command
 
 Each source can also define an optional update command and a polling interval. A source interval overrides the global interval; otherwise the global interval applies. The default global interval is 60 minutes. A check has a 120-second timeout. Output and exit status are considered together because some package managers use a non-zero exit code to indicate that updates are available. Timeouts and command failures are reported as errors rather than as an empty update list.
 
-Review custom commands before saving them. Commands run as the logged-in user unless the command requests elevation.
+Review custom commands before saving them. When a source check or per-source update command is changed, Preferences shows a non-blocking warning for commands containing elevation (`sudo`, `doas`, `pkexec`), redirection or `tee` to an absolute path, or potentially destructive tools such as `rm`, `mkfs`, and `dd`. The warning does not block saving and is not a shell sanitizer; commands remain trusted user input. Commands run as the logged-in user unless the command requests elevation.
 
 ## Automatic polling
 
