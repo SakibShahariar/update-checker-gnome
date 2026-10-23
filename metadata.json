@@ -1,5 +1,5 @@
 {
-  "uuid": "update-checker@SakibShahariar.github.io",
+  "uuid": "update-checker-fedora@SakibShahariar.github.io",
   "name": "Update Checker for Fedora",
   "description": "Monitors pending Fedora system updates with DNF by default, plus Flatpak and any additional sources you configure. Shows update counts in the GNOME top panel and can launch your update script.",
   "shell-version": [
@@ -8,7 +8,7 @@
     "51"
   ],
   "url": "https://github.com/SakibShahariar/update-checker-gnome",
-  "version": 7,
+  "version": 8,
   "settings-schema": "org.gnome.shell.extensions.update-checker",
   "license": "GPL-3.0-only"
 }
