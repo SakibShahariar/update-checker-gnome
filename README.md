@@ -13,7 +13,6 @@ Update Checker for Fedora checks package sources on a schedule and shows pending
 - Configurable polling intervals, notifications, quiet hours, ignored package identifiers, and package-database watches.
 - Optional battery- and metered-network-aware polling.
 - Terminal or background update actions, plus a configurable update script.
-- Optional live Matugen popup theming.
 - A machine-readable GSettings summary for other extensions and integrations.
 
 Update Checker for Fedora is a monitor, not an automatic updater: finding updates does **not** install them. Update actions are user-triggered.
@@ -23,7 +22,6 @@ Update Checker for Fedora is a monitor, not an automatic updater: finding update
 - GNOME Shell **49, 50, or 51**.
 - DNF is the default system-package source; Flatpak is also configured by default.
 - `glib-compile-schemas` for manual installation.
-- [Matugen](https://github.com/InioX/matugen) is optional.
 
 This release targets GNOME Shell 49–51; older versions are not listed because their API compatibility is outside this release's supported and tested scope. If you use GNOME Shell 45–48, do not assume this version is compatible: use a release that explicitly supports your Shell version, if available, or wait for support to be added. The default DNF, security, and reboot checks are Fedora-oriented. On other distributions, configure commands suitable for your package manager and operating system.
 
@@ -69,7 +67,7 @@ If GNOME does not discover or activate the extension immediately, log out and ba
 
 Each source's check command should print **one non-empty output line per pending update**. Commands run through `/bin/sh -c`; failures and checks that exceed the 120-second timeout are reported as errors. Review custom commands before saving them.
 
-For full details on source commands, polling policies, ignored packages, privilege handling, security/reboot checks, and Matugen, see the [configuration guide](docs/configuration.md).
+For full details on source commands, polling policies, ignored packages, privilege handling, and security/reboot checks, see the [configuration guide](docs/configuration.md).
 
 ## Integration
 
