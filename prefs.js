@@ -10,10 +10,10 @@ function isHighImpactCommand(command) {
     if (!text)
         return false;
 
-    return /\\b(?:sudo|doas|pkexec)\\b/i.test(text) ||
-        /(?:>>?|2>|&>)\\s*\\//.test(text) ||
-        /(?:^|\\s)tee(?:\\s+-[a-zA-Z]+)*\\s+\\//.test(text) ||
-        /\\b(?:rm|mkfs(?:\\.[\\w-]+)?|dd)\\b/i.test(text);
+    return /\b(?:sudo|doas|pkexec)\b/i.test(text) ||
+        /(?:>>?|2>|&>)\s*\//.test(text) ||
+        /(?:^|\s)tee(?:\s+-[a-zA-Z]+)*\s+\//.test(text) ||
+        /\b(?:rm|mkfs(?:\.[\w-]+)?|dd)\b/i.test(text);
 }
 
 const PRESET_SOURCES = [
