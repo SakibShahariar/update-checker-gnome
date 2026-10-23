@@ -25,7 +25,7 @@ Update Checker is a monitor, not an automatic updater: finding updates does **no
 - `glib-compile-schemas` for manual installation.
 - [Matugen](https://github.com/InioX/matugen) is optional.
 
-The default DNF, security, and reboot checks are Fedora-oriented. On other distributions, configure commands suitable for your package manager and operating system.
+This release targets GNOME Shell 49–51; older versions are not listed because their API compatibility is outside this release's supported and tested scope. If you use GNOME Shell 45–48, do not assume this version is compatible: use a release that explicitly supports your Shell version, if available, or wait for support to be added. The default DNF, security, and reboot checks are Fedora-oriented. On other distributions, configure commands suitable for your package manager and operating system.
 
 ## Install
 
