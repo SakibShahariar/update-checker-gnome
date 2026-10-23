@@ -1,7 +1,7 @@
 {
   "uuid": "update-checker@SakibShahariar.github.io",
-  "name": "Update Checker",
-  "description": "Periodically checks for pending system updates (DNF, Flatpak, and any other sources you configure) and shows the count in the top panel. Click the icon for a breakdown, or to launch your own update script.",
+  "name": "Update Checker for Fedora",
+  "description": "Monitors pending Fedora system updates with DNF by default, plus Flatpak and any additional sources you configure. Shows update counts in the GNOME top panel and can launch your update script.",
   "shell-version": [
     "49",
     "50",
