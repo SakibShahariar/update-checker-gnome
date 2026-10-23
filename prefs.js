@@ -5,6 +5,17 @@ import Gdk from 'gi://Gdk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+function isHighImpactCommand(command) {
+    const text = command.trim();
+    if (!text)
+        return false;
+
+    return /\\b(?:sudo|doas|pkexec)\\b/i.test(text) ||
+        /(?:>>?|2>|&>)\\s*\\//.test(text) ||
+        /(?:^|\\s)tee(?:\\s+-[a-zA-Z]+)*\\s+\\//.test(text) ||
+        /\\b(?:rm|mkfs(?:\\.[\\w-]+)?|dd)\\b/i.test(text);
+}
+
 const PRESET_SOURCES = [
     {
         name: 'DNF',
@@ -257,6 +268,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         sourcesPage.add(sourcesGroup);
 
+        const commandWarningBanner = new Adw.Banner({
+            title: 'Review elevated, system-path, or destructive commands before using them.',
+            button_label: 'Dismiss',
+            revealed: false,
+        });
+        commandWarningBanner.connect('button-clicked', () => commandWarningBanner.set_revealed(false));
+
         const rowsBox = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12});
         const sourceRows = [];
         const emptyBanner = new Adw.Banner({
@@ -318,6 +336,32 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 updateBannerVisibility();
                 return;
             }
+
+            // Warn only when a command is being changed/saved, not every time
+            // Preferences opens with an existing elevated preset. The warning
+            // is advisory: saving is never blocked.
+            const savedChecks = new Map(settings.get_strv('sources').map(entry => {
+                const idx = entry.indexOf('|');
+                return idx === -1 ? null : [entry.slice(0, idx).trim(), entry.slice(idx + 1).trim()];
+            }).filter(Boolean));
+            const savedUpdates = new Map(settings.get_strv('source-update-commands').map(entry => {
+                const idx = entry.indexOf('|');
+                return idx === -1 ? null : [entry.slice(0, idx).trim(), entry.slice(idx + 1).trim()];
+            }).filter(Boolean));
+            for (const r of sourceRows) {
+                const name = r.nameEntry.get_text().trim();
+                const command = r.cmdEntry.get_text().trim();
+                const updateCommand = r.updateCmdEntry.get_text().trim();
+                if (!name || !command)
+                    continue;
+                const checkChanged = command !== (savedChecks.get(name) ?? '');
+                const updateChanged = updateCommand !== (savedUpdates.get(name) ?? '');
+                if ((checkChanged && isHighImpactCommand(command)) ||
+                    (updateChanged && isHighImpactCommand(updateCommand))) {
+                    commandWarningBanner.set_revealed(true);
+                }
+            }
+
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
             settings.set_strv('source-intervals', intervalValues);
@@ -583,6 +627,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         addButton.connect('clicked', () => popover.popup());
 
         const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12});
+        box.append(commandWarningBanner);
         box.append(emptyBanner);
         box.append(emptyStatus);
         box.append(scroller);
