@@ -16,6 +16,12 @@
       <description>Show a desktop notification when the total update count goes up.</description>
     </key>
 
+    <key name="notification-snooze-until" type="x">
+      <default>0</default>
+      <summary>Update notification snooze expiry</summary>
+      <description>Unix timestamp after which new-update notifications resume. Zero means no active snooze.</description>
+    </key>
+
     <key name="quiet-hours-enabled" type="b">
       <default>false</default>
       <summary>Suppress notifications during quiet hours</summary>
