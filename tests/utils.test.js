@@ -67,12 +67,12 @@ async function main() {
         'bash.x86_64 5.2.26-3.fc43 updates',
         'kernel-core.x86_64 6.17.12-300.fc43 updates',
         'firefox.x86_64 145.0-1.fc43 updates',
-    ].join('\\n') + '\\n';
+    ].join('\n') + '\n';
     const dnfFixtureResult = classifyResult({
         stdout: dnfFixture, stderr: '', exitStatus: 100, spawnFailed: false, timedOut: false,
     });
     equal(dnfFixtureResult, {
-        status: 'ok', count: 3, message: '', lines: dnfFixture.trim().split('\\n'),
+        status: 'ok', count: 3, message: '', lines: dnfFixture.trim().split('\n'),
     }, 'DNF filtered package rows should count one update per output line');
     equal(filterIgnoredPackages(dnfFixtureResult, ['bash.x86_64']), {
         status: 'ok', count: 2, message: '', lines: [
@@ -84,7 +84,7 @@ async function main() {
     const flatpakFixture = [
         'org.mozilla.firefox stable flathub 145.0',
         'org.gnome.Calculator stable flathub 49.1',
-    ].join('\\n') + '\\n';
+    ].join('\n') + '\n';
     equal(classifyResult({
         stdout: flatpakFixture, stderr: '', exitStatus: 0, spawnFailed: false, timedOut: false,
     }), {
