@@ -103,6 +103,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
+        const compactRows = new Adw.SwitchRow({
+            title: 'Compact source rows',
+            subtitle: 'Focus on counts; hide secondary freshness and progress labels',
+        });
+        compactRows.add_prefix(new Gtk.Image({icon_name: 'view-compact-symbolic', pixel_size: 18}));
+        settings.bind('compact-source-rows', compactRows, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(compactRows);
+
         const ignoredPackagesRow = new Adw.ActionRow({
             title: 'Ignored packages / apps',
             subtitle: 'Comma-separated exact identifiers. Ignored updates are excluded from counts; this can hide security fixes.',

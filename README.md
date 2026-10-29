@@ -12,6 +12,7 @@ Update Checker for Fedora checks package sources on a schedule and shows pending
 - Optional fwupd firmware checks, security-update counts, reboot status, and advisory details.
 - Configurable polling intervals, notifications, quiet hours, ignored package identifiers, and package-database watches.
 - Actionable update notifications (Open / Check now) and persistent notification snooze for 4 hours or until tomorrow at 08:00.
+- Reorder sources with accessible up/down controls and switch between detailed and count-focused compact rows.
 - Quiet hours use local time with whole-hour precision (0–23); equal start and end hours mean notifications are silenced all day. Checks and the panel indicator remain active.
 - Optional battery- and metered-network-aware polling.
 - Terminal or background update actions, plus a configurable update script.
