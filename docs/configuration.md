@@ -17,6 +17,8 @@ Review custom commands before saving them. When a source check or per-source upd
 - **Database watches:** optionally recheck when watched DNF or Flatpak state changes.
 - **Offline handling:** the last known counts are retained while offline and refreshed after reconnecting.
 - **Quiet hours:** start and end are configured in whole local hours (0–23), not minute precision. Setting the same start and end hour means quiet hours last all day. Quiet hours suppress supported notifications; they do not stop checks or hide panel status.
+
+The panel indicator exposes an accessible name that includes the current update count and relevant warning states (checking, source failures, security updates, reboot required, offline, or an update command running). Icon-only actions also have descriptive names and tooltips where applicable.
 - **Notifications:** optionally notify when the total pending-update count increases.
 - **Always show:** keep the panel indicator visible when no updates are pending.
 
