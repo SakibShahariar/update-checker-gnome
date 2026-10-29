@@ -326,10 +326,6 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             subtitle: 'Keep successful daily totals on this device for up to 7 days',
         });
         settings.bind('record-history', recordHistoryRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        recordHistoryRow.connect('notify::active', () => {
-            if (!recordHistoryRow.get_active())
-                settings.set_string('history-json', '[]');
-        });
         historyGroup.add(recordHistoryRow);
         const historyDisplayRows = [];
         let historyEmptyRow = null;
