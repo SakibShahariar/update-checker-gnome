@@ -258,7 +258,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const split = entry.indexOf('|');
                 if (split < 1) continue;
                 const value = entry.slice(split + 1).trim();
-                if (/^\\d+$/.test(value) && Number(value) >= 5)
+                if (/^\d+$/.test(value) && Number(value) >= 5)
                     intervalMap.set(entry.slice(0, split).trim(), Number(value));
             }
             const sourceRows = settings.get_strv('sources').map(entry => {
@@ -296,7 +296,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     report.push(`  Error summary: ${String(detail.error).slice(0, 160)}`);
             }
             try {
-                Gdk.Display.get_default().get_clipboard().set(report.join('\\n'));
+                Gdk.Display.get_default().get_clipboard().set(report.join('\n'));
                 diagnosticsRow.set_subtitle('Diagnostics copied. Review the report before sharing it.');
             } catch (e) {
                 diagnosticsRow.set_subtitle('Could not access the clipboard. Please try again.');
