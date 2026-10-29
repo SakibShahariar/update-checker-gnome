@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
+import GLib from 'gi://GLib';
 
 import {runShell, classifyResult} from './lib/utils.js';
 
@@ -231,6 +232,78 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         watchRow.add_prefix(new Gtk.Image({icon_name: 'view-refresh-symbolic', pixel_size: 18}));
         settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         watchGroup.add(watchRow);
+
+        const diagnosticsGroup = new Adw.PreferencesGroup({
+            title: 'Diagnostics',
+            description: 'Copy a redacted report for bug reports. Source commands and raw command output are never included.',
+        });
+        generalPage.add(diagnosticsGroup);
+        const diagnosticsRow = new Adw.ActionRow({
+            title: 'Troubleshooting report',
+            subtitle: 'Includes source status, intervals, and enabled policies; excludes commands and raw output.',
+        });
+        const copyDiagnosticsButton = new Gtk.Button({
+            label: 'Copy diagnostics',
+            icon_name: 'edit-copy-symbolic',
+            valign: Gtk.Align.CENTER,
+        });
+        copyDiagnosticsButton.connect('clicked', () => {
+            let summary = {};
+            try {
+                summary = JSON.parse(settings.get_string('summary-json') || '{}');
+            } catch (e) {}
+            const globalInterval = settings.get_int('check-interval-minutes');
+            const intervalMap = new Map();
+            for (const entry of settings.get_strv('source-intervals')) {
+                const split = entry.indexOf('|');
+                if (split < 1) continue;
+                const value = entry.slice(split + 1).trim();
+                if (/^\\d+$/.test(value) && Number(value) >= 5)
+                    intervalMap.set(entry.slice(0, split).trim(), Number(value));
+            }
+            const sourceRows = settings.get_strv('sources').map(entry => {
+                const split = entry.indexOf('|');
+                if (split < 1) return null;
+                return {name: entry.slice(0, split).trim()};
+            }).filter(Boolean);
+            const report = [
+                'Update Checker diagnostics',
+                `Extension version: ${this.metadata.version ?? 'unknown'}`,
+                `GNOME Shell version: ${GLib.getenv('GNOME_SHELL_VERSION') || 'unknown'}`,
+                `Last check: ${summary.lastCheck || 'not available'}`,
+                `Total updates: ${Number.isFinite(summary.total) && summary.total >= 0 ? summary.total : 'unknown'}`,
+                `Security updates: ${summary.securityCount ?? 'unknown'}`,
+                `Offline: ${summary.offline === true ? 'yes' : summary.offline === false ? 'no' : 'unknown'}`,
+                `Check busy: ${summary.busy === true ? 'yes' : 'no'}`,
+                `Any check failed: ${summary.failed === true ? 'yes' : 'no'}`,
+                `Reboot required: ${summary.rebootRequired === true ? 'yes' : 'no'}`,
+                `Global check interval: ${globalInterval} minutes`,
+                `Pause on battery policy: ${settings.get_boolean('skip-on-battery') ? 'enabled' : 'disabled'}`,
+                `Pause on metered network policy: ${settings.get_boolean('skip-on-metered') ? 'enabled' : 'disabled'}`,
+                `Quiet hours: ${settings.get_boolean('quiet-hours-enabled') ? 'enabled' : 'disabled'} (${settings.get_int('quiet-hours-start')}:00–${settings.get_int('quiet-hours-end')}:00)`,
+                `Security check enabled: ${settings.get_boolean('check-security-updates') ? 'yes' : 'no'}`,
+                `Reboot check enabled: ${settings.get_boolean('check-reboot-required') ? 'yes' : 'no'}`,
+                '',
+                'Sources (commands and raw output intentionally omitted):',
+            ];
+            for (const source of sourceRows) {
+                const detail = (summary.sources || []).find(item => item.name === source.name) || {};
+                const interval = intervalMap.get(source.name) ?? globalInterval;
+                const lastChecked = detail.lastChecked || 'unknown';
+                const cached = detail.cached ? ', cached' : '';
+                report.push(`- ${source.name}: every ${interval} min; status ${detail.status || 'not checked'}; updates ${detail.count ?? 'unknown'}; last checked ${lastChecked}${cached}`);
+                if (detail.status === 'error' && detail.error)
+                    report.push(`  Error summary: ${String(detail.error).slice(0, 160)}`);
+            }
+            try {
+                Gdk.Display.get_default().get_clipboard().set(report.join('\\n'));
+                diagnosticsRow.set_subtitle('Diagnostics copied. Review the report before sharing it.');
+            } catch (e) {
+                diagnosticsRow.set_subtitle('Could not access the clipboard. Please try again.');
+            }
+        });
+        diagnosticsRow.add_suffix(copyDiagnosticsButton);
+        diagnosticsGroup.add(diagnosticsRow);
 
         // Page 2: Sources — beautiful cards
         const sourcesPage = new Adw.PreferencesPage({
