@@ -7,7 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
 import {setupNetworkWatch} from './lib/network-watch.js';
-import {parseSources, parseIntervals, getPollingIntervalMinutes} from './lib/utils.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes, cancelAllShellCommands} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -156,9 +156,11 @@ export default class UpdateCheckerExtension extends Extension {
             if (entry.tickId)
                 GLib.source_remove(entry.tickId);
         }
-        // Mark destroyed so inflight wait_async/communicate callbacks can bail
+        // Mark destroyed before cancelling so in-flight continuations can
+        // avoid touching widgets/settings that are being torn down.
         if (this._indicator)
             this._indicator._destroyed = true;
+        cancelAllShellCommands();
 
         this._settings = null;
 
