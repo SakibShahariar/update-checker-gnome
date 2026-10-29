@@ -440,6 +440,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 }
             }
 
+            settings.set_strv('disabled-sources', sourceRows
+                .filter(r => !r.enabledCheck.get_active())
+                .map(r => r.nameEntry.get_text().trim())
+                .filter(Boolean));
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
             settings.set_strv('source-intervals', intervalValues);
@@ -487,13 +491,23 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 css_classes: ['flat', 'circular'],
             });
             topRow.append(icon);
+            const enabledCheck = new Gtk.CheckButton({
+                active: !settings.get_strv('disabled-sources').includes(name),
+                tooltip_text: 'Include this source in automatic and manual checks',
+                valign: Gtk.Align.CENTER,
+            });
+            enabledCheck.set_accessible_name('Enable source: ' + (name || 'new source'));
+            topRow.append(enabledCheck);
             topRow.append(nameEntry);
             topRow.append(cmdEntry);
             topRow.append(removeButton);
 
             // live icon update when name changes
             const updateIcon = () => icon.set_from_icon_name(getSourceIcon(nameEntry.get_text().trim()));
-            nameEntry.connect('changed', updateIcon);
+            nameEntry.connect('changed', () => {
+                updateIcon();
+                enabledCheck.set_accessible_name('Enable source: ' + (nameEntry.get_text().trim() || 'new source'));
+            });
 
             const separator = new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, css_classes: ['spacer']});
 
@@ -645,7 +659,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel, enabledCheck};
             sourceRows.push(entry);
 
             intervalSpin.connect('value-changed', saveSources);

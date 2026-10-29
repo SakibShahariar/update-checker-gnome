@@ -132,6 +132,12 @@
       <description>Exact identifiers to exclude from successful source results. The first whitespace-delimited token on each output line is matched. Ignoring packages can hide security updates; use this only for packages you intentionally do not want counted.</description>
     </key>
 
+    <key name="disabled-sources" type="as">
+      <default>[]</default>
+      <summary>Disabled update sources</summary>
+      <description>Source names temporarily excluded from scheduled and manual checks. Their commands and per-source settings are preserved.</description>
+    </key>
+
     <key name="source-intervals" type="as">
       <default>[]</default>
       <summary>Per-source intervals</summary>
