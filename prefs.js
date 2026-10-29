@@ -450,6 +450,31 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateBannerVisibility();
         };
 
+        const updateSourceOrderControls = () => {
+            sourceRows.forEach((entry, index) => {
+                const name = entry.nameEntry.get_text().trim() || 'new source';
+                entry.moveUpButton.set_sensitive(index > 0);
+                entry.moveDownButton.set_sensitive(index < sourceRows.length - 1);
+                entry.moveUpButton.set_accessible_name(`Move ${name} up`);
+                entry.moveDownButton.set_accessible_name(`Move ${name} down`);
+            });
+        };
+
+        const moveSource = (entry, direction) => {
+            const oldIndex = sourceRows.indexOf(entry);
+            const newIndex = oldIndex + direction;
+            if (oldIndex < 0 || newIndex < 0 || newIndex >= sourceRows.length)
+                return;
+            const sibling = direction < 0
+                ? (newIndex === 0 ? null : sourceRows[newIndex - 1].row)
+                : sourceRows[newIndex].row;
+            rowsBox.reorder_child_after(entry.row, sibling);
+            sourceRows.splice(oldIndex, 1);
+            sourceRows.splice(newIndex, 0, entry);
+            saveSources();
+            updateSourceOrderControls();
+        };
+
         const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null) => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
@@ -511,6 +536,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const currentName = nameEntry.get_text().trim() || 'new source';
                 enabledCheck.set_accessible_name('Enable source: ' + currentName);
                 removeButton.set_accessible_name('Remove source: ' + currentName);
+                updateSourceOrderControls();
             });
 
             const separator = new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, css_classes: ['spacer']});
@@ -632,6 +658,18 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
                 margin_start: 12, margin_end: 12, margin_bottom: 12,
             });
+            const moveUpButton = new Gtk.Button({
+                icon_name: 'go-up-symbolic',
+                tooltip_text: 'Move this source earlier in the check order',
+                valign: Gtk.Align.CENTER,
+                css_classes: ['flat', 'circular'],
+            });
+            const moveDownButton = new Gtk.Button({
+                icon_name: 'go-down-symbolic',
+                tooltip_text: 'Move this source later in the check order',
+                valign: Gtk.Align.CENTER,
+                css_classes: ['flat', 'circular'],
+            });
             const intervalLabel = new Gtk.Label({
                 label: 'Every',
                 css_classes: ['dim-label', 'caption'],
@@ -652,6 +690,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 css_classes: ['dim-label', 'caption'],
                 valign: Gtk.Align.CENTER,
             });
+            intervalRow.append(moveUpButton);
+            intervalRow.append(moveDownButton);
             intervalRow.append(intervalLabel);
             intervalRow.append(intervalSpin);
             intervalRow.append(intervalSuffix);
@@ -663,8 +703,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel, enabledCheck};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
             sourceRows.push(entry);
+            moveUpButton.connect('clicked', () => moveSource(entry, -1));
+            moveDownButton.connect('clicked', () => moveSource(entry, 1));
+            updateSourceOrderControls();
 
             intervalSpin.connect('value-changed', saveSources);
             for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
@@ -681,6 +724,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const idx = sourceRows.indexOf(entry);
                 if (idx !== -1)
                     sourceRows.splice(idx, 1);
+                updateSourceOrderControls();
                 saveSources();
                 updateBannerVisibility();
             });
