@@ -3,6 +3,8 @@ import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 
+import {runShell, classifyResult} from './lib/utils.js';
+
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function isHighImpactCommand(command) {
@@ -451,6 +453,87 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             bottomRow.append(updateIconImg);
             bottomRow.append(updateCmdEntry);
 
+            const testRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                spacing: 8,
+                margin_start: 12, margin_end: 12, margin_bottom: 12,
+            });
+            const testButton = new Gtk.Button({
+                label: 'Test command',
+                icon_name: 'system-run-symbolic',
+                tooltip_text: 'Execute this check command once and preview its parsed result',
+                valign: Gtk.Align.CENTER,
+                css_classes: ['flat'],
+            });
+            const testResultLabel = new Gtk.Label({
+                label: 'Not tested',
+                xalign: 0,
+                hexpand: true,
+                wrap: true,
+                selectable: true,
+                css_classes: ['dim-label', 'caption'],
+            });
+            testRow.append(testButton);
+            testRow.append(testResultLabel);
+            testButton.connect('clicked', () => {
+                const candidate = cmdEntry.get_text().trim();
+                if (!candidate) {
+                    testResultLabel.set_text('Enter a check command before testing.');
+                    return;
+                }
+                const risky = isHighImpactCommand(candidate);
+                const dialog = new Adw.MessageDialog({
+                    transient_for: window,
+                    modal: true,
+                    heading: risky ? 'Run this potentially risky command?' : 'Execute this check command?',
+                    body: risky
+                        ? 'This command appears privileged, destructive, or writes to a system path. Testing executes it now as your user, with any privileges explicitly included in the command. Review it carefully before continuing.'
+                        : 'This will execute the current check command once through /bin/sh. Commands can change your system; only test commands you trust. The command is not saved by this action.',
+                });
+                dialog.add_response('cancel', 'Cancel');
+                dialog.add_response('run', risky ? 'Run potentially risky command' : 'Run test');
+                dialog.set_default_response('cancel');
+                dialog.set_close_response('cancel');
+                if (risky)
+                    dialog.set_response_appearance('run', Adw.ResponseAppearance.DESTRUCTIVE);
+                dialog.connect('response', async (dialog_, response) => {
+                    dialog_.close();
+                    if (response !== 'run')
+                        return;
+                    testButton.set_sensitive(false);
+                    testResultLabel.set_text('Testing command…');
+                    try {
+                        const result = await runShell(candidate);
+                        const parsed = classifyResult(result);
+                        const stdoutLines = result.stdout.trim()
+                            ? result.stdout.trim().split('\\n').length : 0;
+                        const state = result.timedOut ? 'Timed out'
+                            : result.spawnFailed ? 'Could not start command'
+                                : parsed.status === 'ok' ? 'Succeeded' : 'Failed';
+                        const lines = [
+                            `${state} · ${parsed.count} update${parsed.count === 1 ? '' : 's'} parsed`,
+                            `Exit status: ${result.exitStatus}`,
+                            `Stdout lines: ${stdoutLines}`,
+                        ];
+                        if (result.stderr.trim())
+                            lines.push('stderr: ' + result.stderr.trim().split('\\n')[0]);
+                        if (parsed.status === 'error')
+                            lines.push('Reason: ' + parsed.message);
+                        else
+                            lines.push('Output accepted as one line per update.');
+                        if (wrapper.get_root())
+                            testResultLabel.set_text(lines.join('\\n'));
+                    } catch (error) {
+                        if (wrapper.get_root())
+                            testResultLabel.set_text('Test failed: ' + String(error));
+                    } finally {
+                        if (wrapper.get_root())
+                            testButton.set_sensitive(true);
+                    }
+                });
+                dialog.present();
+            });
+
             const intervalRow = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
                 margin_start: 12, margin_end: 12, margin_bottom: 12,
@@ -483,15 +566,19 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             wrapper.append(separator);
             wrapper.append(bottomRow);
             wrapper.append(intervalRow);
+            wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel};
             sourceRows.push(entry);
 
             intervalSpin.connect('value-changed', saveSources);
             for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
                 w.connect('activate', saveSources);
-                w.connect('notify::has-focus', widget => { if (!widget.has_focus) saveSources(); });
+                w.connect('notify::has-focus', widget => {
+                    // Moving from the candidate command to Test must not save it.
+                    if (!widget.has_focus && widget !== cmdEntry) saveSources();
+                });
                 w.connect('changed', updateBannerVisibility);
             }
 
