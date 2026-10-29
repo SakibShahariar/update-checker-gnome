@@ -1,6 +1,7 @@
 import System from 'system';
 import {
     runShell,
+    getPollingIntervalMinutes,
     mapPool,
     classifyResult,
     filterIgnoredPackages,
@@ -34,6 +35,17 @@ async function main() {
         {name: 'DNF', command: 'dnf check-update'},
         {name: 'Custom', command: 'printf "a|b"'},
     ], 'source parsing should trim fields, reject malformed entries, and preserve later pipes');
+
+    equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
+        new Map([['DNF', 5], ['Flatpak', 15]])), 5,
+    'scheduler cadence must honor the shortest configured source interval');
+
+    equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
+        new Map([['DNF', 120]])), 60,
+    'global interval remains the maximum polling cadence when source intervals are longer');
+
+    equal(getPollingIntervalMinutes(60, [], new Map()), 60,
+    'scheduler should fall back to the global interval when no sources are configured');
 
     const updateCommands = parseUpdateCommands([
         'DNF|dnf upgrade',

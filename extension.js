@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
 import {setupNetworkWatch} from './lib/network-watch.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -17,6 +18,9 @@ export default class UpdateCheckerExtension extends Extension {
         this._timeoutId = null;
 
         this._scheduleTimer();
+        this._sourceIntervalsChangedId = this._settings.connect(
+            'changed::source-intervals', () => this._scheduleTimer()
+        );
         this._settingsChangedId = this._settings.connect(
             'changed::check-interval-minutes', () => this._scheduleTimer()
         );
@@ -29,6 +33,7 @@ export default class UpdateCheckerExtension extends Extension {
         // in Preferences doesn't leave stale results sitting until the next
         // scheduled poll.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
+            this._scheduleTimer();
             this._indicator?.checkNow(true);
         });
         this._updateCmdsChangedId = this._settings.connect('changed::source-update-commands', () => {
@@ -82,7 +87,10 @@ export default class UpdateCheckerExtension extends Extension {
             GLib.source_remove(this._timeoutId);
             this._timeoutId = null;
         }
-        const minutes = this._settings.get_int('check-interval-minutes');
+        const globalMinutes = this._settings.get_int('check-interval-minutes');
+        const sources = parseSources(this._settings.get_strv('sources'));
+        const intervals = parseIntervals(this._settings.get_strv('source-intervals'));
+        const minutes = getPollingIntervalMinutes(globalMinutes, sources, intervals);
         this._timeoutId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT, minutes * 60, () => {
                 this._indicator.checkNow();
@@ -111,6 +119,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._showZeroChangedId) {
             this._settings.disconnect(this._showZeroChangedId);
             this._showZeroChangedId = null;
+        }
+        if (this._sourceIntervalsChangedId) {
+            this._settings.disconnect(this._sourceIntervalsChangedId);
+            this._sourceIntervalsChangedId = null;
         }
         if (this._sourcesChangedId) {
             this._settings.disconnect(this._sourcesChangedId);
