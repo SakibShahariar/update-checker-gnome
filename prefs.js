@@ -450,7 +450,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateBannerVisibility();
         };
 
-        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null) => {
+        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null) => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
                 spacing: 0,
@@ -493,7 +493,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             });
             topRow.append(icon);
             const enabledCheck = new Gtk.CheckButton({
-                active: !settings.get_strv('disabled-sources').includes(name),
+                active: enabled ?? !settings.get_strv('disabled-sources').includes(name),
                 tooltip_text: 'Include this source in automatic and manual checks',
                 valign: Gtk.Align.CENTER,
             });
@@ -736,6 +736,157 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         addButton.set_icon_name('list-add-symbolic');
 
+        const sourceTransferRow = new Gtk.Box({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            spacing: 8,
+            halign: Gtk.Align.CENTER,
+            margin_top: 8,
+            margin_bottom: 8,
+        });
+        const exportSourcesButton = new Gtk.Button({
+            label: 'Export Sources',
+            icon_name: 'document-save-symbolic',
+            tooltip_text: 'Export source commands, per-source intervals, and enabled states to a JSON file.',
+        });
+        const importSourcesButton = new Gtk.Button({
+            label: 'Import Sources',
+            icon_name: 'document-open-symbolic',
+            tooltip_text: 'Validate a JSON source backup before replacing the current source list.',
+        });
+        sourceTransferRow.append(exportSourcesButton);
+        sourceTransferRow.append(importSourcesButton);
+
+        const sourceTransferStatus = new Gtk.Label({
+            label: 'Back up or restore source commands and per-source settings.',
+            wrap: true,
+            xalign: 0,
+            css_classes: ['dim-label', 'caption'],
+        });
+        sourceTransferStatus.set_max_width_chars(72);
+
+        exportSourcesButton.connect('clicked', () => {
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Export Update Checker Sources',
+                action: Gtk.FileChooserAction.SAVE,
+                transient_for: window,
+                modal: true,
+                accept_label: 'Export',
+                cancel_label: 'Cancel',
+            });
+            chooser.set_current_name('update-checker-sources.json');
+            chooser.connect('response', (dlg, response) => {
+                if (response !== Gtk.ResponseType.ACCEPT) {
+                    dlg.destroy();
+                    return;
+                }
+                try {
+                    const path = dlg.get_file()?.get_path();
+                    if (!path)
+                        throw new Error('Choose a local file path.');
+                    const payload = {
+                        format: 'update-checker-sources',
+                        version: 1,
+                        exportedAt: new Date().toISOString(),
+                        sources: sourceRows.map(r => ({
+                            name: r.nameEntry.get_text().trim(),
+                            command: r.cmdEntry.get_text().trim(),
+                            updateCommand: r.updateCmdEntry.get_text().trim(),
+                            intervalMinutes: Math.round(r.intervalSpin.get_value()),
+                            enabled: r.enabledCheck.get_active(),
+                        })).filter(s => s.name && s.command),
+                    };
+                    GLib.file_set_contents(path, JSON.stringify(payload, null, 2) + '\\n');
+                    sourceTransferStatus.set_text(`Exported ${payload.sources.length} source(s).`);
+                } catch (error) {
+                    sourceTransferStatus.set_text('Export failed: ' + String(error.message ?? error));
+                } finally {
+                    dlg.destroy();
+                }
+            });
+            chooser.show();
+        });
+
+        importSourcesButton.connect('clicked', () => {
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Import Update Checker Sources',
+                action: Gtk.FileChooserAction.OPEN,
+                transient_for: window,
+                modal: true,
+                accept_label: 'Validate',
+                cancel_label: 'Cancel',
+            });
+            chooser.connect('response', (dlg, response) => {
+                if (response !== Gtk.ResponseType.ACCEPT) {
+                    dlg.destroy();
+                    return;
+                }
+                let imported;
+                try {
+                    const path = dlg.get_file()?.get_path();
+                    if (!path)
+                        throw new Error('Choose a local JSON file.');
+                    const [ok, bytes] = GLib.file_get_contents(path);
+                    if (!ok)
+                        throw new Error('Could not read the selected file.');
+                    const payload = JSON.parse(new TextDecoder().decode(bytes));
+                    if (payload?.format !== 'update-checker-sources' || payload.version !== 1 ||
+                        !Array.isArray(payload.sources) || payload.sources.length > 100)
+                        throw new Error('Unsupported backup format or source count (maximum 100).');
+                    const names = new Set();
+                    imported = payload.sources.map((source, index) => {
+                        if (!source || typeof source.name !== 'string' ||
+                            typeof source.command !== 'string' ||
+                            typeof (source.updateCommand ?? '') !== 'string')
+                            throw new Error(`Source ${index + 1} has invalid fields.`);
+                        const name = source.name.trim();
+                        const command = source.command.trim();
+                        const updateCommand = (source.updateCommand ?? '').trim();
+                        const interval = source.intervalMinutes ?? settings.get_int('check-interval-minutes');
+                        if (!name || name.includes('|') || !command)
+                            throw new Error(`Source ${index + 1} needs a name and check command; names cannot contain |.`);
+                        if (names.has(name))
+                            throw new Error(`Duplicate source name: ${name}`);
+                        names.add(name);
+                        if (!Number.isSafeInteger(interval) || interval < 5 || interval > 1440)
+                            throw new Error(`Source “${name}” has an invalid interval (5–1440 minutes required).`);
+                        if (source.enabled !== undefined && typeof source.enabled !== 'boolean')
+                            throw new Error(`Source “${name}” has an invalid enabled flag.`);
+                        return {name, command, updateCommand, interval, enabled: source.enabled !== false};
+                    });
+                } catch (error) {
+                    sourceTransferStatus.set_text('Import rejected: ' + String(error.message ?? error));
+                    dlg.destroy();
+                    return;
+                }
+                dlg.destroy();
+                const confirm = new Adw.MessageDialog({
+                    transient_for: window,
+                    modal: true,
+                    heading: 'Replace configured sources?',
+                    body: `The validated backup contains ${imported.length} source(s). Import replaces the current source list, commands, intervals, and enabled states. Exported commands may contain sensitive paths or arguments; keep the backup private.`,
+                });
+                confirm.add_response('cancel', 'Cancel');
+                confirm.add_response('replace', 'Replace Sources');
+                confirm.set_default_response('cancel');
+                confirm.set_close_response('cancel');
+                confirm.set_response_appearance('replace', Adw.ResponseAppearance.DESTRUCTIVE);
+                confirm.connect('response', (dialog, response) => {
+                    dialog.close();
+                    if (response !== 'replace')
+                        return;
+                    for (const entry of [...sourceRows])
+                        rowsBox.remove(entry.row);
+                    sourceRows.splice(0, sourceRows.length);
+                    for (const source of imported)
+                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled);
+                    saveSources();
+                    sourceTransferStatus.set_text(`Imported ${imported.length} source(s).`);
+                });
+                confirm.present();
+            });
+            chooser.show();
+        });
+
         const buildPopoverContent = () => {
             const existingNames = new Set(sourceRows.map(r => r.nameEntry.get_text().trim()));
 
@@ -813,6 +964,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         box.append(emptyStatus);
         box.append(scroller);
         box.append(addButton);
+        box.append(sourceTransferRow);
+        box.append(sourceTransferStatus);
         updateBannerVisibility();
 
         sourcesGroup.add(box);
