@@ -736,6 +736,57 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         addButton.set_icon_name('list-add-symbolic');
 
+        const detectSourcesButton = new Gtk.Button({
+            label: 'Detect Installed Sources',
+            icon_name: 'system-search-symbolic',
+            tooltip_text: 'Suggest source presets only when their required tools are installed. Existing sources are not replaced.',
+            halign: Gtk.Align.CENTER,
+        });
+        detectSourcesButton.connect('clicked', () => {
+            const requirements = new Map([
+                ['DNF', ['dnf']],
+                ['Flatpak', ['flatpak']],
+                ['Firmware (fwupd)', ['fwupdmgr', 'jq']],
+                ['Cargo', ['cargo', 'cargo-install-update']],
+                ['npm (global)', ['npm']],
+                ['uv tools', ['uv']],
+            ]);
+            const existing = new Set(sourceRows
+                .map(r => r.nameEntry.get_text().trim().toLowerCase())
+                .filter(Boolean));
+            const detected = PRESET_SOURCES.filter(preset => {
+                if (existing.has(preset.name.toLowerCase()))
+                    return false;
+                const tools = requirements.get(preset.name) ?? [];
+                return tools.length > 0 && tools.every(tool => !!GLib.find_program_in_path(tool));
+            });
+            if (detected.length === 0) {
+                sourceTransferStatus.set_text('No missing presets detected. Install a supported tool or use Add Source for a custom command.');
+                return;
+            }
+            const names = detected.map(preset => preset.name).join(', ');
+            const confirm = new Adw.MessageDialog({
+                transient_for: window,
+                modal: true,
+                heading: 'Add detected source presets?',
+                body: `Detected installed tools for: ${names}. This adds only missing presets; it will not replace or modify your existing sources. Review every command after adding it.`,
+            });
+            confirm.add_response('cancel', 'Cancel');
+            confirm.add_response('add', 'Add Sources');
+            confirm.set_default_response('cancel');
+            confirm.set_close_response('cancel');
+            confirm.connect('response', (dialog, response) => {
+                dialog.close();
+                if (response !== 'add')
+                    return;
+                for (const preset of detected)
+                    addSourceRow(preset.name, preset.command, preset.updateCommand, preset.interval, true);
+                saveSources();
+                sourceTransferStatus.set_text(`Added ${detected.length} detected preset(s): ${names}.`);
+            });
+            confirm.present();
+        });
+
         const sourceTransferRow = new Gtk.Box({
             orientation: Gtk.Orientation.HORIZONTAL,
             spacing: 8,
@@ -941,6 +992,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         box.append(emptyStatus);
         box.append(scroller);
         box.append(addButton);
+        box.append(detectSourcesButton);
         box.append(sourceTransferRow);
         box.append(sourceTransferStatus);
         updateBannerVisibility();
