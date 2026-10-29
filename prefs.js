@@ -193,7 +193,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
         permGroup.add(permRow);
 
-        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Uses your local clock in whole-hour increments. Start and end are inclusive of the selected hour; equal values mean all day. Notifications are silenced, but the icon and update checks stay active.'});
+        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Uses your local clock in whole-hour increments. The start hour is included and the end hour is excluded; equal values mean all day. Notifications are silenced, but the icon and update checks stay active.'});
         generalPage.add(quietGroup);
 
         const quietEnabledRow = new Adw.SwitchRow({
