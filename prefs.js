@@ -193,7 +193,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
         permGroup.add(permRow);
 
-        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Silence popups, keep icon live.'});
+        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Uses your local clock in whole-hour increments. Start and end are inclusive of the selected hour; equal values mean all day. Notifications are silenced, but the icon and update checks stay active.'});
         generalPage.add(quietGroup);
 
         const quietEnabledRow = new Adw.SwitchRow({
@@ -508,7 +508,9 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const updateIcon = () => icon.set_from_icon_name(getSourceIcon(nameEntry.get_text().trim()));
             nameEntry.connect('changed', () => {
                 updateIcon();
-                enabledCheck.set_accessible_name('Enable source: ' + (nameEntry.get_text().trim() || 'new source'));
+                const currentName = nameEntry.get_text().trim() || 'new source';
+                enabledCheck.set_accessible_name('Enable source: ' + currentName);
+                removeButton.set_accessible_name('Remove source: ' + currentName);
             });
 
             const separator = new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, css_classes: ['spacer']});
