@@ -88,7 +88,7 @@ async function main() {
     equal(classifyResult({
         stdout: flatpakFixture, stderr: '', exitStatus: 0, spawnFailed: false, timedOut: false,
     }), {
-        status: 'ok', count: 2, message: '', lines: flatpakFixture.trim().split('\\n'),
+        status: 'ok', count: 2, message: '', lines: flatpakFixture.trim().split('\n'),
     }, 'Flatpak remote-ls update rows should count one app per output line');
 
     equal(classifyResult({
