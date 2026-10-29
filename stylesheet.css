@@ -259,3 +259,10 @@
 .update-checker-menu .popup-menu-item:focus {
     background-color: rgba(42, 42, 43, 0.85); /* surface_container_high @ 85% — Matugen */
 }
+
+/* Keep keyboard focus distinct from the ordinary hover fill. The inset ring
+   remains visible on icon-only buttons as well as stock popup-menu actions. */
+.update-checker-menu .popup-menu-item:focus,
+.update-checker-menu StButton:focus {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
