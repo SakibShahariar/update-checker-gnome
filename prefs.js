@@ -486,6 +486,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             cmdEntry.set_tooltip_text('Prints one line per pending update');
             const removeButton = new Gtk.Button({
                 icon_name: 'user-trash-symbolic',
+                accessible_name: 'Remove source: ' + (name || 'new source'),
                 tooltip_text: 'Remove this source',
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat', 'circular'],
@@ -879,8 +880,9 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const browseButton = new Gtk.Button({
             icon_name: 'document-open-symbolic',
+            accessible_name: 'Browse for update script',
             valign: Gtk.Align.CENTER,
-            tooltip_text: 'Browse...',
+            tooltip_text: 'Browse for update script',
         });
         browseButton.connect('clicked', () => {
             const chooser = new Gtk.FileChooserNative({
