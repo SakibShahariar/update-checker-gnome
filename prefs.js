@@ -506,7 +506,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                         const result = await runShell(candidate);
                         const parsed = classifyResult(result);
                         const stdoutLines = result.stdout.trim()
-                            ? result.stdout.trim().split('\\n').length : 0;
+                            ? result.stdout.trim().split('\n').length : 0;
                         const state = result.timedOut ? 'Timed out'
                             : result.spawnFailed ? 'Could not start command'
                                 : parsed.status === 'ok' ? 'Succeeded' : 'Failed';
@@ -516,13 +516,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                             `Stdout lines: ${stdoutLines}`,
                         ];
                         if (result.stderr.trim())
-                            lines.push('stderr: ' + result.stderr.trim().split('\\n')[0]);
+                            lines.push('stderr: ' + result.stderr.trim().split('\n')[0]);
                         if (parsed.status === 'error')
                             lines.push('Reason: ' + parsed.message);
                         else
                             lines.push('Output accepted as one line per update.');
                         if (wrapper.get_root())
-                            testResultLabel.set_text(lines.join('\\n'));
+                            testResultLabel.set_text(lines.join('\n'));
                     } catch (error) {
                         if (wrapper.get_root())
                             testResultLabel.set_text('Test failed: ' + String(error));
