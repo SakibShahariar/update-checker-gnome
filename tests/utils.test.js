@@ -61,6 +61,36 @@ async function main() {
         [['DNF', 60], ['Cargo', 1440]],
         'interval parsing should reject malformed and too-short intervals');
 
+    // Representative one-line-per-update output from the default DNF filter
+    // and Flatpak remote-ls command. These fixtures model filtered stdout.
+    const dnfFixture = [
+        'bash.x86_64 5.2.26-3.fc43 updates',
+        'kernel-core.x86_64 6.17.12-300.fc43 updates',
+        'firefox.x86_64 145.0-1.fc43 updates',
+    ].join('\\n') + '\\n';
+    const dnfFixtureResult = classifyResult({
+        stdout: dnfFixture, stderr: '', exitStatus: 100, spawnFailed: false, timedOut: false,
+    });
+    equal(dnfFixtureResult, {
+        status: 'ok', count: 3, message: '', lines: dnfFixture.trim().split('\\n'),
+    }, 'DNF filtered package rows should count one update per output line');
+    equal(filterIgnoredPackages(dnfFixtureResult, ['bash.x86_64']), {
+        status: 'ok', count: 2, message: '', lines: [
+            'kernel-core.x86_64 6.17.12-300.fc43 updates',
+            'firefox.x86_64 145.0-1.fc43 updates',
+        ],
+    }, 'ignoring a DNF package should remove only its exact first-token identifier and recalculate count');
+
+    const flatpakFixture = [
+        'org.mozilla.firefox stable flathub 145.0',
+        'org.gnome.Calculator stable flathub 49.1',
+    ].join('\\n') + '\\n';
+    equal(classifyResult({
+        stdout: flatpakFixture, stderr: '', exitStatus: 0, spawnFailed: false, timedOut: false,
+    }), {
+        status: 'ok', count: 2, message: '', lines: flatpakFixture.trim().split('\\n'),
+    }, 'Flatpak remote-ls update rows should count one app per output line');
+
     equal(classifyResult({
         stdout: '\u001b[32mfoo\u001b[0m\nbar\n',
         stderr: '',

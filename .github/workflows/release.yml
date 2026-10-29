@@ -20,7 +20,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev-bin
 
       - name: Syntax check
-        run: node --check extension.js && node --check prefs.js && node --check lib/utils.js && node --check lib/theming.js
+        run: node --check extension.js && node --check prefs.js && node --check lib/indicator.js && node --check lib/checks.js && node --check lib/updates.js && node --check lib/network-watch.js && node --check lib/utils.js && node --check lib/motion.js && node --check lib/theming.js && node --check tests/utils.test.js
+
+      - name: Run utility regression tests
+        run: gjs -m tests/utils.test.js
 
       - name: Compile schema
         run: glib-compile-schemas schemas/
