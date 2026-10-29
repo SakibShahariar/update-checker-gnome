@@ -331,13 +331,32 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 settings.set_string('history-json', '[]');
         });
         historyGroup.add(recordHistoryRow);
+        const historyDisplayRows = [];
+        let historyEmptyRow = null;
+        const clearHistoryDisplay = () => {
+            for (const row of historyDisplayRows)
+                historyGroup.remove(row);
+            historyDisplayRows.splice(0, historyDisplayRows.length);
+            if (!historyEmptyRow) {
+                historyEmptyRow = new Adw.ActionRow({
+                    title: 'No recent successful checks',
+                    subtitle: 'History appears after a fresh check completes successfully.',
+                });
+                historyGroup.add(historyEmptyRow);
+            }
+        };
+        recordHistoryRow.connect('notify::active', () => {
+            if (!recordHistoryRow.get_active()) {
+                settings.set_string('history-json', '[]');
+                clearHistoryDisplay();
+            }
+        });
 
-        
         let historyEntries = [];
         try {
             historyEntries = JSON.parse(settings.get_string('history-json') || '[]');
         } catch (e) {}
-        if (!Array.isArray(historyEntries))
+        if (!Array.isArray(historyEntries) || !settings.get_boolean('record-history'))
             historyEntries = [];
         historyEntries = historyEntries
             .filter(entry => entry && typeof entry.date === 'string' &&
@@ -345,10 +364,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
             .slice(0, 7);
         if (historyEntries.length === 0) {
-            historyGroup.add(new Adw.ActionRow({
+            historyEmptyRow = new Adw.ActionRow({
                 title: 'No recent successful checks',
                 subtitle: 'History appears after a fresh check completes successfully.',
-            }));
+            });
+            historyGroup.add(historyEmptyRow);
         } else {
             for (const entry of historyEntries) {
                 const perSource = Array.isArray(entry.sources)
@@ -358,10 +378,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const sourceSummary = perSource.length
                     ? perSource.map(source => `${source.name}: ${source.count}`).join(' · ')
                     : 'Per-source totals unavailable';
-                historyGroup.add(new Adw.ActionRow({
+                const historyRow = new Adw.ActionRow({
                     title: `${entry.date} · ${entry.total} update${entry.total === 1 ? '' : 's'}`,
                     subtitle: `${entry.securityCount ?? 0} security · ${sourceSummary}`,
-                }));
+                });
+                historyDisplayRows.push(historyRow);
+                historyGroup.add(historyRow);
             }
         }
 
