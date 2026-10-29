@@ -316,6 +316,43 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         diagnosticsRow.add_suffix(copyDiagnosticsButton);
         diagnosticsGroup.add(diagnosticsRow);
 
+        const historyGroup = new Adw.PreferencesGroup({
+            title: 'Recent Update History',
+            description: 'Successful daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
+        });
+        generalPage.add(historyGroup);
+        let historyEntries = [];
+        try {
+            historyEntries = JSON.parse(settings.get_string('history-json') || '[]');
+        } catch (e) {}
+        if (!Array.isArray(historyEntries))
+            historyEntries = [];
+        historyEntries = historyEntries
+            .filter(entry => entry && typeof entry.date === 'string' &&
+                Number.isSafeInteger(entry.total) && entry.total >= 0)
+            .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+            .slice(0, 7);
+        if (historyEntries.length === 0) {
+            historyGroup.add(new Adw.ActionRow({
+                title: 'No recent successful checks',
+                subtitle: 'History appears after a fresh check completes successfully.',
+            }));
+        } else {
+            for (const entry of historyEntries) {
+                const perSource = Array.isArray(entry.sources)
+                    ? entry.sources.filter(source => source && typeof source.name === 'string' &&
+                        Number.isSafeInteger(source.count) && source.count >= 0)
+                    : [];
+                const sourceSummary = perSource.length
+                    ? perSource.map(source => `${source.name}: ${source.count}`).join(' · ')
+                    : 'Per-source totals unavailable';
+                historyGroup.add(new Adw.ActionRow({
+                    title: `${entry.date} · ${entry.total} update${entry.total === 1 ? '' : 's'}`,
+                    subtitle: `${entry.securityCount ?? 0} security · ${sourceSummary}`,
+                }));
+            }
+        }
+
         // Page 2: Sources — beautiful cards
         const sourcesPage = new Adw.PreferencesPage({
             title: 'Sources',
