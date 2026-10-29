@@ -318,9 +318,21 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const historyGroup = new Adw.PreferencesGroup({
             title: 'Recent Update History',
-            description: 'Successful daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
+            description: 'Optional successful daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
         });
         generalPage.add(historyGroup);
+        const recordHistoryRow = new Adw.SwitchRow({
+            title: 'Record local history',
+            subtitle: 'Keep successful daily totals on this device for up to 7 days',
+        });
+        settings.bind('record-history', recordHistoryRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        recordHistoryRow.connect('notify::active', () => {
+            if (!recordHistoryRow.get_active())
+                settings.set_string('history-json', '[]');
+        });
+        historyGroup.add(recordHistoryRow);
+
+        
         let historyEntries = [];
         try {
             historyEntries = JSON.parse(settings.get_string('history-json') || '[]');

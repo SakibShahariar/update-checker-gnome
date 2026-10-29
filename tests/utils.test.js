@@ -8,6 +8,7 @@ import {
     parseSources,
     parseUpdateCommands,
     parseIntervals,
+    updateDailyHistory,
     validateSourceBackup,
     stripAnsi,
     truncate,
@@ -60,6 +61,24 @@ async function main() {
         try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
         assert(error.includes(expected), `invalid source backup should be rejected: expected "${expected}", got "${error}"`);
     }
+
+    const historyNow = 1_800_000_000;
+    const historyEntry = {
+        date: '2027-01-15', timestamp: historyNow, total: 4, securityCount: 1,
+        sources: [{name: 'DNF', count: 3}, {name: 'Flatpak', count: 1}],
+    };
+    equal(updateDailyHistory([], historyEntry, historyNow), [historyEntry],
+        'daily history should add a successful snapshot');
+    equal(updateDailyHistory([{...historyEntry, total: 2}], historyEntry, historyNow), [historyEntry],
+        'daily history should replace the same date rather than duplicate it');
+    const oldHistory = Array.from({length: 9}, (_, index) => ({
+        date: `2027-01-${String(index + 1).padStart(2, '0')}`,
+        timestamp: historyNow - (9 - index) * 24 * 60 * 60,
+        total: index, sources: [],
+    }));
+    const prunedHistory = updateDailyHistory(oldHistory, historyEntry, historyNow);
+    assert(prunedHistory.length <= 7 && prunedHistory.every(item => item.timestamp >= historyNow - 7 * 24 * 60 * 60),
+        'daily history must prune entries older than seven days and remain bounded');
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 5], ['Flatpak', 15]])), 5,

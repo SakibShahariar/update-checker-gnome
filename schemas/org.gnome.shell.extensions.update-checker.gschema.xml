@@ -138,6 +138,12 @@
       <description>Exact identifiers to exclude from successful source results. The first whitespace-delimited token on each output line is matched. Ignoring packages can hide security updates; use this only for packages you intentionally do not want counted.</description>
     </key>
 
+    <key name="record-history" type="b">
+      <default>true</default>
+      <summary>Record local update history</summary>
+      <description>Store successful daily update totals locally for up to seven days.</description>
+    </key>
+
     <key name="history-json" type="s">
       <default>'[]'</default>
       <summary>Local recent update history</summary>
