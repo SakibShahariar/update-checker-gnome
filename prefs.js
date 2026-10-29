@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -829,30 +829,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     if (!ok)
                         throw new Error('Could not read the selected file.');
                     const payload = JSON.parse(new TextDecoder().decode(bytes));
-                    if (payload?.format !== 'update-checker-sources' || payload.version !== 1 ||
-                        !Array.isArray(payload.sources) || payload.sources.length > 100)
-                        throw new Error('Unsupported backup format or source count (maximum 100).');
-                    const names = new Set();
-                    imported = payload.sources.map((source, index) => {
-                        if (!source || typeof source.name !== 'string' ||
-                            typeof source.command !== 'string' ||
-                            typeof (source.updateCommand ?? '') !== 'string')
-                            throw new Error(`Source ${index + 1} has invalid fields.`);
-                        const name = source.name.trim();
-                        const command = source.command.trim();
-                        const updateCommand = (source.updateCommand ?? '').trim();
-                        const interval = source.intervalMinutes ?? settings.get_int('check-interval-minutes');
-                        if (!name || name.includes('|') || !command)
-                            throw new Error(`Source ${index + 1} needs a name and check command; names cannot contain |.`);
-                        if (names.has(name))
-                            throw new Error(`Duplicate source name: ${name}`);
-                        names.add(name);
-                        if (!Number.isSafeInteger(interval) || interval < 5 || interval > 1440)
-                            throw new Error(`Source “${name}” has an invalid interval (5–1440 minutes required).`);
-                        if (source.enabled !== undefined && typeof source.enabled !== 'boolean')
-                            throw new Error(`Source “${name}” has an invalid enabled flag.`);
-                        return {name, command, updateCommand, interval, enabled: source.enabled !== false};
-                    });
+                    imported = validateSourceBackup(payload, settings.get_int('check-interval-minutes'));
                 } catch (error) {
                     sourceTransferStatus.set_text('Import rejected: ' + String(error.message ?? error));
                     dlg.destroy();

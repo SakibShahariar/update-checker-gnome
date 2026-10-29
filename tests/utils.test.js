@@ -8,6 +8,7 @@ import {
     parseSources,
     parseUpdateCommands,
     parseIntervals,
+    validateSourceBackup,
     stripAnsi,
     truncate,
     hexToRgba,
@@ -35,6 +36,30 @@ async function main() {
         {name: 'DNF', command: 'dnf check-update'},
         {name: 'Custom', command: 'printf "a|b"'},
     ], 'source parsing should trim fields, reject malformed entries, and preserve later pipes');
+
+    equal(validateSourceBackup({
+        format: 'update-checker-sources',
+        version: 1,
+        sources: [
+            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, enabled: false},
+            {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
+        ],
+    }, 60), [
+        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, enabled: false},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, enabled: true},
+    ], 'source backup validation should normalize fields and preserve per-source options');
+
+    for (const [payload, expected] of [
+        [{format: 'other', version: 1, sources: []}, 'Unsupported backup format'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf'}, {name: 'DNF', command: 'dnf'}]}, 'Duplicate source name'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'Bad|Name', command: 'dnf'}]}, 'names cannot contain'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', intervalMinutes: 4}]}, 'invalid interval'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', enabled: 'no'}]}, 'invalid enabled flag'],
+    ]) {
+        let error = '';
+        try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
+        assert(error.includes(expected), `invalid source backup should be rejected: expected "${expected}", got "${error}"`);
+    }
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 5], ['Flatpak', 15]])), 5,
