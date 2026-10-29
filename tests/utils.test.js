@@ -58,6 +58,33 @@ async function main() {
     }), {status: 'ok', count: 2, message: '', lines: ['foo', 'bar']},
     'non-zero package-manager status with output should still count updates');
 
+    equal(classifyResult({
+        stdout: 'partial update list\\n',
+        stderr: 'repository metadata download failed',
+        exitStatus: 2,
+        spawnFailed: false,
+        timedOut: false,
+    }), {status: 'error', count: 0, message: 'repository metadata download failed', lines: []},
+    'partial stdout from a failed command must not be counted as pending updates');
+
+    equal(classifyResult({
+        stdout: 'partial update list\\n',
+        stderr: '',
+        exitStatus: 2,
+        spawnFailed: false,
+        timedOut: false,
+    }), {status: 'error', count: 0, message: 'Command exited with status 2 after producing output', lines: []},
+    'failed commands without stderr must still not make partial stdout look successful');
+
+    equal(classifyResult({
+        stdout: '',
+        stderr: '',
+        exitStatus: 1,
+        spawnFailed: false,
+        timedOut: false,
+    }), {status: 'ok', count: 0, message: '', lines: []},
+    'empty no-match results remain valid for commands that use status 1 for no matches');
+
     equal(filterIgnoredPackages(
         {status: 'ok', count: 3, message: '', lines: ['firefox.x86_64 1 2', 'org.example.App stable 2', 'kernel-core.x86_64 3 4']},
         ['firefox.x86_64', 'org.example.App']
