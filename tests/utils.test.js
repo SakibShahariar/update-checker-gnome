@@ -56,6 +56,10 @@ function testSummarySnapshot() {
         'summary must not retain raw secrets or usernames');
     assert(redactSummaryError('authorization: Bearer123').includes('[REDACTED]'),
         'summary should redact authorization values');
+    const bearerError = redactSummaryError('authorization: Bearer abc.def.ghi');
+    assert(bearerError.includes('authorization=[REDACTED]') &&
+        !bearerError.includes('abc.def.ghi'),
+        'summary should redact the full bearer credential, not only the Bearer scheme');
 }
 
 testSummarySnapshot();
