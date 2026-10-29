@@ -795,7 +795,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                             enabled: r.enabledCheck.get_active(),
                         })).filter(s => s.name && s.command),
                     };
-                    GLib.file_set_contents(path, JSON.stringify(payload, null, 2) + '\\n');
+                    GLib.file_set_contents(path, JSON.stringify(payload, null, 2) + '\n');
                     sourceTransferStatus.set_text(`Exported ${payload.sources.length} source(s).`);
                 } catch (error) {
                     sourceTransferStatus.set_text('Export failed: ' + String(error.message ?? error));
