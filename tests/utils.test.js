@@ -9,6 +9,7 @@ import {
     parseUpdateCommands,
     parseIntervals,
     updateDailyHistory,
+    getUpdatableSources,
     validateSourceBackup,
     stripAnsi,
     truncate,
@@ -79,6 +80,21 @@ async function main() {
     const prunedHistory = updateDailyHistory(oldHistory, historyEntry, historyNow);
     assert(prunedHistory.length <= 7 && prunedHistory.every(item => item.timestamp >= historyNow - 7 * 24 * 60 * 60),
         'daily history must prune entries older than seven days and remain bounded');
+
+    equal(getUpdatableSources(
+        [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}, {name: 'Broken'}, {name: 'Checking'}],
+        [
+            {name: 'DNF', status: 'ok', count: 2},
+            {name: 'Flatpak', status: 'ok', count: 0},
+            {name: 'Cargo', status: 'ok', count: 1},
+            {name: 'Broken', status: 'error', count: 0},
+            {name: 'Checking', status: 'ok', count: 3, checking: true},
+        ],
+        new Map([['DNF', 'dnf upgrade'], ['Cargo', 'cargo install-update -a'], ['Broken', 'broken update'], ['Checking', 'check update']])
+    ), [
+        {name: 'DNF', command: 'dnf upgrade'},
+        {name: 'Cargo', command: 'cargo install-update -a'},
+    ], 'Update all selection should skip zero-count, failed, checking, and commandless sources');
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 5], ['Flatpak', 15]])), 5,
