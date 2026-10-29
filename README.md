@@ -8,6 +8,8 @@ Update Checker for Fedora checks package sources on a schedule and shows pending
 
 ## Features
 
+The machine-readable `summary-json` GSettings snapshot has a versioned schema. Source error text is redacted and truncated; commands and raw standard output are not included.
+
 - DNF and Flatpak sources by default, with custom commands for other package managers and tools.
 - Optional fwupd firmware checks, security-update counts, reboot status, and advisory details.
 - Configurable polling intervals, notifications, quiet hours, ignored package identifiers, and package-database watches.

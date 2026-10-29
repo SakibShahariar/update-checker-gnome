@@ -1,4 +1,5 @@
 import System from 'system';
+import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
     getPollingIntervalMinutes,
@@ -26,6 +27,38 @@ function equal(actual, expected, message) {
     assert(JSON.stringify(actual) === JSON.stringify(expected),
         `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
+
+function testSummarySnapshot() {
+    const checkedAt = Date.parse('2026-10-29T12:30:00.000Z');
+    const snapshot = buildSummarySnapshot({
+        results: [
+            {name: 'DNF', status: 'ok', count: 2, cached: false},
+            {name: 'Flatpak', status: 'error', count: 0, cached: true,
+                message: 'token=secret-value /home/alice/.config/app'},
+        ],
+        sourcePolls: new Map([['DNF', checkedAt]]),
+        total: 2, securityCount: 1, lastCheck: '12:30',
+        busy: false, rebootRequired: true, offline: false,
+        onBattery: true, networkMetered: false, quietHoursActive: true, failed: true,
+    });
+    equal(snapshot.version, 1, 'summary schema version should remain stable');
+    equal(snapshot.total, 2, 'summary should preserve total count');
+    equal(snapshot.securityCount, 1, 'summary should preserve security count');
+    equal(snapshot.sources[0].lastChecked, '2026-10-29T12:30:00.000Z',
+        'summary should serialize last-check timestamps as ISO strings');
+    equal(snapshot.sources[0].error, '', 'successful sources should not publish error text');
+    assert(snapshot.sources[1].error.includes('token=[REDACTED]'),
+        'summary should redact token-like values');
+    assert(snapshot.sources[1].error.includes('/home/[USER]'),
+        'summary should redact home directory names');
+    assert(!snapshot.sources[1].error.includes('secret-value') &&
+        !snapshot.sources[1].error.includes('/home/alice'),
+        'summary must not retain raw secrets or usernames');
+    assert(redactSummaryError('authorization: Bearer123').includes('[REDACTED]'),
+        'summary should redact authorization values');
+}
+
+testSummarySnapshot();
 
 async function main() {
     equal(parseSources([
