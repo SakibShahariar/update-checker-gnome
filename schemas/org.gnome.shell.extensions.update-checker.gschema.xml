@@ -109,7 +109,7 @@
     </key>
 
     <key name="terminal-command" type="s">
-      <default>'gnome-terminal --'</default>
+      <default>'gnome-terminal --wait --'</default>
       <summary>Terminal launcher command</summary>
       <description>Command prefix used to open a terminal to run the update script interactively (so password prompts work). Adjust if you don't use GNOME Terminal, e.g. 'kgx --' or 'konsole -e'.</description>
     </key>
