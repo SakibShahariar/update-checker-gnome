@@ -497,6 +497,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
             });
             enabledCheck.set_accessible_name('Enable source: ' + (name || 'new source'));
+            enabledCheck.connect('toggled', () => saveSources());
             topRow.append(enabledCheck);
             topRow.append(nameEntry);
             topRow.append(cmdEntry);
