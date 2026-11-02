@@ -67,6 +67,8 @@ function testDiagnosticsReport() {
     const detailed = buildDiagnosticsReport({...common, includeSourceDetails: true});
     assert(detailed.includes('- DNF: every 30 min; status error; updates 0'),
         'opt-in diagnostics should include per-source status, interval, and count');
+    assert(detailed.includes('\\nSources') === false && detailed.includes('\nSources'),
+        'diagnostics report should use readable newline-separated sections');
     assert(detailed.includes('Error summary: token=[REDACTED]'),
         'opt-in diagnostics should include the already-redacted failure summary');
     assert(!detailed.includes('dnf check-update'),
@@ -151,6 +153,7 @@ function testSummarySnapshot() {
         'summary should preserve useful non-secret diagnostic values');
 }
 
+testDiagnosticsReport();
 testSummarySnapshot();
 
 async function main() {
