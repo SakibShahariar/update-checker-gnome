@@ -4,6 +4,7 @@ import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
+    classifySubprocessExit,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
     parseSourceTimeouts,
@@ -121,6 +122,18 @@ function testSummarySnapshot() {
 testSummarySnapshot();
 
 async function main() {
+    equal(classifySubprocessExit({exited: true, exitStatus: 0}),
+        {status: 'success', exitStatus: 0},
+        'terminal process completion should distinguish a successful command');
+    equal(classifySubprocessExit({exited: true, exitStatus: 7}),
+        {status: 'failed', exitStatus: 7},
+        'terminal process completion should preserve non-zero command exit status');
+    equal(classifySubprocessExit({signaled: true, termSignal: 15}),
+        {status: 'signaled', termSignal: 15},
+        'terminal process completion should identify signal termination');
+    equal(classifySubprocessExit(), {status: 'unknown'},
+        'terminal process completion should remain unknown when the launcher exposes no outcome');
+
     for (const command of [
         'doas dnf upgrade -y && flatpak update -y',
         'sudo dnf upgrade -y; npm update',
