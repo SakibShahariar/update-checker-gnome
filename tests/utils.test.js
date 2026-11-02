@@ -7,6 +7,9 @@ import {
     createDebouncer,
     resolveCommandExecutionPaths,
     getElapsedSeconds,
+    parsePackageOutputLine,
+    parseSourceOutputFormats,
+    isValidSourceOutputFormat,
     classifySubprocessExit,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
@@ -204,6 +207,36 @@ async function main() {
         'elapsed display should never become negative');
     equal(getElapsedSeconds(NaN, 1000000), 0,
         'invalid monotonic timestamps should fail safely');
+
+    equal(parsePackageOutputLine('pkg 1.0 2.0'), {name: 'pkg', version: '2.0'},
+        'auto parser must preserve the previous name/version behavior');
+    equal(parsePackageOutputLine('bash.x86_64 5.2.26-3.fc43 updates', 'dnf'),
+        {name: 'bash.x86_64', version: '5.2.26-3.fc43'},
+        'DNF parser should select the package and available version columns');
+    equal(parsePackageOutputLine('org.mozilla.firefox stable flathub 145.0', 'flatpak'),
+        {name: 'org.mozilla.firefox', version: '145.0'},
+        'Flatpak parser should skip branch and remote columns');
+    equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
+        {name: 'vite', version: '6.0.1'},
+        'npm outdated parser should select the latest version column');
+    equal(parsePackageOutputLine('serde serde 1.0.200 1.0.210 library', 'cargo'),
+        {name: 'serde', version: '1.0.210'},
+        'Cargo outdated parser should select the latest version column');
+    equal(parsePackageOutputLine('black v24.3.0 (latest: v24.4.2)', 'uv'),
+        {name: 'black', version: 'v24.4.2'},
+        'uv parser should select the explicit latest version');
+    equal(parsePackageOutputLine('1.2.3 stable org.example.app', 'custom:3:1'),
+        {name: 'org.example.app', version: '1.2.3'},
+        'custom column mapping should support a package name that is not the first token');
+    assert(isValidSourceOutputFormat('custom:3:1') &&
+        !isValidSourceOutputFormat('custom:3:3') &&
+        !isValidSourceOutputFormat('custom:0:2') &&
+        !isValidSourceOutputFormat('unknown'),
+        'invalid custom output mappings and unknown formats should be rejected');
+    equal([...parseSourceOutputFormats([
+        'DNF|dnf', 'Flatpak|flatpak', 'Broken|custom:2:2', 'Unknown|mystery',
+    ])], [['DNF', 'dnf'], ['Flatpak', 'flatpak']],
+    'invalid saved parser settings should be ignored and fall back safely');
 
     testDebouncer();
     equal(classifySubprocessExit({exited: true, exitStatus: 0}),
