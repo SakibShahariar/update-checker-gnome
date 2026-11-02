@@ -7,6 +7,8 @@ import {
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
     parseSourceTimeouts,
+    parseExitCodeList,
+    parseSourceExitCodes,
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
@@ -142,12 +144,12 @@ async function main() {
         format: 'update-checker-sources',
         version: 1,
         sources: [
-            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, timeoutSeconds: 240, enabled: false},
+            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, timeoutSeconds: 240, successExitCodes: '0,100', enabled: false},
             {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
         ],
     }, 60), [
-        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, enabled: false},
-        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, enabled: true},
+        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, successExitCodes: '0,100', enabled: false},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, successExitCodes: '', enabled: true},
     ], 'source backup validation should normalize fields and preserve per-source options');
 
     for (const [payload, expected] of [
@@ -157,6 +159,7 @@ async function main() {
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', intervalMinutes: 4}]}, 'invalid interval'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', enabled: 'no'}]}, 'invalid enabled flag'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', timeoutSeconds: 4}]}, 'invalid timeout'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', successExitCodes: '0,256'}]}, 'invalid success exit codes'],
     ]) {
         let error = '';
         try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
@@ -224,6 +227,31 @@ async function main() {
     equal([...parseSourceTimeouts(['DNF|90', 'Flatpak|600', 'Bad|4', 'TooLong|601', 'Suffix|30seconds', 'Decimal|5.5', 'broken']).entries()],
         [['DNF', 90], ['Flatpak', 600]],
         'source timeout parsing should accept 5–600 seconds and reject malformed values');
+
+    equal(parseExitCodeList('0, 2, 100, 2'), [0, 2, 100],
+        'success exit codes should be trimmed and deduplicated');
+    equal(parseExitCodeList(''), [], 'an empty success-code override should use defaults');
+    equal(parseExitCodeList('0,256'), null, 'success exit codes above 255 should be rejected');
+    equal(parseExitCodeList('0,one'), null, 'non-numeric success exit codes should be rejected');
+    equal([...parseSourceExitCodes(['DNF|100', 'Custom|0,2', 'Broken|0,x']).entries()],
+        [['DNF', [100]], ['Custom', [0, 2]]],
+        'per-source success exit-code mappings should ignore malformed entries');
+
+    equal(classifyResult({
+        stdout: 'custom update\n', stderr: '', exitStatus: 2, spawnFailed: false, timedOut: false,
+        successExitCodes: [2],
+    }), {status: 'ok', count: 1, message: '', lines: ['custom update']},
+    'a configured non-zero exit code should accept update output');
+    equal(classifyResult({
+        stdout: 'custom update\n', stderr: '', exitStatus: 2, spawnFailed: false, timedOut: false,
+    }), {status: 'error', count: 0, message: 'Command exited with status 2 after producing output', lines: []},
+    'unconfigured non-zero exit codes should remain errors');
+
+    equal(classifyResult({
+        stdout: '', stderr: '', exitStatus: 2, spawnFailed: false, timedOut: false,
+    }), {status: 'error', count: 0, message: 'Command exited with status 2', lines: []},
+    'unconfigured non-zero exit codes without output should remain errors');
+
 
     // Representative one-line-per-update output from the default DNF filter
     // and Flatpak remote-ls command. These fixtures model filtered stdout.

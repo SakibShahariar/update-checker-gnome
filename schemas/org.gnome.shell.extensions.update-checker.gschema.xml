@@ -168,6 +168,12 @@
       <description>Source names temporarily excluded from scheduled and manual checks. Their commands and per-source settings are preserved.</description>
     </key>
 
+    <key name="source-success-exit-codes" type="as">
+      <default>[]</default>
+      <summary>Per-source successful exit codes</summary>
+      <description>List of "Name|0,100" entries overriding the default non-zero success code (DNF status 100).</description>
+    </key>
+
     <key name="source-timeouts" type="as">
       <default>[]</default>
       <summary>Per-source check timeouts</summary>

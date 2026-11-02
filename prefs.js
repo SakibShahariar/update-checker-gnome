@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult, validateSourceBackup} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -456,18 +456,29 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const updateValues = [];
             const intervalValues = [];
             const timeoutValues = [];
+            const exitCodeValues = [];
             const seen = new Set();
             let hasDuplicate = false;
             let hasInvalidName = false;
+            let hasInvalidExitCodes = false;
             for (const r of sourceRows) {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
                 const updateCommand = r.updateCmdEntry.get_text().trim();
                 const interval = Math.round(r.intervalSpin.get_value());
                 const timeoutSeconds = Math.round(r.timeoutSpin.get_value());
+                const successExitCodesText = r.exitCodesEntry.get_text().trim();
+                const successExitCodes = parseExitCodeList(successExitCodesText);
                 r.nameEntry.remove_css_class('error');
+                r.exitCodesEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
+                if (successExitCodesText && successExitCodes === null) {
+                    r.exitCodesEntry.add_css_class('error');
+                    r.exitCodesEntry.set_tooltip_text('Use comma-separated exit codes from 0 to 255.');
+                    hasInvalidExitCodes = true;
+                    continue;
+                }
                 if (name.includes('|')) {
                     r.nameEntry.add_css_class('error');
                     r.nameEntry.set_tooltip_text('Source names cannot contain |');
@@ -486,8 +497,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     updateValues.push(`${name}|${updateCommand}`);
                 intervalValues.push(`${name}|${interval}`);
                 timeoutValues.push(`${name}|${timeoutSeconds}`);
+                if (successExitCodesText)
+                    exitCodeValues.push(`${name}|${successExitCodes.join(',')}`);
             }
-            if (hasDuplicate || hasInvalidName) {
+            if (hasDuplicate || hasInvalidName || hasInvalidExitCodes) {
                 updateBannerVisibility();
                 return;
             }
@@ -525,6 +538,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             settings.set_strv('source-update-commands', updateValues);
             settings.set_strv('source-intervals', intervalValues);
             settings.set_strv('source-timeouts', timeoutValues);
+            settings.set_strv('source-success-exit-codes', exitCodeValues);
             updateBannerVisibility();
         };
 
@@ -553,7 +567,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateSourceOrderControls();
         };
 
-        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null, timeoutSeconds = null) => {
+        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null, timeoutSeconds = null, successExitCodes = '') => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
                 spacing: 0,
@@ -701,8 +715,17 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     testButton.set_sensitive(false);
                     testResultLabel.set_text('Testing command…');
                     try {
+                        const exitCodesText = exitCodesEntry.get_text().trim();
+                        const exitCodes = parseExitCodeList(exitCodesText);
+                        if (exitCodes === null) {
+                            testResultLabel.set_text('Success exit codes must be comma-separated integers from 0 to 255.');
+                            return;
+                        }
                         const result = await runShell(candidate, Math.round(timeoutSpin.get_value()) * 1000);
-                        const parsed = classifyResult(result);
+                        const parsed = classifyResult({
+                            ...result,
+                            successExitCodes: exitCodes.length ? exitCodes : undefined,
+                        });
                         const stdoutLines = result.stdout.trim()
                             ? result.stdout.trim().split('\n').length : 0;
                         const state = result.timedOut ? 'Timed out'
@@ -807,10 +830,32 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             wrapper.append(bottomRow);
             wrapper.append(intervalRow);
             wrapper.append(timeoutRow);
+
+            const exitCodeRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
+                margin_start: 12, margin_end: 12, margin_bottom: 10,
+            });
+            const exitCodeLabel = new Gtk.Label({
+                label: 'Success exit codes',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            const exitCodesEntry = new Gtk.Entry({
+                placeholder_text: 'Default: 0, 100',
+                text: successExitCodes,
+                hexpand: true,
+                width_chars: 14,
+                css_classes: ['monospace'],
+            });
+            exitCodesEntry.set_tooltip_text('Optional comma-separated success codes (0–255). Exit 0 always succeeds; DNF status 100 is the default when this is empty.');
+            exitCodeRow.append(exitCodeLabel);
+            exitCodeRow.append(exitCodesEntry);
+
+            wrapper.append(exitCodeRow);
             wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, timeoutSpin, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, timeoutSpin, exitCodesEntry, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
             sourceRows.push(entry);
             moveUpButton.connect('clicked', () => moveSource(entry, -1));
             moveDownButton.connect('clicked', () => moveSource(entry, 1));
@@ -818,7 +863,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             intervalSpin.connect('value-changed', saveSources);
             timeoutSpin.connect('value-changed', saveSources);
-            for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
+            for (const w of [nameEntry, cmdEntry, updateCmdEntry, exitCodesEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => {
                     // Moving from the candidate command to Test must not save it.
@@ -850,6 +895,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
         const existingIntervals = new Map();
         const existingTimeouts = new Map();
+        const existingExitCodes = new Map([...parseSourceExitCodes(settings.get_strv('source-success-exit-codes'))]
+            .map(([name, codes]) => [name, codes.join(',')]));
         for (const entry of settings.get_strv('source-timeouts')) {
             const idx = entry.indexOf('|');
             if (idx === -1)
@@ -879,7 +926,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 continue;
             const name = entry.slice(0, idx).trim();
             const command = entry.slice(idx + 1).trim();
-            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null, null, existingTimeouts.get(name) ?? null);
+            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null, null, existingTimeouts.get(name) ?? null, existingExitCodes.get(name) ?? '');
         }
 
         const scroller = new Gtk.ScrolledWindow({
@@ -1009,6 +1056,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                             updateCommand: r.updateCmdEntry.get_text().trim(),
                             intervalMinutes: Math.round(r.intervalSpin.get_value()),
                             timeoutSeconds: Math.round(r.timeoutSpin.get_value()),
+                            successExitCodes: r.exitCodesEntry.get_text().trim(),
                             enabled: r.enabledCheck.get_active(),
                         })).filter(s => s.name && s.command),
                     };
@@ -1057,7 +1105,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     transient_for: window,
                     modal: true,
                     heading: 'Replace configured sources?',
-                    body: `The validated backup contains ${imported.length} source(s). Import replaces the current source list, commands, intervals, timeouts, and enabled states. Exported commands may contain sensitive paths or arguments; keep the backup private.`,
+                    body: `The validated backup contains ${imported.length} source(s). Import replaces the current source list, commands, intervals, timeouts, success exit codes, and enabled states. Exported commands may contain sensitive paths or arguments; keep the backup private.`,
                 });
                 confirm.add_response('cancel', 'Cancel');
                 confirm.add_response('replace', 'Replace Sources');
@@ -1072,7 +1120,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                         rowsBox.remove(entry.row);
                     sourceRows.splice(0, sourceRows.length);
                     for (const source of imported)
-                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds);
+                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds, source.successExitCodes);
                     saveSources();
                     sourceTransferStatus.set_text(`Imported ${imported.length} source(s).`);
                 });
