@@ -213,9 +213,9 @@ async function main() {
     equal(parsePackageOutputLine('bash.x86_64 5.2.26-3.fc43 updates', 'dnf'),
         {name: 'bash.x86_64', version: '5.2.26-3.fc43'},
         'DNF parser should select the package and available version columns');
-    equal(parsePackageOutputLine('org.mozilla.firefox stable flathub 145.0', 'flatpak'),
-        {name: 'org.mozilla.firefox', version: '145.0'},
-        'Flatpak parser should skip branch and remote columns');
+    equal(parsePackageOutputLine('vokoscreenNG com.github.vkohaupt.vokoscreenNG 4.4.5 stable x86_64', 'flatpak'),
+        {name: 'com.github.vkohaupt.vokoscreenNG', version: '4.4.5'},
+        'Flatpak parser should select the application ID and version columns');
     equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
         {name: 'vite', version: '6.0.1'},
         'npm outdated parser should select the latest version column');
