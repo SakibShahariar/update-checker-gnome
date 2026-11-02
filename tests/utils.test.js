@@ -418,7 +418,7 @@ async function main() {
     equal(classifyResult({
         stdout: '', stderr: 'setsid was not found in PATH; install util-linux.',
         exitStatus: -1, spawnFailed: true, timedOut: false,
-    }).message, 'setsid was not found in PATH',
+    }).message, 'setsid was not found in PATH; install util-linux.',
     'spawn failures should expose the actionable dependency error');
 
     equal(classifyResult({
