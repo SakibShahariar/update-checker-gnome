@@ -1,5 +1,7 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -16,6 +18,13 @@ export default class UpdateCheckerExtension extends Extension {
 
         this._settings = this.getSettings();
         this._timeoutId = null;
+        this._registerCheckNowKeybinding();
+        this._shortcutChangedId = this._settings.connect('changed::check-now-shortcut', () => {
+            if (this._checkNowKeybindingRegistered)
+                Main.wm.removeKeybinding('check-now-shortcut');
+            this._checkNowKeybindingRegistered = false;
+            this._registerCheckNowKeybinding();
+        });
 
         this._scheduleTimer();
         this._sourceIntervalsChangedId = this._settings.connect(
@@ -82,6 +91,25 @@ export default class UpdateCheckerExtension extends Extension {
         }
     }
 
+    _registerCheckNowKeybinding() {
+        const accelerator = this._settings.get_string('check-now-shortcut').trim();
+        if (!accelerator)
+            return;
+        try {
+            Main.wm.addKeybinding(
+                'check-now-shortcut',
+                this._settings,
+                Meta.KeyBindingFlags.NONE,
+                Shell.ActionMode.NORMAL,
+                () => this._indicator?.checkNow(true)
+            );
+            this._checkNowKeybindingRegistered = true;
+        } catch (error) {
+            Main.notifyError('Update Checker shortcut',
+                `Could not register the Check now shortcut: ${error.message}`);
+        }
+    }
+
     _scheduleTimer() {
         if (this._timeoutId) {
             GLib.source_remove(this._timeoutId);
@@ -111,6 +139,14 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._startupCompleteId) {
             try { Main.layoutManager.disconnect(this._startupCompleteId); } catch (e) {}
             this._startupCompleteId = null;
+        }
+        if (this._shortcutChangedId) {
+            this._settings.disconnect(this._shortcutChangedId);
+            this._shortcutChangedId = null;
+        }
+        if (this._checkNowKeybindingRegistered) {
+            Main.wm.removeKeybinding('check-now-shortcut');
+            this._checkNowKeybindingRegistered = false;
         }
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);

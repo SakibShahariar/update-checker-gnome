@@ -10,6 +10,12 @@
       <description>How often to run the update checks, in minutes.</description>
     </key>
 
+    <key name="check-now-shortcut" type="s">
+      <default>'&lt;Control&gt;&lt;Alt&gt;u'</default>
+      <summary>Global Check now keyboard shortcut</summary>
+      <description>Accelerator used to start a manual update check. Empty disables the shortcut.</description>
+    </key>
+
     <key name="notify-on-new" type="b">
       <default>true</default>
       <summary>Notify when new updates appear</summary>

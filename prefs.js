@@ -87,6 +87,47 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('check-interval-minutes', intervalRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(intervalRow);
 
+        const shortcutGroup = new Adw.PreferencesGroup({
+            title: 'Keyboard',
+            description: 'Trigger a full update check without opening the menu.',
+        });
+        generalPage.add(shortcutGroup);
+        const shortcutRow = new Adw.ActionRow({
+            title: 'Check now shortcut',
+            subtitle: 'Default: Ctrl+Alt+U. Use GTK accelerator syntax; clear to disable.',
+        });
+        const shortcutEntry = new Gtk.Entry({
+            text: settings.get_string('check-now-shortcut'),
+            width_chars: 18,
+            valign: Gtk.Align.CENTER,
+        });
+        shortcutEntry.set_tooltip_text('Example: <Control><Alt>u');
+        const saveShortcut = () => {
+            const accelerator = shortcutEntry.get_text().trim();
+            if (!accelerator) {
+                shortcutEntry.remove_css_class('error');
+                settings.set_string('check-now-shortcut', '');
+                return;
+            }
+            const [valid, keyval, modifiers] = Gtk.accelerator_parse(accelerator);
+            if (!valid || keyval === 0) {
+                shortcutEntry.add_css_class('error');
+                shortcutEntry.set_tooltip_text('Enter a valid GTK accelerator, e.g. <Control><Alt>u.');
+                return;
+            }
+            shortcutEntry.remove_css_class('error');
+            const normalized = Gtk.accelerator_name(keyval, modifiers);
+            shortcutEntry.set_text(normalized);
+            settings.set_string('check-now-shortcut', normalized);
+        };
+        shortcutEntry.connect('activate', saveShortcut);
+        shortcutEntry.connect('notify::has-focus', widget => {
+            if (!widget.has_focus)
+                saveShortcut();
+        });
+        shortcutRow.add_suffix(shortcutEntry);
+        shortcutGroup.add(shortcutRow);
+
         const notifyRow = new Adw.SwitchRow({
             title: 'Notify on new updates',
             subtitle: 'When count increases',
