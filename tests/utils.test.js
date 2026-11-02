@@ -5,6 +5,7 @@ import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
     hasMixedPrivilegeCommand,
+    getSourceConfigurationState,
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
@@ -124,6 +125,17 @@ async function main() {
         {name: 'DNF', command: 'dnf check-update'},
         {name: 'Custom', command: 'printf "a|b"'},
     ], 'source parsing should trim fields, reject malformed entries, and preserve later pipes');
+
+    equal(getSourceConfigurationState([], new Set()), 'empty',
+        'source configuration should identify an empty source list');
+    equal(getSourceConfigurationState(['malformed', '|missing-name', 'missing-command|'], new Set()), 'invalid',
+        'source configuration should identify entries that cannot be parsed');
+    equal(getSourceConfigurationState(['DNF|dnf check-update', 'Flatpak|flatpak remote-ls --updates'],
+        new Set(['DNF', 'Flatpak'])), 'disabled',
+    'source configuration should identify when every valid source is disabled');
+    equal(getSourceConfigurationState(['DNF|dnf check-update', 'Flatpak|flatpak remote-ls --updates'],
+        new Set(['DNF'])), 'ready',
+    'source configuration should remain ready when at least one valid source is enabled');
 
     equal(validateSourceBackup({
         format: 'update-checker-sources',

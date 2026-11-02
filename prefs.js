@@ -388,6 +388,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Sources',
             icon_name: 'system-software-install-symbolic',
         });
+        sourcesPage.set_name('sources');
         window.add(sourcesPage);
 
         const bgGroup = new Adw.PreferencesGroup({
@@ -1212,5 +1213,21 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         terminalRow.add_prefix(new Gtk.Image({icon_name: 'utilities-terminal-symbolic', pixel_size: 16}));
         settings.bind('terminal-command', terminalRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         scriptGroup.add(terminalRow);
+
+        // A menu action can request the Sources page even when Preferences
+        // is already open. GSettings carries the request across processes.
+        const navigateToRequestedPage = () => {
+            if (settings.get_string('preferences-target-page') !== 'sources')
+                return;
+            window.set_visible_page(sourcesPage);
+            settings.set_string('preferences-target-page', '');
+        };
+        const targetPageSignal = settings.connect(
+            'changed::preferences-target-page', navigateToRequestedPage);
+        navigateToRequestedPage();
+        window.connect('close-request', () => {
+            settings.disconnect(targetPageSignal);
+            return false;
+        });
     }
 }

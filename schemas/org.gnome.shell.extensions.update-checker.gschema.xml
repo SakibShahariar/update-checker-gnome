@@ -156,6 +156,12 @@
       <description>Hide secondary freshness and progress labels while keeping counts, errors, expand, update, and stop controls available.</description>
     </key>
 
+    <key name="preferences-target-page" type="s">
+      <default>''</default>
+      <summary>Requested preferences page</summary>
+      <description>Internal one-shot navigation request from the extension menu.</description>
+    </key>
+
     <key name="disabled-sources" type="as">
       <default>[]</default>
       <summary>Disabled update sources</summary>

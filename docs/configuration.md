@@ -6,6 +6,8 @@ All settings are available from **Update Checker → Settings** (or `gnome-exten
 
 Each source has a name and a shell check command. The extension runs the command through `/bin/sh -c` and counts non-empty standard-output lines as pending updates, so configure one output line per update. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
 
+If no sources are configured, all sources are disabled, or every configured entry is malformed, the popup shows a distinct explanation. Activate that warning to open the Sources preferences page directly.
+
 Each source can also define an optional update command and a polling interval. A source interval overrides the global interval; otherwise the global interval applies. The default global interval is 60 minutes. A check has a 120-second timeout. Output and exit status are considered together because some package managers use a non-zero exit code to indicate that updates are available. Timeouts and command failures are reported as errors rather than as an empty update list.
 
 Review custom commands before saving them. When a source check or per-source update command is changed, Preferences shows a non-blocking warning for commands containing elevation (`sudo`, `doas`, `pkexec`), redirection or `tee` to an absolute path, or potentially destructive tools such as `rm`, `mkfs`, and `dd`. The warning does not block saving and is not a shell sanitizer; commands remain trusted user input. Commands run as the logged-in user unless the command requests elevation.
