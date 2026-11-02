@@ -7,6 +7,7 @@ import GLib from 'gi://GLib';
 import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import {buildDiagnosticsReport} from './lib/summary.js';
 
 function isHighImpactCommand(command) {
     const text = command.trim();
@@ -295,6 +296,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             description: 'Copy a redacted report for bug reports. Source commands and raw command output are never included.',
         });
         generalPage.add(diagnosticsGroup);
+        const diagnosticsDetailRow = new Adw.SwitchRow({
+            title: 'Include per-source details',
+            subtitle: 'Add source status, update counts, cache state, intervals, and redacted failure summaries to the report.',
+        });
+        settings.bind('diagnostics-include-source-details', diagnosticsDetailRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        diagnosticsGroup.add(diagnosticsDetailRow);
         const diagnosticsRow = new Adw.ActionRow({
             title: 'Troubleshooting report',
             subtitle: 'Includes source status, intervals, and enabled policies; excludes commands and raw output.',
@@ -323,38 +330,24 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 if (split < 1) return null;
                 return {name: entry.slice(0, split).trim()};
             }).filter(Boolean);
-            const report = [
-                'Update Checker diagnostics',
-                `Extension version: ${this.metadata.version ?? 'unknown'}`,
-                `GNOME Shell version: ${GLib.getenv('GNOME_SHELL_VERSION') || 'unknown'}`,
-                `Last check: ${summary.lastCheck || 'not available'}`,
-                `Total updates: ${Number.isFinite(summary.total) && summary.total >= 0 ? summary.total : 'unknown'}`,
-                `Security updates: ${summary.securityCount ?? 'unknown'}`,
-                `Offline: ${summary.offline === true ? 'yes' : summary.offline === false ? 'no' : 'unknown'}`,
-                `On battery: ${summary.onBattery === true ? 'yes' : summary.onBattery === false ? 'no' : 'unknown'}`,
-                `Network metered: ${summary.networkMetered === true ? 'yes' : summary.networkMetered === false ? 'no' : 'unknown'}`,
-                `Quiet hours active: ${summary.quietHoursActive === true ? 'yes' : summary.quietHoursActive === false ? 'no' : 'unknown'}`,
-                `Check busy: ${summary.busy === true ? 'yes' : 'no'}`,
-                `Any check failed: ${summary.failed === true ? 'yes' : 'no'}`,
-                `Reboot required: ${summary.rebootRequired === true ? 'yes' : 'no'}`,
-                `Global check interval: ${globalInterval} minutes`,
-                `Pause on battery policy: ${settings.get_boolean('skip-on-battery') ? 'enabled' : 'disabled'}`,
-                `Pause on metered network policy: ${settings.get_boolean('skip-on-metered') ? 'enabled' : 'disabled'}`,
-                `Quiet hours: ${settings.get_boolean('quiet-hours-enabled') ? 'enabled' : 'disabled'} (${settings.get_int('quiet-hours-start')}:00–${settings.get_int('quiet-hours-end')}:00)`,
-                `Security check enabled: ${settings.get_boolean('check-security-updates') ? 'yes' : 'no'}`,
-                `Reboot check enabled: ${settings.get_boolean('check-reboot-required') ? 'yes' : 'no'}`,
-                '',
-                'Sources (commands and raw output intentionally omitted):',
-            ];
-            for (const source of sourceRows) {
-                const detail = (summary.sources || []).find(item => item.name === source.name) || {};
-                const interval = intervalMap.get(source.name) ?? globalInterval;
-                const lastChecked = detail.lastChecked || 'unknown';
-                const cached = detail.cached ? ', cached' : '';
-                report.push(`- ${source.name}: every ${interval} min; status ${detail.status || 'not checked'}; updates ${detail.count ?? 'unknown'}; last checked ${lastChecked}${cached}`);
-                if (detail.status === 'error' && detail.error)
-                    report.push(`  Error summary: ${String(detail.error).slice(0, 160)}`);
-            }
+            const report = buildDiagnosticsReport({
+                extensionVersion: this.metadata.version ?? 'unknown',
+                shellVersion: GLib.getenv('GNOME_SHELL_VERSION') || 'unknown',
+                summary,
+                globalInterval,
+                sources: sourceRows,
+                intervals: intervalMap,
+                policies: {
+                    skipOnBattery: settings.get_boolean('skip-on-battery'),
+                    skipOnMetered: settings.get_boolean('skip-on-metered'),
+                    quietHoursEnabled: settings.get_boolean('quiet-hours-enabled'),
+                    quietHoursStart: settings.get_int('quiet-hours-start'),
+                    quietHoursEnd: settings.get_int('quiet-hours-end'),
+                    securityCheckEnabled: settings.get_boolean('check-security-updates'),
+                    rebootCheckEnabled: settings.get_boolean('check-reboot-required'),
+                },
+                includeSourceDetails: settings.get_boolean('diagnostics-include-source-details'),
+            });
             try {
                 Gdk.Display.get_default().get_clipboard().set(report.join('\n'));
                 diagnosticsRow.set_subtitle('Diagnostics copied. Review the report before sharing it.');
