@@ -12,6 +12,7 @@ import {
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
+    getNextSourceCheckAt,
     mapPool,
     classifyResult,
     filterIgnoredPackages,
@@ -213,6 +214,25 @@ async function main() {
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 5], ['Flatpak', 15]])), 5,
     'scheduler cadence must honor the shortest configured source interval');
+
+    const scheduleNow = Date.parse('2026-11-02T12:00:00Z');
+    const scheduleSources = [{name: 'DNF'}, {name: 'Flatpak'}];
+    const scheduleIntervals = new Map([['DNF', 60], ['Flatpak', 15]]);
+    const schedulePolls = new Map([
+        ['DNF', scheduleNow - 10 * 60 * 1000],
+        ['Flatpak', scheduleNow - 5 * 60 * 1000],
+    ]);
+    equal(getNextSourceCheckAt(scheduleSources, 60, scheduleIntervals, schedulePolls, scheduleNow),
+        scheduleNow + 10 * 60 * 1000,
+        'next global check should be the earliest per-source due time');
+    equal(getNextSourceCheckAt([{name: 'Cargo'}], 30, new Map(), new Map([['Cargo', scheduleNow - 5 * 60 * 1000]]), scheduleNow),
+        scheduleNow + 25 * 60 * 1000,
+        'sources without overrides should use the global interval');
+    equal(getNextSourceCheckAt([{name: 'New'}], 30, new Map(), new Map(), scheduleNow),
+        scheduleNow,
+        'never-checked sources should be due immediately');
+    equal(getNextSourceCheckAt([], 30, new Map(), new Map(), scheduleNow), null,
+        'empty source lists should have no next check time');
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 120]])), 60,

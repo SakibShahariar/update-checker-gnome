@@ -125,6 +125,7 @@ export default class UpdateCheckerExtension extends Extension {
                 return GLib.SOURCE_CONTINUE;
             }
         );
+        this._indicator?._updateScheduleDisplay();
     }
 
     disable() {
