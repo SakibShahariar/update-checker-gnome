@@ -399,9 +399,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const backgroundRow = new Adw.SwitchRow({
             title: 'Run in background',
-            subtitle: 'Use graphical password, no terminal window. ' +
-                "Don't mix doas/sudo and non-privileged commands in one line -- " +
-                'the whole line runs elevated.',
+            subtitle: 'When enabled, runs without a terminal; privileged commands use graphical PolicyKit authentication. When disabled, updates run in the configured terminal. Mixed privileged and user-scoped command chains are rejected in background mode.',
         });
         backgroundRow.add_prefix(new Gtk.Image({icon_name: 'system-run-symbolic', pixel_size: 18}));
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
