@@ -63,3 +63,14 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 - Summarize concrete changes with file paths and commit identifiers.
 - Distinguish verified results from assumptions and unrun checks.
 - List remaining manual validation, blockers, and issues intentionally left open.
+
+## Incremental Commit CI Audit Ledger
+
+- Read `docs/maintenance/commit-ci-audit.md` before reviewing commit checks.
+- Compare its checkpoint with the current default-branch head. Review only newer commits plus older **red**, **pending**, or explicitly unresolved entries; do not repeatedly audit full history.
+- Record each checked commit's full SHA, subject, observed result, date, and workflow/run reference when available.
+- **green** = observed completed success; **red** = observed completed failure; **pending** = unfinished run; **unavailable** = evidence not exposed; **not applicable** = workflow configuration confirms no relevant check is triggered.
+- Empty status lists, missing badges, or absent workflow records are **unavailable**, never implicit passes or failures.
+- Preserve red history. Append failed job/step, diagnosis, classification, fix commit(s), rerun attempts, and final verified outcome. Associate reruns with the original failing commit.
+- Advance the checkpoint only after reviewing the newer range, and carry unresolved entries forward.
+- Include ledger/AGENTS setup commits in the next incremental review unless explicitly recorded as checked.
