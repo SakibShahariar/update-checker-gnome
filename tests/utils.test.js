@@ -5,6 +5,7 @@ import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '
 import {
     runShell,
     createDebouncer,
+    resolveCommandExecutionPaths,
     classifySubprocessExit,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
@@ -404,6 +405,21 @@ async function main() {
     equal([...parseSourceExitCodes(['DNF|100', 'Custom|0,2', 'Broken|0,x']).entries()],
         [['DNF', [100]], ['Custom', [0, 2]]],
         'per-source success exit-code mappings should ignore malformed entries');
+
+    equal(resolveCommandExecutionPaths(program => ({
+        sh: '/usr/bin/dash', setsid: '/usr/bin/setsid',
+    })[program]), {shellPath: '/usr/bin/dash', setsidPath: '/usr/bin/setsid'},
+    'command execution should resolve shell and setsid from PATH');
+    equal(resolveCommandExecutionPaths(program => program === 'sh' ? '/bin/sh' : null),
+        {shellPath: '/bin/sh', setsidPath: null},
+        'command execution should report a missing setsid dependency distinctly');
+    equal(resolveCommandExecutionPaths(null), {shellPath: null, setsidPath: null},
+        'command path resolution should fail safely without a lookup function');
+    equal(classifyResult({
+        stdout: '', stderr: 'setsid was not found in PATH; install util-linux.',
+        exitStatus: -1, spawnFailed: true, timedOut: false,
+    }).message, 'setsid was not found in PATH',
+    'spawn failures should expose the actionable dependency error');
 
     equal(classifyResult({
         stdout: 'custom update\n', stderr: '', exitStatus: 2, spawnFailed: false, timedOut: false,
