@@ -83,7 +83,7 @@ Other extensions can read the versioned `summary-json` GSettings snapshot withou
 gsettings get org.gnome.shell.extensions.update-checker summary-json
 ```
 
-See the [integration guide](docs/integration.md) for the schema, fields, and consumer guidance.
+See the [integration guide](docs/integration.md) for the schema, fields, and consumer guidance. For repeatable before/after measurements, see the [performance profiling guide](docs/performance-profiling.md).
 
 ## Uninstall
 
