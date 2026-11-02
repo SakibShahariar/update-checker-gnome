@@ -1,8 +1,10 @@
 import System from 'system';
+import GLib from 'gi://GLib';
 import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
+    cancelAllShellCommands,
     getPollingIntervalMinutes,
     mapPool,
     classifyResult,
@@ -341,6 +343,18 @@ async function main() {
     assert(timed.timedOut, 'runShell should mark a long-running command as timed out');
     assert(elapsed < 3000,
         `timed-out commands should settle promptly (took ${elapsed}ms)`);
+
+    const cancellationStarted = Date.now();
+    const cancellableCommand = runShell('sleep 10');
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        cancelAllShellCommands();
+        return GLib.SOURCE_REMOVE;
+    });
+    const cancelled = await cancellableCommand;
+    assert(cancelled.cancelled && !cancelled.timedOut,
+        'disabling should mark active check commands as cancelled, not timed out');
+    assert(Date.now() - cancellationStarted < 3000,
+        'cancelled check commands should settle promptly');
 
     print('All utility tests passed.');
 }
