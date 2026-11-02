@@ -60,6 +60,32 @@ function testSummarySnapshot() {
     assert(bearerError.includes('authorization=[REDACTED]') &&
         !bearerError.includes('abc.def.ghi'),
         'summary should redact the full bearer credential, not only the Bearer scheme');
+    const queryError = redactSummaryError(
+        'request failed: https://api.example.test/v1?access_token=secret123&region=eu&client_secret=hidden456'
+    );
+    assert(queryError.includes('access_token=[REDACTED]') &&
+        queryError.includes('client_secret=[REDACTED]') &&
+        queryError.includes('region=eu') &&
+        !queryError.includes('secret123') && !queryError.includes('hidden456'),
+        'summary should redact query credentials while preserving unrelated parameters');
+    const credentials = [
+        ['ghp_', 'abcdefghijklmnopqrstuvwxyz1234567890'].join(''),
+        ['github_pat_', 'abcdefghijklmnopqrstuvwxyz1234567890'].join(''),
+        ['AIza', '123456789012345678901234567890123'].join(''),
+        ['AKIA', '1234567890ABCDEF'].join(''),
+        ['xoxb-', '123456789012-123456789012-abcdefghijklmnop'].join(''),
+        ['sk_live_', '1234567890abcdefghijkl'].join(''),
+        ['eyJhbGciOiJIUzI1NiJ9', '.', 'eyJzdWIiOiIxMjM0NTYifQ', '.', 'signaturevalue123'].join(''),
+    ];
+    for (const credential of credentials) {
+        const redacted = redactSummaryError(`diagnostic ${credential} still available`);
+        assert(!redacted.includes(credential) && redacted.includes('[REDACTED]'),
+            'summary should redact common credential formats');
+    }
+    const safeDiagnostic = redactSummaryError('request failed: status=503 region=eu-west-1 retry=2');
+    assert(safeDiagnostic.includes('status=503') && safeDiagnostic.includes('region=eu-west-1') &&
+        safeDiagnostic.includes('retry=2'),
+        'summary should preserve useful non-secret diagnostic values');
 }
 
 testSummarySnapshot();
