@@ -4,6 +4,7 @@ import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
+    createDebouncer,
     classifySubprocessExit,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
@@ -157,7 +158,43 @@ function testSummarySnapshot() {
 testDiagnosticsReport();
 testSummarySnapshot();
 
+function testDebouncer() {
+    let nextId = 0;
+    let calls = 0;
+    const scheduled = new Map();
+    const debouncer = createDebouncer(
+        (delay, callback) => {
+            const id = ++nextId;
+            scheduled.set(id, {delay, callback});
+            return id;
+        },
+        id => scheduled.delete(id),
+        750,
+        () => calls++
+    );
+    debouncer.schedule();
+    const firstId = nextId;
+    debouncer.schedule();
+    const latestId = nextId;
+    assert(!scheduled.has(firstId) && scheduled.has(latestId),
+        'rapid preference changes should replace the previous pending callback');
+    equal(scheduled.get(latestId).delay, 750,
+        'preference checks should use the configured debounce delay');
+    const pending = scheduled.get(latestId);
+    scheduled.delete(latestId);
+    pending.callback();
+    assert(calls === 1 && !debouncer.pending,
+        'the final scheduled callback should run exactly once');
+    debouncer.schedule();
+    assert(debouncer.flush() && calls === 2 && scheduled.size === 0,
+        'flush should cancel the timer and immediately run the pending callback');
+    debouncer.schedule();
+    assert(debouncer.cancel() && calls === 2 && scheduled.size === 0 && !debouncer.pending,
+        'cancel should discard a pending callback without running it');
+}
+
 async function main() {
+    testDebouncer();
     equal(classifySubprocessExit({exited: true, exitStatus: 0}),
         {status: 'success', exitStatus: 0},
         'terminal process completion should distinguish a successful command');
