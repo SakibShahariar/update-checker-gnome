@@ -455,6 +455,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const checkValues = [];
             const updateValues = [];
             const intervalValues = [];
+            const timeoutValues = [];
             const seen = new Set();
             let hasDuplicate = false;
             let hasInvalidName = false;
@@ -463,6 +464,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const command = r.cmdEntry.get_text().trim();
                 const updateCommand = r.updateCmdEntry.get_text().trim();
                 const interval = Math.round(r.intervalSpin.get_value());
+                const timeoutSeconds = Math.round(r.timeoutSpin.get_value());
                 r.nameEntry.remove_css_class('error');
                 if (!name || !command)
                     continue;
@@ -483,6 +485,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 if (updateCommand)
                     updateValues.push(`${name}|${updateCommand}`);
                 intervalValues.push(`${name}|${interval}`);
+                timeoutValues.push(`${name}|${timeoutSeconds}`);
             }
             if (hasDuplicate || hasInvalidName) {
                 updateBannerVisibility();
@@ -521,6 +524,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             settings.set_strv('sources', checkValues);
             settings.set_strv('source-update-commands', updateValues);
             settings.set_strv('source-intervals', intervalValues);
+            settings.set_strv('source-timeouts', timeoutValues);
             updateBannerVisibility();
         };
 
@@ -549,7 +553,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateSourceOrderControls();
         };
 
-        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null) => {
+        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null, timeoutSeconds = null) => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
                 spacing: 0,
@@ -697,7 +701,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     testButton.set_sensitive(false);
                     testResultLabel.set_text('Testing command…');
                     try {
-                        const result = await runShell(candidate);
+                        const result = await runShell(candidate, Math.round(timeoutSpin.get_value()) * 1000);
                         const parsed = classifyResult(result);
                         const stdoutLines = result.stdout.trim()
                             ? result.stdout.trim().split('\n').length : 0;
@@ -770,20 +774,50 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             intervalRow.append(intervalSpin);
             intervalRow.append(intervalSuffix);
 
+            const timeoutRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
+                margin_start: 12, margin_end: 12, margin_bottom: 10,
+            });
+            const timeoutLabel = new Gtk.Label({
+                label: 'Timeout',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            const timeoutSpin = new Gtk.SpinButton({
+                adjustment: new Gtk.Adjustment({
+                    lower: 5, upper: 600, step_increment: 5,
+                    value: timeoutSeconds ?? 120,
+                }),
+                numeric: true,
+                width_chars: 5,
+                valign: Gtk.Align.CENTER,
+            });
+            timeoutSpin.set_tooltip_text('Maximum check duration for this source (5–600 seconds; default 120)');
+            const timeoutSuffix = new Gtk.Label({
+                label: 'sec',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            timeoutRow.append(timeoutLabel);
+            timeoutRow.append(timeoutSpin);
+            timeoutRow.append(timeoutSuffix);
+
             wrapper.append(topRow);
             wrapper.append(separator);
             wrapper.append(bottomRow);
             wrapper.append(intervalRow);
+            wrapper.append(timeoutRow);
             wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, timeoutSpin, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
             sourceRows.push(entry);
             moveUpButton.connect('clicked', () => moveSource(entry, -1));
             moveDownButton.connect('clicked', () => moveSource(entry, 1));
             updateSourceOrderControls();
 
             intervalSpin.connect('value-changed', saveSources);
+            timeoutSpin.connect('value-changed', saveSources);
             for (const w of [nameEntry, cmdEntry, updateCmdEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => {
@@ -815,6 +849,19 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             existingUpdateCommands.set(entry.slice(0, idx).trim(), entry.slice(idx + 1).trim());
         }
         const existingIntervals = new Map();
+        const existingTimeouts = new Map();
+        for (const entry of settings.get_strv('source-timeouts')) {
+            const idx = entry.indexOf('|');
+            if (idx === -1)
+                continue;
+            const name = entry.slice(0, idx).trim();
+            const rawValue = entry.slice(idx + 1).trim();
+            if (/^\d+$/.test(rawValue)) {
+                const seconds = Number(rawValue);
+                if (name && Number.isSafeInteger(seconds) && seconds >= 5 && seconds <= 600)
+                    existingTimeouts.set(name, seconds);
+            }
+        }
         for (const entry of settings.get_strv('source-intervals')) {
             const idx = entry.indexOf('|');
             if (idx === -1)
@@ -832,7 +879,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 continue;
             const name = entry.slice(0, idx).trim();
             const command = entry.slice(idx + 1).trim();
-            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null);
+            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null, null, existingTimeouts.get(name) ?? null);
         }
 
         const scroller = new Gtk.ScrolledWindow({
@@ -961,6 +1008,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                             command: r.cmdEntry.get_text().trim(),
                             updateCommand: r.updateCmdEntry.get_text().trim(),
                             intervalMinutes: Math.round(r.intervalSpin.get_value()),
+                            timeoutSeconds: Math.round(r.timeoutSpin.get_value()),
                             enabled: r.enabledCheck.get_active(),
                         })).filter(s => s.name && s.command),
                     };
@@ -1009,7 +1057,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     transient_for: window,
                     modal: true,
                     heading: 'Replace configured sources?',
-                    body: `The validated backup contains ${imported.length} source(s). Import replaces the current source list, commands, intervals, and enabled states. Exported commands may contain sensitive paths or arguments; keep the backup private.`,
+                    body: `The validated backup contains ${imported.length} source(s). Import replaces the current source list, commands, intervals, timeouts, and enabled states. Exported commands may contain sensitive paths or arguments; keep the backup private.`,
                 });
                 confirm.add_response('cancel', 'Cancel');
                 confirm.add_response('replace', 'Replace Sources');
@@ -1024,7 +1072,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                         rowsBox.remove(entry.row);
                     sourceRows.splice(0, sourceRows.length);
                     for (const source of imported)
-                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled);
+                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds);
                     saveSources();
                     sourceTransferStatus.set_text(`Imported ${imported.length} source(s).`);
                 });

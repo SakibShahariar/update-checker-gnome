@@ -168,6 +168,12 @@
       <description>Source names temporarily excluded from scheduled and manual checks. Their commands and per-source settings are preserved.</description>
     </key>
 
+    <key name="source-timeouts" type="as">
+      <default>[]</default>
+      <summary>Per-source check timeouts</summary>
+      <description>List of "Name|seconds" entries overriding the 120-second default. Valid values are 5–600 seconds.</description>
+    </key>
+
     <key name="source-intervals" type="as">
       <default>[]</default>
       <summary>Per-source intervals</summary>

@@ -6,6 +6,7 @@ import {
     runShell,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
+    parseSourceTimeouts,
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
@@ -145,8 +146,8 @@ async function main() {
             {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
         ],
     }, 60), [
-        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, enabled: false},
-        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, enabled: true},
+        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, enabled: false},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, enabled: true},
     ], 'source backup validation should normalize fields and preserve per-source options');
 
     for (const [payload, expected] of [
@@ -155,6 +156,7 @@ async function main() {
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'Bad|Name', command: 'dnf'}]}, 'names cannot contain'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', intervalMinutes: 4}]}, 'invalid interval'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', enabled: 'no'}]}, 'invalid enabled flag'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', timeoutSeconds: 4}]}, 'invalid timeout'],
     ]) {
         let error = '';
         try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
@@ -218,6 +220,10 @@ async function main() {
     equal([...parseIntervals(['DNF|60', 'Cargo|1440', 'Bad|4', 'broken', 'Nope|abc', 'Suffix|60minutes', 'Decimal|5.5']).entries()],
         [['DNF', 60], ['Cargo', 1440]],
         'interval parsing should reject malformed and too-short intervals');
+
+    equal([...parseSourceTimeouts(['DNF|90', 'Flatpak|600', 'Bad|4', 'TooLong|601', 'Suffix|30seconds', 'Decimal|5.5', 'broken']).entries()],
+        [['DNF', 90], ['Flatpak', 600]],
+        'source timeout parsing should accept 5–600 seconds and reject malformed values');
 
     // Representative one-line-per-update output from the default DNF filter
     // and Flatpak remote-ls command. These fixtures model filtered stdout.
