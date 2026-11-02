@@ -6,6 +6,7 @@ import {
     runShell,
     createDebouncer,
     resolveCommandExecutionPaths,
+    getElapsedSeconds,
     classifySubprocessExit,
     hasMixedPrivilegeCommand,
     getSourceConfigurationState,
@@ -195,6 +196,15 @@ function testDebouncer() {
 }
 
 async function main() {
+    equal(getElapsedSeconds(1000000, 1500000), 1,
+        'elapsed display should round monotonic microseconds to seconds');
+    equal(getElapsedSeconds(1000000, 3500000), 3,
+        'elapsed display should use the actual monotonic start time after delayed ticks');
+    equal(getElapsedSeconds(3500000, 1000000), 0,
+        'elapsed display should never become negative');
+    equal(getElapsedSeconds(NaN, 1000000), 0,
+        'invalid monotonic timestamps should fail safely');
+
     testDebouncer();
     equal(classifySubprocessExit({exited: true, exitStatus: 0}),
         {status: 'success', exitStatus: 0},
