@@ -4,6 +4,7 @@ import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
+    hasMixedPrivilegeCommand,
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
@@ -99,6 +100,8 @@ async function main() {
         'doas dnf upgrade -y && flatpak update -y',
         'sudo dnf upgrade -y; npm update',
         'pkexec dnf upgrade -y | tee update.log',
+        'env sudo dnf upgrade -y && flatpak update -y',
+        'UPDATE_MODE=system doas dnf upgrade -y; flatpak update -y',
     ])
         assert(hasMixedPrivilegeCommand(command),
             `background mode should reject composed elevated commands: ${command}`);
