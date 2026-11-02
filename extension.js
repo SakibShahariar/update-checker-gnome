@@ -51,11 +51,8 @@ export default class UpdateCheckerExtension extends Extension {
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
         );
-        // Re-check immediately on either change, regardless of whether the
-        // popup is currently open -- consistent with every other checkNow()
-        // trigger (reconnect, package-db watch), so editing Sources/commands
-        // in Preferences doesn't leave stale results sitting until the next
-        // scheduled poll.
+        // Coalesce rapid source/command edits into one refresh after the user
+        // pauses editing. The callback reads the final settings state.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
             this._scheduleTimer();
             this._preferenceCheckDebouncer.schedule();
@@ -72,7 +69,8 @@ export default class UpdateCheckerExtension extends Extension {
             this._preferenceCheckDebouncer.schedule();
         });
         this._disabledSourcesChangedId = this._settings.connect('changed::disabled-sources', () => {
-            this._preferenceCheckDebouncer.flush();
+            if (!this._preferenceCheckDebouncer.flush())
+                this._indicator?.checkNow(true);
         });
         this._powerPolicyChangedIds = [
             this._settings.connect('changed::skip-on-battery', () => this._indicator?.checkNow()),
