@@ -13,6 +13,7 @@ import {
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     getNextSourceCheckAt,
+    getSecurityNotificationDelta,
     mapPool,
     classifyResult,
     filterIgnoredPackages,
@@ -233,6 +234,23 @@ async function main() {
         'never-checked sources should be due immediately');
     equal(getNextSourceCheckAt([], 30, new Map(), new Map(), scheduleNow), null,
         'empty source lists should have no next check time');
+
+    equal(getSecurityNotificationDelta(-1, 3, {enabled: true}), 0,
+        'initial security count should establish a baseline without notifying');
+    equal(getSecurityNotificationDelta(2, 5, {enabled: true}), 3,
+        'security notification should report only newly detected updates');
+    equal(getSecurityNotificationDelta(5, 5, {enabled: true}), 0,
+        'unchanged security counts should not notify twice');
+    equal(getSecurityNotificationDelta(5, 2, {enabled: true}), 0,
+        'decreased security counts should not notify');
+    equal(getSecurityNotificationDelta(2, 5, {enabled: true, quietHours: true}), 0,
+        'quiet hours should suppress security notifications');
+    equal(getSecurityNotificationDelta(2, 5, {enabled: true, snoozed: true}), 0,
+        'notification snooze should suppress security notifications');
+    equal(getSecurityNotificationDelta(2, 5, {enabled: true, failed: true}), 0,
+        'failed security checks should not notify from an unreliable count');
+    equal(getSecurityNotificationDelta(2, 5, {enabled: false}), 0,
+        'disabled security notifications should remain silent');
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 120]])), 60,

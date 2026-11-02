@@ -136,6 +136,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('notify-on-new', notifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(notifyRow);
 
+        const securityNotifyRow = new Adw.SwitchRow({
+            title: 'Notify on new security updates',
+            subtitle: 'Only when the security update count increases; respects quiet hours and snooze.',
+        });
+        securityNotifyRow.add_prefix(new Gtk.Image({icon_name: 'security-high-symbolic', pixel_size: 18}));
+        settings.bind('notify-security-only', securityNotifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(securityNotifyRow);
+
         const showZeroRow = new Adw.SwitchRow({
             title: 'Always show icon',
             subtitle: 'Even when 0 updates',

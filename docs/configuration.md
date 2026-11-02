@@ -1,6 +1,6 @@
 # Configuration
 
-All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`). Press **Ctrl+Alt+U** to run Check now from anywhere. Change or disable this shortcut in General → Keyboard preferences. Panel and menu animations also respect GNOME's reduced-motion preference, including CSS hover and state transitions.
+All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`). Enable **Notify on new security updates** to receive a separate alert when the security count increases; quiet hours and notification snooze apply. Press **Ctrl+Alt+U** to run Check now from anywhere. Change or disable this shortcut in General → Keyboard preferences. Panel and menu animations also respect GNOME's reduced-motion preference, including CSS hover and state transitions.
 
 ## Sources
 
