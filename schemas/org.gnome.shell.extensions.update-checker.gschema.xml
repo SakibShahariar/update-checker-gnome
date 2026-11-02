@@ -156,6 +156,12 @@
       <description>Exact identifiers to exclude from successful source results. The first whitespace-delimited token on each output line is matched. Ignoring packages can hide security updates; use this only for packages you intentionally do not want counted.</description>
     </key>
 
+    <key name="diagnostics-include-source-details" type="b">
+      <default>false</default>
+      <summary>Include per-source details in diagnostics</summary>
+      <description>When enabled, the copied diagnostics report includes per-source status, counts, cache state, polling intervals, and redacted failure summaries. Source commands and raw command output are never included.</description>
+    </key>
+
     <key name="record-history" type="b">
       <default>true</default>
       <summary>Record local update history</summary>
