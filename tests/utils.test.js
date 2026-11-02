@@ -24,6 +24,7 @@ import {
     parseUpdateCommands,
     parseIntervals,
     updateDailyHistory,
+    getHistorySourceDeltas,
     getUpdatableSources,
     validateSourceBackup,
     stripAnsi,
@@ -252,6 +253,20 @@ async function main() {
     const prunedHistory = updateDailyHistory(oldHistory, historyEntry, historyNow);
     assert(prunedHistory.length <= 7 && prunedHistory.every(item => item.timestamp >= historyNow - 7 * 24 * 60 * 60),
         'daily history must prune entries older than seven days and remain bounded');
+
+    equal(getHistorySourceDeltas(
+        [{name: 'DNF', count: 5}, {name: 'Flatpak', count: 1}, {name: 'Cargo', count: 2}],
+        [{name: 'DNF', count: 3}, {name: 'Flatpak', count: 1}]
+    ), [
+        {name: 'DNF', count: 5, delta: 2},
+        {name: 'Flatpak', count: 1, delta: 0},
+        {name: 'Cargo', count: 2, delta: null},
+    ], 'history trends should show increases, unchanged counts, and new sources');
+    equal(getHistorySourceDeltas([{name: 'DNF', count: 1}], [{name: 'DNF', count: 4}]),
+        [{name: 'DNF', count: 1, delta: -3}],
+        'history trends should preserve decreases as negative deltas');
+    equal(getHistorySourceDeltas([{name: 'Bad', count: -1}, null], []), [],
+        'history trends should ignore malformed source entries');
 
     equal(getUpdatableSources(
         [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}, {name: 'Broken'}, {name: 'Checking'}],
