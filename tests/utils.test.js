@@ -72,6 +72,13 @@ function testSummarySnapshot() {
         'cancelled checks should not mark the summary as failed');
     equal(cancelledSnapshot.sources[0].error, '',
         'cancelled checks should not publish a failure message');
+
+    const errorSnapshot = buildSummarySnapshot({
+        results: [{name: 'DNF', status: 'error', count: 0, message: 'command failed', details: 'password=hidden'}],
+        total: 0, failed: true,
+    });
+    assert(!JSON.stringify(errorSnapshot).includes('password=hidden'),
+        'published summaries must not include expanded diagnostic details');
     assert(snapshot.sources[1].error.includes('/home/[USER]'),
         'summary should redact home directory names');
     assert(!snapshot.sources[1].error.includes('secret-value') &&

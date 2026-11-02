@@ -32,7 +32,7 @@ General settings can exclude exact package or app identifiers from successful so
 
 ## Security and reboot status
 
-The optional security check can show a separate security-update count. That count is already included in the overall update total. An optional advisory metadata command can provide multiple matching advisory lines. The **Advisory match regex** setting controls which lines are shown; up to five distinct matches are displayed. Use a pattern such as `APT-[0-9]+` for another distribution. Invalid patterns fall back to the built-in matcher. The reboot check uses a command that prints output only when a reboot is required; its default is Fedora-oriented.
+The optional security check can show a separate security-update count. That count is already included in the overall update total. Failed source rows include a collapsed **Details** view and a **Copy** action for stdout/stderr. Diagnostics are redacted before display or copying and are not included in the published summary. An optional advisory metadata command can provide multiple matching advisory lines. The **Advisory match regex** setting controls which lines are shown; up to five distinct matches are displayed. Use a pattern such as `APT-[0-9]+` for another distribution. Invalid patterns fall back to the built-in matcher. The reboot check uses a command that prints output only when a reboot is required; its default is Fedora-oriented.
 
 These defaults are Fedora-focused. On other distributions, configure checks appropriate to the package manager and operating system.
 

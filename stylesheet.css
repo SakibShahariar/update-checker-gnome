@@ -274,3 +274,11 @@
     transition-duration: 0ms !important;
     transition-delay: 0ms !important;
 }
+
+.update-checker-error-details {
+    background-color: rgba(127, 127, 127, 0.12);
+    border-radius: 6px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 0.85em;
+}
