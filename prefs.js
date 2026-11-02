@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas, parseSourceOutputFormats, isValidSourceOutputFormat} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {buildDiagnosticsReport} from './lib/summary.js';
@@ -528,6 +528,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const intervalValues = [];
             const timeoutValues = [];
             const exitCodeValues = [];
+            const outputFormatValues = [];
             const seen = new Set();
             let hasDuplicate = false;
             let hasInvalidName = false;
@@ -538,6 +539,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const updateCommand = r.updateCmdEntry.get_text().trim();
                 const interval = Math.round(r.intervalSpin.get_value());
                 const timeoutSeconds = Math.round(r.timeoutSpin.get_value());
+                const selectedFormat = OUTPUT_FORMAT_VALUES[r.outputFormatDropDown.get_selected()] ?? 'auto';
+                const outputFormat = selectedFormat === 'custom'
+                    ? `custom:${Math.round(r.nameColumnSpin.get_value())}:${Math.round(r.versionColumnSpin.get_value())}`
+                    : selectedFormat;
                 const successExitCodesText = r.exitCodesEntry.get_text().trim();
                 const successExitCodes = parseExitCodeList(successExitCodesText);
                 r.nameEntry.remove_css_class('error');
@@ -570,6 +575,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 timeoutValues.push(`${name}|${timeoutSeconds}`);
                 if (successExitCodesText)
                     exitCodeValues.push(`${name}|${successExitCodes.join(',')}`);
+                if (isValidSourceOutputFormat(outputFormat))
+                    outputFormatValues.push(`${name}|${outputFormat}`);
             }
             if (hasDuplicate || hasInvalidName || hasInvalidExitCodes) {
                 updateBannerVisibility();
@@ -610,6 +617,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             settings.set_strv('source-intervals', intervalValues);
             settings.set_strv('source-timeouts', timeoutValues);
             settings.set_strv('source-success-exit-codes', exitCodeValues);
+            settings.set_strv('source-output-formats', outputFormatValues);
             updateBannerVisibility();
         };
 
@@ -638,7 +646,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateSourceOrderControls();
         };
 
-        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null, timeoutSeconds = null, successExitCodes = '') => {
+        const OUTPUT_FORMAT_VALUES = ['auto', 'dnf', 'flatpak', 'npm', 'cargo', 'uv', 'custom'];
+        const OUTPUT_FORMAT_LABELS = ['Auto (legacy)', 'DNF', 'Flatpak', 'npm outdated', 'Cargo outdated', 'uv tool list', 'Custom columns'];
+
+        const addSourceRow = (name = '', command = '', updateCommand = '', interval = null, enabled = null, timeoutSeconds = null, successExitCodes = '', outputFormat = 'auto') => {
             const wrapper = new Gtk.Box({
                 orientation: Gtk.Orientation.VERTICAL,
                 spacing: 0,
@@ -896,11 +907,53 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             timeoutRow.append(timeoutSpin);
             timeoutRow.append(timeoutSuffix);
 
+            const customColumns = /^custom:(\d{1,2}):(\d{1,2})$/.exec(outputFormat);
+            const selectedOutputFormat = customColumns ? 'custom' : outputFormat;
+            const outputFormatRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
+                margin_start: 12, margin_end: 12, margin_bottom: 10,
+            });
+            const outputFormatLabel = new Gtk.Label({
+                label: 'Output format',
+                css_classes: ['dim-label', 'caption'],
+                valign: Gtk.Align.CENTER,
+            });
+            const outputFormatDropDown = Gtk.DropDown.new_from_strings(OUTPUT_FORMAT_LABELS);
+            outputFormatDropDown.set_selected(Math.max(0, OUTPUT_FORMAT_VALUES.indexOf(selectedOutputFormat)));
+            outputFormatDropDown.set_tooltip_text('Choose the parser for this source. Auto preserves the original first-token behavior.');
+            const customColumnsRow = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
+                valign: Gtk.Align.CENTER,
+            });
+            const nameColumnSpin = new Gtk.SpinButton({
+                adjustment: new Gtk.Adjustment({
+                    lower: 1, upper: 50, step_increment: 1,
+                    value: customColumns ? Number(customColumns[1]) : 1,
+                }),
+                numeric: true, width_chars: 3, valign: Gtk.Align.CENTER,
+            });
+            const versionColumnSpin = new Gtk.SpinButton({
+                adjustment: new Gtk.Adjustment({
+                    lower: 1, upper: 50, step_increment: 1,
+                    value: customColumns ? Number(customColumns[2]) : 2,
+                }),
+                numeric: true, width_chars: 3, valign: Gtk.Align.CENTER,
+            });
+            customColumnsRow.append(new Gtk.Label({label: 'Name column', css_classes: ['dim-label', 'caption']}));
+            customColumnsRow.append(nameColumnSpin);
+            customColumnsRow.append(new Gtk.Label({label: 'Version column', css_classes: ['dim-label', 'caption']}));
+            customColumnsRow.append(versionColumnSpin);
+            customColumnsRow.set_visible(selectedOutputFormat === 'custom');
+            outputFormatRow.append(outputFormatLabel);
+            outputFormatRow.append(outputFormatDropDown);
+            outputFormatRow.append(customColumnsRow);
+
             wrapper.append(topRow);
             wrapper.append(separator);
             wrapper.append(bottomRow);
             wrapper.append(intervalRow);
             wrapper.append(timeoutRow);
+            wrapper.append(outputFormatRow);
 
             const exitCodeRow = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 8,
@@ -926,7 +979,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             wrapper.append(testRow);
             rowsBox.append(wrapper);
 
-            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, timeoutSpin, exitCodesEntry, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
+            const entry = {row: wrapper, nameEntry, cmdEntry, updateCmdEntry, intervalSpin, timeoutSpin, outputFormatDropDown, nameColumnSpin, versionColumnSpin, exitCodesEntry, testButton, testResultLabel, enabledCheck, moveUpButton, moveDownButton};
             sourceRows.push(entry);
             moveUpButton.connect('clicked', () => moveSource(entry, -1));
             moveDownButton.connect('clicked', () => moveSource(entry, 1));
@@ -934,6 +987,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
             intervalSpin.connect('value-changed', saveSources);
             timeoutSpin.connect('value-changed', saveSources);
+            outputFormatDropDown.connect('notify::selected', () => {
+                customColumnsRow.set_visible(OUTPUT_FORMAT_VALUES[outputFormatDropDown.get_selected()] === 'custom');
+                saveSources();
+            });
+            nameColumnSpin.connect('value-changed', saveSources);
+            versionColumnSpin.connect('value-changed', saveSources);
             for (const w of [nameEntry, cmdEntry, updateCmdEntry, exitCodesEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => {
@@ -966,6 +1025,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
         const existingIntervals = new Map();
         const existingTimeouts = new Map();
+        const existingOutputFormats = parseSourceOutputFormats(settings.get_strv('source-output-formats'));
         const existingExitCodes = new Map([...parseSourceExitCodes(settings.get_strv('source-success-exit-codes'))]
             .map(([name, codes]) => [name, codes.join(',')]));
         for (const entry of settings.get_strv('source-timeouts')) {
@@ -997,7 +1057,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 continue;
             const name = entry.slice(0, idx).trim();
             const command = entry.slice(idx + 1).trim();
-            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null, null, existingTimeouts.get(name) ?? null, existingExitCodes.get(name) ?? '');
+            addSourceRow(name, command, existingUpdateCommands.get(name) ?? '', existingIntervals.get(name) ?? null, null, existingTimeouts.get(name) ?? null, existingExitCodes.get(name) ?? '', existingOutputFormats.get(name) ?? 'auto');
         }
 
         const scroller = new Gtk.ScrolledWindow({
@@ -1128,6 +1188,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                             intervalMinutes: Math.round(r.intervalSpin.get_value()),
                             timeoutSeconds: Math.round(r.timeoutSpin.get_value()),
                             successExitCodes: r.exitCodesEntry.get_text().trim(),
+                            outputFormat: (() => {
+                                const selected = OUTPUT_FORMAT_VALUES[r.outputFormatDropDown.get_selected()] ?? 'auto';
+                                return selected === 'custom'
+                                    ? `custom:${Math.round(r.nameColumnSpin.get_value())}:${Math.round(r.versionColumnSpin.get_value())}`
+                                    : selected;
+                            })(),
                             enabled: r.enabledCheck.get_active(),
                         })).filter(s => s.name && s.command),
                     };
@@ -1191,7 +1257,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                         rowsBox.remove(entry.row);
                     sourceRows.splice(0, sourceRows.length);
                     for (const source of imported)
-                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds, source.successExitCodes);
+                        addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds, source.successExitCodes, source.outputFormat);
                     saveSources();
                     sourceTransferStatus.set_text(`Imported ${imported.length} source(s).`);
                 });
