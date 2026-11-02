@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
 import {setupNetworkWatch} from './lib/network-watch.js';
-import {parseSources, parseIntervals, getPollingIntervalMinutes, cancelAllShellCommands} from './lib/utils.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -17,6 +17,15 @@ export default class UpdateCheckerExtension extends Extension {
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
         this._settings = this.getSettings();
+        this._preferenceCheckDebouncer = createDebouncer(
+            (delay, callback) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                callback();
+                return GLib.SOURCE_REMOVE;
+            }),
+            sourceId => GLib.source_remove(sourceId),
+            750,
+            () => this._indicator?.checkNow(true)
+        );
         this._timeoutId = null;
         this._registerCheckNowKeybinding();
         this._shortcutChangedId = this._settings.connect('changed::check-now-shortcut', () => {
@@ -28,10 +37,16 @@ export default class UpdateCheckerExtension extends Extension {
 
         this._scheduleTimer();
         this._sourceIntervalsChangedId = this._settings.connect(
-            'changed::source-intervals', () => this._scheduleTimer()
+            'changed::source-intervals', () => {
+                this._scheduleTimer();
+                this._preferenceCheckDebouncer.schedule();
+            }
         );
         this._settingsChangedId = this._settings.connect(
-            'changed::check-interval-minutes', () => this._scheduleTimer()
+            'changed::check-interval-minutes', () => {
+                this._scheduleTimer();
+                this._preferenceCheckDebouncer.schedule();
+            }
         );
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
@@ -43,18 +58,21 @@ export default class UpdateCheckerExtension extends Extension {
         // scheduled poll.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
             this._scheduleTimer();
-            this._indicator?.checkNow(true);
+            this._preferenceCheckDebouncer.schedule();
         });
         this._updateCmdsChangedId = this._settings.connect('changed::source-update-commands', () => {
-            this._indicator?.checkNow(true);
+            this._preferenceCheckDebouncer.schedule();
         });
         this._ignoredPackagesChangedId = this._settings.connect('changed::ignored-packages', () => {
             this._indicator?._lastSourcePoll.clear();
             this._indicator?._lastSourceResults.clear();
-            this._indicator?.checkNow(true);
+            this._preferenceCheckDebouncer.schedule();
         });
         this._securityAdvisoryChangedId = this._settings.connect('changed::security-advisory-command', () => {
-            this._indicator?.checkNow(true);
+            this._preferenceCheckDebouncer.schedule();
+        });
+        this._disabledSourcesChangedId = this._settings.connect('changed::disabled-sources', () => {
+            this._preferenceCheckDebouncer.flush();
         });
         this._powerPolicyChangedIds = [
             this._settings.connect('changed::skip-on-battery', () => this._indicator?.checkNow()),
@@ -177,6 +195,13 @@ export default class UpdateCheckerExtension extends Extension {
             this._settings.disconnect(this._securityAdvisoryChangedId);
             this._securityAdvisoryChangedId = null;
         }
+        if (this._disabledSourcesChangedId) {
+            this._settings.disconnect(this._disabledSourcesChangedId);
+            this._disabledSourcesChangedId = null;
+        }
+        // Do not start a new check while the extension is tearing down.
+        this._preferenceCheckDebouncer?.cancel();
+        this._preferenceCheckDebouncer = null;
         for (const id of this._powerPolicyChangedIds ?? [])
             this._settings.disconnect(id);
         this._powerPolicyChangedIds = [];
