@@ -1,7 +1,7 @@
 import System from 'system';
 import GLib from 'gi://GLib';
 import {sanitizeMatugenColor} from '../lib/theming.js';
-import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
+import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
     classifySubprocessExit,
@@ -40,6 +40,37 @@ function assert(condition, message) {
 function equal(actual, expected, message) {
     assert(JSON.stringify(actual) === JSON.stringify(expected),
         `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+}
+
+function testDiagnosticsReport() {
+    const summary = {
+        lastCheck: '12:30', total: 3, securityCount: 1, offline: false,
+        onBattery: true, networkMetered: false, quietHoursActive: false,
+        busy: false, failed: true, rebootRequired: false,
+        sources: [
+            {name: 'DNF', status: 'error', count: 0, cached: false,
+                lastChecked: '2026-11-03T12:00:00Z', error: 'token=[REDACTED]'},
+        ],
+    };
+    const sources = [{name: 'DNF', command: 'dnf check-update'}];
+    const common = {
+        extensionVersion: 8, shellVersion: '51', summary, globalInterval: 60,
+        sources, intervals: new Map([['DNF', 30]]),
+        policies: {skipOnBattery: true, skipOnMetered: false, quietHoursEnabled: true,
+            quietHoursStart: 23, quietHoursEnd: 8, securityCheckEnabled: true, rebootCheckEnabled: true},
+    };
+    const basic = buildDiagnosticsReport(common);
+    assert(basic.includes('Configured sources: 1') && !basic.includes('- DNF: every'),
+        'basic diagnostics should include source count but omit per-source details');
+    assert(!basic.includes('dnf check-update') && !basic.includes('raw output'),
+        'diagnostics must never include configured commands or raw output');
+    const detailed = buildDiagnosticsReport({...common, includeSourceDetails: true});
+    assert(detailed.includes('- DNF: every 30 min; status error; updates 0'),
+        'opt-in diagnostics should include per-source status, interval, and count');
+    assert(detailed.includes('Error summary: token=[REDACTED]'),
+        'opt-in diagnostics should include the already-redacted failure summary');
+    assert(!detailed.includes('dnf check-update'),
+        'detailed diagnostics must still exclude source commands');
 }
 
 function testSummarySnapshot() {
