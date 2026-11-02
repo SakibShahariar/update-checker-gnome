@@ -198,6 +198,12 @@
       <description>List of "Name|0,100" entries overriding the default non-zero success code (DNF status 100).</description>
     </key>
 
+    <key name="source-output-formats" type="as">
+      <default>[]</default>
+      <summary>Per-source package output formats</summary>
+      <description>List of "Name|format" entries selecting auto, DNF, Flatpak, npm, Cargo, uv, or custom column mappings for displayed package names and versions.</description>
+    </key>
+
     <key name="source-timeouts" type="as">
       <default>[]</default>
       <summary>Per-source check timeouts</summary>
