@@ -14,6 +14,7 @@ import {
     getPollingIntervalMinutes,
     getNextSourceCheckAt,
     getSecurityNotificationDelta,
+    parseSecurityAdvisories,
     mapPool,
     classifyResult,
     filterIgnoredPackages,
@@ -251,6 +252,17 @@ async function main() {
         'failed security checks should not notify from an unreliable count');
     equal(getSecurityNotificationDelta(2, 5, {enabled: false}), 0,
         'disabled security notifications should remain silent');
+
+    equal(parseSecurityAdvisories('FEDORA-2026-123\nRHSA-2026:456\nordinary package output\nUSN-2026-789'),
+        ['FEDORA-2026-123', 'RHSA-2026:456', 'USN-2026-789'],
+        'default advisory matching should support multiple common distribution identifiers');
+    equal(parseSecurityAdvisories('APT-2026-22\nAPT-2026-23\nAPT-2026-22', 'APT-\\d+'),
+        ['APT-2026-22', 'APT-2026-23'],
+        'custom advisory patterns should support other distribution formats and remove duplicates');
+    equal(parseSecurityAdvisories('FEDORA-2026-123\nplain output', '['),
+        ['FEDORA-2026-123'],
+        'invalid custom patterns should fall back to the safe default matcher');
+
 
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 120]])), 60,

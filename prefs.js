@@ -1314,6 +1314,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('security-advisory-command', advisoryCommandRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         securityGroup.add(advisoryCommandRow);
 
+        const advisoryPatternRow = new Adw.EntryRow({title: 'Advisory match regex'});
+        advisoryPatternRow.add_prefix(new Gtk.Image({icon_name: 'edit-find-symbolic', pixel_size: 16}));
+        advisoryPatternRow.set_tooltip_text('JavaScript regular expression used to select advisory lines. Invalid expressions fall back to the built-in matcher.');
+        settings.bind('security-advisory-pattern', advisoryPatternRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        securityGroup.add(advisoryPatternRow);
+
         const scriptGroup = new Adw.PreferencesGroup({title: 'Update Script', description: 'Optional script via Run Update Script menu.'});
         advancedPage.add(scriptGroup);
 
