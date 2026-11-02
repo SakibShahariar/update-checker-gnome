@@ -39,7 +39,7 @@ These defaults are Fedora-focused. On other distributions, configure checks appr
 Update actions are always user-triggered; discovering updates does not install them.
 
 - **Terminal mode** opens the configured terminal and runs the source's update command interactively.
-- **Background mode** uses graphical `pkexec` elevation. A leading `doas`, `sudo`, or `pkexec` is normalized to a single `pkexec` invocation. Other elevation patterns such as `su -c` are not rewritten. Avoid combining privileged and unprivileged tools in one update command.
+- **Background mode** uses graphical `pkexec` elevation. A leading `doas`, `sudo`, or `pkexec` is normalized to a single `pkexec` invocation. Other elevation patterns such as `su -c` are not rewritten. Commands that combine an elevation prefix with shell composition (such as `&&`, `;`, or pipes) are rejected in background mode: split privileged and user-scoped tools (especially Flatpak) into separate sources/commands. Simple privileged commands continue to work.
 - **Run Update Script** launches the script path configured in Advanced settings. It is a separate action and is not rewritten for background mode.
 
 Background updates expose elapsed-time and stop controls. Stopping sends a termination signal to the tracked process group and force-kills it after a short grace period if it remains tracked. This is best-effort: a command that daemonizes or hands work to an unrelated service may continue. Disabling the extension cancels its in-progress source check commands, but does not cancel an update already running in a terminal or background process. Stop an update from the popup before disabling if you want it terminated.

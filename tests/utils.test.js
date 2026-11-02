@@ -95,6 +95,22 @@ function testSummarySnapshot() {
 testSummarySnapshot();
 
 async function main() {
+    for (const command of [
+        'doas dnf upgrade -y && flatpak update -y',
+        'sudo dnf upgrade -y; npm update',
+        'pkexec dnf upgrade -y | tee update.log',
+    ])
+        assert(hasMixedPrivilegeCommand(command),
+            `background mode should reject composed elevated commands: ${command}`);
+    for (const command of [
+        'doas dnf upgrade -y',
+        'sudo flatpak update -y',
+        'dnf upgrade -y',
+        'printf "doas dnf" ',
+    ])
+        assert(!hasMixedPrivilegeCommand(command),
+            `simple or non-elevated commands should remain allowed: ${command}`);
+
     equal(parseSources([
         ' DNF | dnf check-update ',
         'invalid',
