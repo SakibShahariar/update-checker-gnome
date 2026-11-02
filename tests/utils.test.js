@@ -18,6 +18,7 @@ import {
     parseSecurityAdvisories,
     mapPool,
     classifyResult,
+    boundResultLines,
     filterIgnoredPackages,
     parseSources,
     parseUpdateCommands,
@@ -419,6 +420,25 @@ async function main() {
         ['firefox.x86_64', 'org.example.App']
     ), {status: 'ok', count: 1, message: '', lines: ['kernel-core.x86_64 3 4']},
     'ignored identifiers should be removed exactly and the count recalculated');
+
+    const oversizedResult = {
+        status: 'ok', count: 250, message: '',
+        lines: Array.from({length: 250}, (_, index) => `package-${index} 1.0`),
+    };
+    const boundedResult = boundResultLines(oversizedResult, 100, 20000);
+    equal(boundedResult.lines.length, 100,
+        'stored command output should retain no more than the configured line limit');
+    equal(boundedResult.count, 250,
+        'bounding displayed output must preserve the complete update count');
+    equal(boundedResult.truncated, true,
+        'bounded output should expose that additional lines were omitted');
+    const charBoundedResult = boundResultLines({
+        status: 'ok', count: 2, lines: ['a'.repeat(12), 'b'.repeat(12)],
+    }, 10, 15);
+    equal(charBoundedResult.lines, ['a'.repeat(12), 'b'.repeat(3)],
+        'stored command output should also respect its character budget');
+    equal(boundResultLines({status: 'error', lines: []}), {status: 'error', lines: []},
+        'empty error results should remain unchanged');
 
     const sourceError = {status: 'error', count: 0, message: 'network unavailable', lines: []};
     assert(filterIgnoredPackages(sourceError, ['anything']) === sourceError,
