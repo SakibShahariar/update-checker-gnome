@@ -4,6 +4,7 @@ import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
+    runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     mapPool,
@@ -311,6 +312,18 @@ async function main() {
     ])
         assert(sanitizeMatugenColor(invalid, '#112233') === '#112233',
             'invalid Matugen color should use the safe fallback');
+
+    const isolatedResults = await mapPool(['ok-1', 'fails', 'ok-2'], 2, async name => {
+        return await runWorkerSafely(async () => {
+            if (name === 'fails') throw new Error('expected worker failure');
+            return {name, status: 'ok'};
+        }, error => ({name, status: 'error', message: String(error.message)}));
+    });
+    equal(isolatedResults, [
+        {name: 'ok-1', status: 'ok'},
+        {name: 'fails', status: 'error', message: 'expected worker failure'},
+        {name: 'ok-2', status: 'ok'},
+    ], 'worker failures should be converted locally while sibling results complete');
 
     let activeWorkers = 0;
     let peakWorkers = 0;
