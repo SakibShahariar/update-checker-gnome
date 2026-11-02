@@ -4,7 +4,11 @@ All settings are available from **Update Checker → Settings** (or `gnome-exten
 
 ## Sources
 
-Each source has a name and a shell check command. The extension runs the command through `/bin/sh -c` and counts non-empty standard-output lines as pending updates, so configure one output line per update. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
+Each source has a name and a shell check command. The extension resolves `sh` from the current process `PATH`, runs it with `-c`, and uses `setsid` (also resolved from `PATH`) to isolate each check in its own process group. It counts non-empty standard-output lines as pending updates, so configure one output line per update. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
+
+### Command execution dependencies
+
+The command runner discovers a POSIX `sh` and `setsid` at runtime instead of assuming fixed `/bin/sh` and `/usr/bin/setsid` locations. On common Linux distributions, `setsid` is supplied by **util-linux**. Both executables must be visible in GNOME Shell's `PATH`; a shell or `setsid` installed only inside an unrelated container/Flatpak environment is not automatically visible to the host extension. If either executable is missing, the source check reports the missing dependency instead of silently running without process-group isolation. Keep the selected shell and `setsid` available in the same environment where GNOME Shell runs.
 
 If no sources are configured, all sources are disabled, or every configured entry is malformed, the popup shows a distinct explanation. Activate that warning to open the Sources preferences page directly.
 
