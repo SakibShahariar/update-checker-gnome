@@ -70,6 +70,9 @@ export default class UpdateCheckerExtension extends Extension {
         this._updateCmdsChangedId = this._settings.connect('changed::source-update-commands', () => {
             this._preferenceCheckDebouncer.schedule();
         });
+        this._sourceOutputFormatsChangedId = this._settings.connect('changed::source-output-formats', () => {
+            this._preferenceCheckDebouncer.schedule();
+        });
         this._ignoredPackagesChangedId = this._settings.connect('changed::ignored-packages', () => {
             this._indicator?._lastSourcePoll.clear();
             this._indicator?._lastSourceResults.clear();
@@ -194,6 +197,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._updateCmdsChangedId) {
             this._settings.disconnect(this._updateCmdsChangedId);
             this._updateCmdsChangedId = null;
+        }
+        if (this._sourceOutputFormatsChangedId) {
+            this._settings.disconnect(this._sourceOutputFormatsChangedId);
+            this._sourceOutputFormatsChangedId = null;
         }
         if (this._ignoredPackagesChangedId) {
             this._settings.disconnect(this._ignoredPackagesChangedId);
