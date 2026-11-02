@@ -266,3 +266,11 @@
 .update-checker-menu StButton:focus {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
+
+/* CSS transitions need an explicit reduced-motion override too; Clutter
+ * ease() calls are separately guarded in the indicator and menu helpers. */
+.update-checker-reduced-motion,
+.update-checker-reduced-motion * {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+}
