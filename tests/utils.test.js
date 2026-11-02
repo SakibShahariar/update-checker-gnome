@@ -295,12 +295,12 @@ async function main() {
         format: 'update-checker-sources',
         version: 1,
         sources: [
-            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, timeoutSeconds: 240, successExitCodes: '0,100', enabled: false},
+            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, timeoutSeconds: 240, successExitCodes: '0,100', outputFormat: 'custom:3:1', enabled: false},
             {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
         ],
     }, 60), [
-        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, successExitCodes: '0,100', enabled: false},
-        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, successExitCodes: '', enabled: true},
+        {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, successExitCodes: '0,100', outputFormat: 'custom:3:1', enabled: false},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, successExitCodes: '', outputFormat: 'auto', enabled: true},
     ], 'source backup validation should normalize fields and preserve per-source options');
 
     for (const [payload, expected] of [
@@ -311,6 +311,7 @@ async function main() {
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', enabled: 'no'}]}, 'invalid enabled flag'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', timeoutSeconds: 4}]}, 'invalid timeout'],
         [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', successExitCodes: '0,256'}]}, 'invalid success exit codes'],
+        [{format: 'update-checker-sources', version: 1, sources: [{name: 'DNF', command: 'dnf', outputFormat: 'custom:2:2'}]}, 'invalid output format'],
     ]) {
         let error = '';
         try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
