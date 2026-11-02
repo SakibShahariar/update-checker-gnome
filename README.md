@@ -71,7 +71,7 @@ If GNOME does not discover or activate the extension immediately, log out and ba
 - **Check now** runs an immediate check; **Dismiss errors** clears displayed errors until the next check.
 - The default global check interval is 60 minutes. Each source can override it.
 
-Each source's check command should print **one non-empty output line per pending update**. Commands run through `/bin/sh -c`; failures and checks that exceed the 120-second timeout are reported as errors. Review custom commands before saving them.
+Each source's check command should print **one non-empty output line per pending update**. Commands use `sh -c` and `setsid`, both resolved from GNOME Shell's `PATH` for process-group isolation; missing dependencies are reported as errors. Checks that exceed the 120-second timeout are also reported as errors. Review custom commands before saving them.
 
 For full details on source commands, polling policies, ignored packages, privilege handling, and security/reboot checks, see the [configuration guide](docs/configuration.md).
 
