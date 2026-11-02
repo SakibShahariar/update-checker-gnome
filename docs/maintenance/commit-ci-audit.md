@@ -24,16 +24,18 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 
 - Repository: `SakibShahariar/update-checker-gnome`
 - Default branch: `master`
-- Checkpoint SHA: `504af3caa50dd24b8ba272406f81cce436fcbfe2`
+- Checkpoint SHA: `629c98e2550bc488dcfe747faedc9e2d05d51758`
 - Initialized: 2026-11-02
 - Baseline: latest branch tip queried through combined commit-status endpoint; empty status list recorded as **unavailable**, not green/red. Older history was not retroactively audited during setup.
-- Next session: review commits after this checkpoint, including the ledger and `AGENTS.md` setup commits; investigate any older red/pending commit specifically identified by the owner.
+- Next session: review commits after this checkpoint, including this ledger-update commit; carry forward all entries marked unavailable.
 
 ## Initial baseline
 
 | Commit SHA | Subject | CI result | Checked | Follow-up |
 |---|---|---|---|---|
-| `504af3caa50dd24b8ba272406f81cce436fcbfe2` | Default-branch tip at ledger initialization | unavailable | 2026-11-02 | Combined status lookup returned no entries. Revisit if new run or visible failure evidence appears. |
+| `504af3caa50dd24b8ba272406f81cce436fcbfe2` | feat: expand and copy redacted check diagnostics (#68) | unavailable | 2026-11-02 | Baseline status query returned no entries; retained as unavailable. |
+| `969e1fdba7f30e0c84f0b992cecd615169ffab12` | docs: add persistent commit CI audit ledger | unavailable | 2026-11-03 | Combined status lookup returned no entries; commit-run lookup exposed no runs (that endpoint only surfaces PR-triggered runs); public Actions search returned no result. Push CI outcome remains unverified. |
+| `629c98e2550bc488dcfe747faedc9e2d05d51758` | docs: document incremental commit CI auditing | unavailable | 2026-11-03 | Combined status lookup returned no entries; commit-run lookup exposed no runs (that endpoint only surfaces PR-triggered runs); public Actions search returned no result. Push CI outcome remains unverified. |
 
 ## Red-cross investigation log
 
@@ -58,3 +60,4 @@ No red result was confirmed from the status data retrieved during setup.
 | Date | Reviewed range / checkpoint | Result summary |
 |---|---|---|
 | 2026-11-02 | Initial checkpoint: `504af3caa50dd24b8ba272406f81cce436fcbfe2` | Latest commit queried; empty status response recorded as unavailable. Earlier history not retroactively audited. |
+| 2026-11-03 | `504af3caa50dd24b8ba272406f81cce436fcbfe2` → `629c98e2550bc488dcfe747faedc9e2d05d51758` | Reviewed both commits after checkpoint. Both CI results remain unavailable; no failure was observed, but neither commit is verified green. Updated issue #59 checklist for existing regression coverage; left issue open for GNOME-session validation. |
