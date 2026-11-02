@@ -58,6 +58,17 @@ function testSummarySnapshot() {
     equal(snapshot.sources[0].error, '', 'successful sources should not publish error text');
     assert(snapshot.sources[1].error.includes('token=[REDACTED]'),
         'summary should redact token-like values');
+
+    const cancelledSnapshot = buildSummarySnapshot({
+        results: [{name: 'Cargo', status: 'cancelled', count: 0}],
+        total: 0, failed: false,
+    });
+    equal(cancelledSnapshot.cancelled, true,
+        'summary should expose cancelled checks distinctly');
+    equal(cancelledSnapshot.failed, false,
+        'cancelled checks should not mark the summary as failed');
+    equal(cancelledSnapshot.sources[0].error, '',
+        'cancelled checks should not publish a failure message');
     assert(snapshot.sources[1].error.includes('/home/[USER]'),
         'summary should redact home directory names');
     assert(!snapshot.sources[1].error.includes('secret-value') &&
@@ -251,6 +262,20 @@ async function main() {
         stdout: '', stderr: '', exitStatus: 2, spawnFailed: false, timedOut: false,
     }), {status: 'error', count: 0, message: 'Command exited with status 2', lines: []},
     'unconfigured non-zero exit codes without output should remain errors');
+
+    equal(classifyResult({
+        stdout: '', stderr: '', exitStatus: -1, spawnFailed: false, timedOut: false, cancelled: true,
+    }), {status: 'cancelled', count: 0, message: 'Check cancelled', lines: []},
+    'cancelled commands should not be classified as failures');
+
+    const cancellation = await runWorkerSafely(async () => {
+        const error = new Error('Operation cancelled');
+        error.matches = () => true;
+        throw error;
+    }, () => ({status: 'error', count: 0, message: 'unexpected worker failure', lines: []}));
+    equal(cancellation, {status: 'cancelled', count: 0, message: 'Check cancelled', lines: []},
+        'cancelled worker errors should produce a distinct result');
+
 
 
     // Representative one-line-per-update output from the default DNF filter
