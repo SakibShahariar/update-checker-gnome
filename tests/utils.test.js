@@ -142,7 +142,7 @@ async function main() {
         format: 'update-checker-sources',
         version: 1,
         sources: [
-            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, enabled: false},
+            {name: ' DNF ', command: ' dnf check-update ', updateCommand: ' dnf upgrade ', intervalMinutes: 30, timeoutSeconds: 240, enabled: false},
             {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
         ],
     }, 60), [
