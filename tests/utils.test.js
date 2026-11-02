@@ -1,4 +1,5 @@
 import System from 'system';
+import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, redactSummaryError} from '../lib/summary.js';
 import {
     runShell,
@@ -292,6 +293,22 @@ async function main() {
         'three-digit hex colors should expand correctly');
     assert(lightenHex('#f0f0f0') === '#ffffff',
         'lightenHex should clamp channels at white');
+    for (const valid of ['#abc', '#123456', 'rgb(12, 34, 56)', 'rgba(12,34,56,0.5)', 'rgba(12, 34, 56, 1)'])
+        assert(sanitizeMatugenColor(valid, '#000') === valid,
+            `valid Matugen color should be preserved: ${valid}`);
+    for (const invalid of [
+        'red; background-image: url(evil)',
+        'url(https://example.test)',
+        'var(--attacker)',
+        'rgb(256, 0, 0)',
+        'rgba(0, 0, 0, 2)',
+        'expression(alert(1))',
+        '',
+        null,
+        123,
+    ])
+        assert(sanitizeMatugenColor(invalid, '#112233') === '#112233',
+            'invalid Matugen color should use the safe fallback');
 
     let activeWorkers = 0;
     let peakWorkers = 0;
