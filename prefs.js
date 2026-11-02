@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {buildDiagnosticsReport} from './lib/summary.js';
@@ -371,6 +371,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         historyGroup.add(recordHistoryRow);
         const historyDisplayRows = [];
         let historyEmptyRow = null;
+        let clearHistoryButton = null;
         const clearHistoryDisplay = () => {
             for (const row of historyDisplayRows)
                 historyGroup.remove(row);
@@ -382,6 +383,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 });
                 historyGroup.add(historyEmptyRow);
             }
+            clearHistoryButton?.set_sensitive(false);
         };
         recordHistoryRow.connect('notify::active', () => {
             if (!recordHistoryRow.get_active()) {
@@ -408,22 +410,49 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             });
             historyGroup.add(historyEmptyRow);
         } else {
-            for (const entry of historyEntries) {
+            for (let index = 0; index < historyEntries.length; index++) {
+                const entry = historyEntries[index];
+                const previousEntry = historyEntries[index + 1];
                 const perSource = Array.isArray(entry.sources)
                     ? entry.sources.filter(source => source && typeof source.name === 'string' &&
                         Number.isSafeInteger(source.count) && source.count >= 0)
                     : [];
-                const sourceSummary = perSource.length
-                    ? perSource.map(source => `${source.name}: ${source.count}`).join(' · ')
+                const trends = getHistorySourceDeltas(perSource, previousEntry?.sources);
+                const sourceSummary = trends.length
+                    ? trends.map(source => {
+                        const delta = source.delta === null ? '' : source.delta > 0
+                            ? ` (+${source.delta})` : source.delta < 0
+                                ? ` (${source.delta})` : ' (no change)';
+                        return `${source.name}: ${source.count}${delta}`;
+                    }).join(' · ')
                     : 'Per-source totals unavailable';
+                const checkedAt = Number.isSafeInteger(entry.timestamp)
+                    ? new Date(entry.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+                    : '';
                 const historyRow = new Adw.ActionRow({
                     title: `${entry.date} · ${entry.total} update${entry.total === 1 ? '' : 's'}`,
-                    subtitle: `${entry.securityCount ?? 0} security · ${sourceSummary}`,
+                    subtitle: `${checkedAt ? `Checked ${checkedAt} · ` : ''}${entry.securityCount ?? 0} security · ${sourceSummary}`,
                 });
                 historyDisplayRows.push(historyRow);
                 historyGroup.add(historyRow);
             }
         }
+        const clearHistoryRow = new Adw.ActionRow({
+            title: 'Clear history',
+            subtitle: 'Remove the locally stored daily totals and per-source counts.',
+        });
+        clearHistoryButton = new Gtk.Button({
+            label: 'Clear history',
+            valign: Gtk.Align.CENTER,
+        });
+        clearHistoryButton.set_sensitive(historyEntries.length > 0);
+        clearHistoryButton.connect('clicked', () => {
+            settings.set_string('history-json', '[]');
+            historyEntries = [];
+            clearHistoryDisplay();
+        });
+        clearHistoryRow.add_suffix(clearHistoryButton);
+        historyGroup.add(clearHistoryRow);
 
         // Page 2: Sources — beautiful cards
         const sourcesPage = new Adw.PreferencesPage({
