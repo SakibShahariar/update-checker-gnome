@@ -1,6 +1,6 @@
 # Configuration
 
-All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`).
+All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`). Press **Ctrl+Alt+U** to run Check now from anywhere. Change or disable this shortcut in General → Keyboard preferences.
 
 ## Sources
 
