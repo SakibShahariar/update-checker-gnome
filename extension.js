@@ -24,7 +24,17 @@ export default class UpdateCheckerExtension extends Extension {
             }),
             sourceId => GLib.source_remove(sourceId),
             750,
-            () => this._indicator?.checkNow(true)
+            () => {
+                if (this._indicator?._checking) {
+                    this._preferenceCheckDebouncer.schedule();
+                    return;
+                }
+                // An active update or Update all queue performs its own final
+                // re-check after completion, using the latest preferences.
+                if (this._indicator?._updatingSources?.size || this._indicator?._updateAllQueue)
+                    return;
+                this._indicator?.checkNow(true);
+            }
         );
         this._timeoutId = null;
         this._registerCheckNowKeybinding();
