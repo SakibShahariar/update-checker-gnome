@@ -533,6 +533,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             let hasDuplicate = false;
             let hasInvalidName = false;
             let hasInvalidExitCodes = false;
+            let hasInvalidOutputFormat = false;
             for (const r of sourceRows) {
                 const name = r.nameEntry.get_text().trim();
                 const command = r.cmdEntry.get_text().trim();
@@ -547,8 +548,15 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const successExitCodes = parseExitCodeList(successExitCodesText);
                 r.nameEntry.remove_css_class('error');
                 r.exitCodesEntry.remove_css_class('error');
+                r.outputFormatDropDown.remove_css_class('error');
                 if (!name || !command)
                     continue;
+                if (!isValidSourceOutputFormat(outputFormat)) {
+                    r.outputFormatDropDown.add_css_class('error');
+                    r.outputFormatDropDown.set_tooltip_text('Choose a preset or use distinct custom columns from 1 to 50.');
+                    hasInvalidOutputFormat = true;
+                    continue;
+                }
                 if (successExitCodesText && successExitCodes === null) {
                     r.exitCodesEntry.add_css_class('error');
                     r.exitCodesEntry.set_tooltip_text('Use comma-separated exit codes from 0 to 255.');
@@ -575,10 +583,9 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 timeoutValues.push(`${name}|${timeoutSeconds}`);
                 if (successExitCodesText)
                     exitCodeValues.push(`${name}|${successExitCodes.join(',')}`);
-                if (isValidSourceOutputFormat(outputFormat))
-                    outputFormatValues.push(`${name}|${outputFormat}`);
+                outputFormatValues.push(`${name}|${outputFormat}`);
             }
-            if (hasDuplicate || hasInvalidName || hasInvalidExitCodes) {
+            if (hasDuplicate || hasInvalidName || hasInvalidExitCodes || hasInvalidOutputFormat) {
                 updateBannerVisibility();
                 return;
             }
@@ -1140,7 +1147,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         const exportSourcesButton = new Gtk.Button({
             label: 'Export Sources',
             icon_name: 'document-save-symbolic',
-            tooltip_text: 'Export source commands, per-source intervals, and enabled states to a JSON file.',
+            tooltip_text: 'Export source commands, intervals, output formats, and enabled states to a JSON file.',
         });
         const importSourcesButton = new Gtk.Button({
             label: 'Import Sources',
@@ -1151,7 +1158,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         sourceTransferRow.append(importSourcesButton);
 
         const sourceTransferStatus = new Gtk.Label({
-            label: 'Back up or restore source commands and per-source settings.',
+            label: 'Back up or restore source commands, intervals, parser formats, and per-source settings.',
             wrap: true,
             xalign: 0,
             css_classes: ['dim-label', 'caption'],
