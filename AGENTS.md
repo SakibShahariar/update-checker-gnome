@@ -79,6 +79,8 @@ These instructions apply to the entire repository. Follow any more specific `AGE
 
 Classify every open issue into exactly one of these categories during triage. Record the category and a brief evidence-based reason in the issue notes or maintenance tracker; do not apply a category based on guesswork.
 
+- The current repository-wide issue classification snapshot is maintained in `docs/maintenance/issue-triage.md`; update it when issue state or classification changes.
+
 - **Category A — Fully actionable:** The issue can be implemented, tested, and fully verified with the available source code, automated tests, and CI. No user laptop, live desktop session, special hardware, or manual confirmation is required. Prioritize these issues and close them only after their acceptance criteria are met and verification succeeds.
 - **Category B — Implementation ready, validation pending:** The implementation can be completed now, but final acceptance requires unavailable real-world validation such as a live GNOME session, visual/accessibility inspection, or measurements on target hardware. Implement and automate everything possible, but keep the issue open until the remaining validation is completed and recorded.
 - **Category C — Environment-dependent:** Reliable implementation or verification is not currently possible without a specific laptop, hardware, operating system/runtime, device, or interactive environment. Document the missing environment and any useful reproduction steps; keep the issue open.
