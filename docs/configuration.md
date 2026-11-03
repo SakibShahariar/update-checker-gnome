@@ -2,6 +2,10 @@
 
 All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`). Enable **Notify on new security updates** to receive a separate alert when the security count increases; quiet hours and notification snooze apply. Press **Ctrl+Alt+U** to run Check now from anywhere. Change or disable this shortcut in General → Keyboard preferences. Panel and menu animations also respect GNOME's reduced-motion preference, including CSS hover and state transitions.
 
+## Update all confirmation
+
+**Confirm high-impact Update all** is enabled by default. When the selected sources include an update command using privilege elevation, writing to an absolute path, or potentially destructive tools such as `rm`, `mkfs`, or `dd`, the menu asks for confirmation and lists the affected source commands before starting the queue. Ordinary non-privileged update commands continue without an extra prompt. You can disable the confirmation in Preferences → Updates if you understand and accept the risk. Per-source update actions are unchanged.
+
 ## Configuration backups
 
 The Sources preferences page provides separate **Export Full Configuration** and **Import Full Configuration** actions, alongside the legacy source-only backup. Full backups use the versioned `update-checker-configuration` JSON format and include the configured sources plus supported portable preferences. Import validates the complete file, including source commands and per-source intervals, timeouts, parser formats, and success exit codes, before offering to restore it. The existing `update-checker-sources` version 1 format remains importable.
