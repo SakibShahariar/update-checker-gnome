@@ -13,7 +13,7 @@
     <key name="adaptive-check-intervals" type="b">
       <default>false</default>
       <summary>Adapt source check intervals from weekly trends</summary>
-      <description>When enabled, stable source update counts gradually lengthen automatic source intervals. The separate security-update check remains on the normal global cadence. Manual checks remain immediate; explicitly configured per-source intervals are respected.</description>
+      <description>When enabled, stable source update counts gradually lengthen automatic source intervals. The separate security-update check remains on the normal global cadence. Manual checks remain immediate. Per-source interval values are baselines; disable this setting to keep them fixed.</description>
     </key>
 
     <key name="check-now-shortcut" type="s">
