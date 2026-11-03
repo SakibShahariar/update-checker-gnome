@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
 import {setupNetworkWatch, getWatchedSourceNames} from './lib/network-watch.js';
-import {parseSources, parseIntervals, getPollingIntervalMinutes, getEventDrivenSourceIntervals, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes, getEventDrivenSourceIntervals, getAdaptiveSourceIntervals, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -54,6 +54,12 @@ export default class UpdateCheckerExtension extends Extension {
         );
         this._settingsChangedId = this._settings.connect(
             'changed::check-interval-minutes', () => {
+                this._scheduleTimer();
+                this._preferenceCheckDebouncer.schedule();
+            }
+        );
+        this._adaptiveCheckChangedId = this._settings.connect(
+            'changed::adaptive-check-intervals', () => {
                 this._scheduleTimer();
                 this._preferenceCheckDebouncer.schedule();
             }
@@ -154,7 +160,17 @@ export default class UpdateCheckerExtension extends Extension {
         const sources = parseSources(this._settings.get_strv('sources'));
         const configuredIntervals = parseIntervals(this._settings.get_strv('source-intervals'));
         const watchedSources = getWatchedSourceNames(this._activeDbWatchPaths, sources);
-        const intervals = getEventDrivenSourceIntervals(globalMinutes, sources, configuredIntervals, watchedSources);
+        const baseIntervals = getEventDrivenSourceIntervals(globalMinutes, sources, configuredIntervals, watchedSources);
+        let intervals = baseIntervals;
+        if (this._settings.get_boolean('adaptive-check-intervals')) {
+            try {
+                const history = JSON.parse(this._settings.get_string('history-json') || '[]');
+                intervals = getAdaptiveSourceIntervals(baseIntervals, history, configuredIntervals);
+            } catch (e) {
+                // Corrupt optional history must never prevent normal polling.
+                intervals = baseIntervals;
+            }
+        }
         const minutes = getPollingIntervalMinutes(globalMinutes, sources, intervals);
         this._timeoutId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT, minutes * 60, () => {
@@ -189,6 +205,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = null;
+        }
+        if (this._adaptiveCheckChangedId) {
+            this._settings.disconnect(this._adaptiveCheckChangedId);
+            this._adaptiveCheckChangedId = null;
         }
         if (this._showZeroChangedId) {
             this._settings.disconnect(this._showZeroChangedId);
