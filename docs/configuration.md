@@ -11,9 +11,9 @@ Each source has a name and a shell check command. The extension resolves `sh` fr
 Each source has an **Output format** selector in Preferences → Sources. **Auto (legacy)** is the default and preserves the previous behavior: the first whitespace-delimited token is the package name and the second/third token is shown as the version. Choose a preset when the command emits a known layout:
 
 - **DNF:** package name, then available version.
-- **Flatpak:** application ID, branch, remote, then version (the version is omitted when that column is absent).
+- **Flatpak:** application ID and version from the standard `Name Application ID Version Branch Arch` table.
 - **npm outdated** and **Cargo outdated:** package name and the latest-version column.
-- **uv tool list:** package name and the version marked `latest:`, falling back to the second column.
+- **uv tool list:** package name and the version marked `[latest: ...]`, falling back to the installed version.
 
 For other custom commands, choose **Custom columns** and enter the one-based name and version column numbers. For example, if output is `1.2.3 stable org.example.app`, set Name column to `3` and Version column to `1`. Column mappings outside 1–50 or with the same column for both fields are rejected; invalid saved format entries fall back to Auto. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
 
