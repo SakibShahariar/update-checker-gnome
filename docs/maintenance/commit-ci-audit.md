@@ -24,7 +24,7 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 
 - Repository: `SakibShahariar/update-checker-gnome`
 - Default branch: `master`
-- Checkpoint SHA: `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e`
+- Checkpoint SHA: `d4c40a0573514a582c03bcfdb579b26d10c98f86`
 - Initialized: 2026-11-02
 - Baseline: latest branch tip queried through combined commit-status endpoint; empty status list recorded as **unavailable**, not green/red. Older history was not retroactively audited during setup.
 - Next session: review commits after this checkpoint, including this ledger-update commit; carry forward all entries marked unavailable.
@@ -164,6 +164,16 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `391c2386ffc2297a3ff466cb0ab7d4ce40132c26` | refactor(theme): extract indicator Matugen lifecycle (#21) | green | 2026-11-03 | [CI run 41570156102](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570156102) completed successfully. |
 | `10956260c559d0def21d03a8ac8576c3b6937291` | refactor(theme): delegate Matugen lifecycle from indicator (#21) | green | 2026-11-03 | [CI run 41570186248](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570186248) completed successfully. |
 
+| `f0a4856001e10415c4c35c59e77dca85eac8cda3` | docs: record indicator modularization CI audit (#21) | green | 2026-11-03 | [CI run 41570285854](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570285854) completed successfully. |
+| `bba9c0bad6be3f677b615692eaf2bfefed2140f3` | docs: correct deferred symlink issue status (#66) | green | 2026-11-03 | [CI run 41570433591](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570433591) completed successfully. |
+| `54b982dff8f8191fcb1e0267b3b4f6183ee48d36` | docs: define issue triage categories | green | 2026-11-03 | [CI run 41573370248](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41573370248) completed successfully. |
+| `7cde73c50181f43f81bf5267ecd46cf353f7edeb` | perf(checks): execute simple commands via argv (#91) | red | 2026-11-03 | [CI run 41574723349](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574723349) failed a GJS assertion in the newly added newline-fallback test; the fixture contained a literal backslash sequence rather than an actual newline. Corrected in `5009c17d9bcd80493049abe6d155ff9f2738c758`; [run 41574954345](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574954345) passed. |
+| `34f2c65e4beb9e6a3db5a51bdf08658acca615dd` | docs: classify open issue backlog | red | 2026-11-03 | [CI run 41574802498](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574802498) inherited the same GJS assertion failure from the #91 test fixture; corrected by `5009c17d9bcd80493049abe6d155ff9f2738c758`, whose CI run passed. |
+| `045cbfab383ee28967948cc20fc74fc1e56fe239` | docs: link live issue triage ledger | red | 2026-11-03 | [CI run 41574812838](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574812838) inherited the same GJS assertion failure from the #91 test fixture; corrected by `5009c17d9bcd80493049abe6d155ff9f2738c758`, whose CI run passed. |
+| `5009c17d9bcd80493049abe6d155ff9f2738c758` | test(checks): exercise actual newline fallback (#91) | green | 2026-11-03 | [CI run 41574954345](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574954345) completed successfully, including the GJS utility suite. |
+| `8c906c87a73a80c6c8da2e3348079afd7ad65f40` | test(checks): cover default command execution modes (#91) | green | 2026-11-03 | [CI run 41575140572](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575140572) completed successfully, including GJS utility tests and whitespace checks. |
+| `d4c40a0573514a582c03bcfdb579b26d10c98f86` | docs: record completed argv issue (#91) | green | 2026-11-03 | [CI run 41575272242](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575272242) completed successfully. |
+
 ## Red-cross investigation log
 
 The initial setup used a status endpoint that did not expose push-triggered Actions runs. A later direct Actions-history audit found the red runs below; each has a later successful corrective commit/run recorded. The red results remain preserved rather than overwritten.
@@ -178,6 +188,12 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 - **Commit `ebad955d7904a74c4e716c4c684bf7d43e42da34`** — [run 39917413532](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/39917413532), red because the metadata UUID changed while CI and packaging still referenced the old UUID. **Commit `6db5445cd2638ad67547430c20cde772c196194d`** — [run 39917440705](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/39917440705), remained red because the workflow's metadata assertion still expected the old UUID. Follow-ups `4414cee1e962655cd52cddd3aee5fa51ad76604b` updated the CI UUID assertion ([run 39917463602](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/39917463602), success) and `d4132d0155937036907560f63580a325ccd7d389` updated packaging paths ([run 39917474798](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/39917474798), success).
 
 - **Issue #80 path-discovery test follow-up:** `5aef97ca7a90f9c1920564b3f736a380fe9ebc2d` failed because its expected missing-`setsid` message omitted the actionable `install util-linux` suffix. The following documentation commits inherited the red test run. `1432be4dbd46ee99236f2bb152266dbf0e8e0125` updated the expectation and passed CI run 41548507939.
+
+### Current-session red runs
+
+- **Commit `7cde73c50181f43f81bf5267ecd46cf353f7edeb`** — [run 41574723349](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574723349), red in the GJS utility test at the newline-fallback assertion. The fixture encoded a literal backslash-plus-`n`, so it did not exercise an actual newline. Follow-up `5009c17d9bcd80493049abe6d155ff9f2738c758` corrected the fixture; [run 41574954345](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574954345) passed.
+- **Commit `34f2c65e4beb9e6a3db5a51bdf08658acca615dd`** — [run 41574802498](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574802498), red because the preceding #91 GJS assertion still failed on the branch.
+- **Commit `045cbfab383ee28967948cc20fc74fc1e56fe239`** — [run 41574812838](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41574812838), red for the same inherited #91 GJS assertion. Both documentation commits were subsequently followed by the green correction run 41574954345.
 
 ### Failure record template
 
@@ -194,6 +210,8 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 - Remaining follow-up:
 
 ## Session history
+
+| 2026-11-03 | `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` → `d4c40a0573514a582c03bcfdb579b26d10c98f86` | Audited the complete 45-commit range after the previous checkpoint. The 36 already-recorded commits were retained; added the nine missing commit records here. Six new records were green and three were red: one #91 test-fixture regression plus two documentation commits inheriting that failure. Corrected the fixture, verified the follow-up GJS/CI runs, documented the 25-open-issue triage, and closed #91 after its direct-argv implementation and regression suite passed. The three Category E decisions remain open for the owner. |\n
 
 | 2026-11-03 | `76007ed9b3e1cdacd64927158cf2b6485dc4c13b` → `10956260c559d0def21d03a8ac8576c3b6937291` | Audited six commits: the previous #84 CI ledger checkpoint plus five #21 extraction commits. All six CI runs passed. Extracted Update all queue/confirmation handling into `lib/update-queue.js` and Matugen stylesheet/color/monitor lifecycle into `lib/indicator-theming.js`; reduced `lib/indicator.js` by roughly 14.4 KB and 250 lines. Updated #21 with progress; GNOME 49–51 runtime and manual smoke checks remain open. |
 
