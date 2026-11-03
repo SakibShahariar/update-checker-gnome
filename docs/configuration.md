@@ -15,7 +15,11 @@ Each source has an **Output format** selector in Preferences → Sources. **Auto
 - **npm outdated** and **Cargo outdated:** package name and the latest-version column.
 - **uv tool list:** package name and the version marked `[latest: ...]`, falling back to the installed version.
 
-For other custom commands, choose **Custom columns** and enter the one-based name and version column numbers. For example, if output is `1.2.3 stable org.example.app`, set Name column to `3` and Version column to `1`. Column mappings outside 1–50 or with the same column for both fields are rejected; invalid saved format entries fall back to Auto. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
+For other custom commands, choose **Custom columns** and enter the one-based name and version column numbers. For example, if output is `1.2.3 stable org.example.app`, set Name column to `3` and Version column to `1`. Column mappings outside 1–50 or with the same column for both fields are rejected; invalid saved format entries fall back to Auto.
+
+### Optional performance counters
+
+In Preferences → General → Diagnostics, enable **Performance counters** to collect session-local aggregate counts for checks started/completed, command processes spawned, menu rebuilds, update starts/completions, and update durations (last, total, and maximum). Collection is off by default. The counters contain no source names, command strings, filesystem paths, or raw command output, and are included in the copied diagnostics report only while the option is enabled. Disabling the option stops collection and flushes the final aggregate snapshot. The default sources are DNF and Flatpak; optional presets include fwupd firmware checks. Custom sources can monitor tools such as Cargo, npm, or uv.
 
 ### Command execution dependencies
 
