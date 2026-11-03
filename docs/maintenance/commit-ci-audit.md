@@ -24,7 +24,7 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 
 - Repository: `SakibShahariar/update-checker-gnome`
 - Default branch: `master`
-- Checkpoint SHA: `f0eea532a306e07053abedc3d8e287d4c10f5704`
+- Checkpoint SHA: `502f8bc0264a833f94404bf15694ab8991065af1`
 - Initialized: 2026-11-02
 - Baseline: latest branch tip queried through combined commit-status endpoint; empty status list recorded as **unavailable**, not green/red. Older history was not retroactively audited during setup.
 - Next session: review commits after this checkpoint, including this ledger-update commit; carry forward all entries marked unavailable.
@@ -96,6 +96,10 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `48eb2324babec2da4a6731a68aa086001932b911` | fix(parsing): recognize uv latest version brackets (#67) | red | 2026-11-03 | [CI run 41549597514](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549597514) failed against the previous parentheses fixture; follow-up `baadf00af4999264df8c8dd8f8931c95efd1a8c9` updated it to the documented square-bracket syntax; [run 41549611979](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549611979) passed. |
 | `baadf00af4999264df8c8dd8f8931c95efd1a8c9` | test(parsing): use uv tool list latest syntax (#67) | green | 2026-11-03 | [CI run 41549611979](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549611979) completed successfully. |
 | `f0eea532a306e07053abedc3d8e287d4c10f5704` | docs(commands): correct Flatpak and uv parser examples (#67) | green | 2026-11-03 | [CI run 41549625686](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549625686) completed successfully. |
+| `d7ebdbe66c474dd5af4a0a633da6b60cff958ebf` | docs: record parser feature CI and fixture corrections (#67) | green | 2026-11-03 | [CI run 41549860525](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549860525) completed successfully. |
+| `2219123f86db560a72b1db46196bf5afe29417bb` | feat(checks): add trigger coalescer with manual priority (#90) | green | 2026-11-03 | [CI run 41549931291](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549931291) completed successfully. |
+| `bcc81cadeda3f9b806a09ce7cdc15114b1001547` | test(checks): cover overlapping trigger coalescing (#90) | green | 2026-11-03 | [CI run 41549964652](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41549964652) completed successfully. |
+| `502f8bc0264a833f94404bf15694ab8991065af1` | perf(checks): coalesce overlapping refresh triggers (#90) | green | 2026-11-03 | [CI run 41550006405](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550006405) completed successfully, including GJS tests and schema validation. |
 
 ## Red-cross investigation log
 
@@ -139,3 +143,4 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 | 2026-11-03 | `e24195eecaa24d4e9c84db8d33e3b3d2c0f991f3` → `1432be4dbd46ee99236f2bb152266dbf0e8e0125` | Audited the #97 ledger commit and four #80 implementation/docs/test commits. The initial #80 test assertion expected an incomplete error message, causing the test commit and two documentation commits to show red; corrected the assertion in the follow-up test commit. The implementation commit and final corrected commit passed. Closed #80 after the complete CI run passed. |
 | 2026-11-03 | `1432be4dbd46ee99236f2bb152266dbf0e8e0125` → `22dab0572c20ee4898ad3c0d0f513fd686551d7b` | Reviewed one #80 ledger update, four #99 performance commits, and one #102 summary commit. All six push CI runs passed. #99 now uses five-second elapsed updates and a compositor-managed spinner; left open for GNOME-session/reduced-motion validation. #102 now coalesces summary writes and flushes on busy transitions/teardown; closed after CI. |
 | 2026-11-03 | `22dab0572c20ee4898ad3c0d0f513fd686551d7b` → `f0eea532a306e07053abedc3d8e287d4c10f5704` | Audited the #102 ledger update and sixteen #67 implementation/test/docs commits. Three intermediate CI runs were red because expected fixtures had not yet caught up with new output-format behavior (backup outputFormat field, Flatpak column order, uv latest syntax); each was corrected in a subsequent fixture commit and the follow-up CI passed. All final parser, preferences, schema, and docs runs were green. Closed #67 after the final complete CI run. |
+| 2026-11-03 | `f0eea532a306e07053abedc3d8e287d4c10f5704` → `502f8bc0264a833f94404bf15694ab8991065af1` | Reviewed the #67 ledger update and three #90 implementation/test commits. All four push CI runs passed. Added a 300 ms non-manual coalescing window, one queued follow-up refresh, manual priority, and teardown cancellation; closed #90 after GJS tests and full CI passed. |
