@@ -6,6 +6,8 @@ import {
     runShell,
     createDebouncer,
     createCheckTriggerCoalescer,
+    getSourceJitterDelay,
+    applySourceJitter,
     resolveCommandExecutionPaths,
     getElapsedSeconds,
     parsePackageOutputLine,
@@ -197,6 +199,27 @@ function testDebouncer() {
     debouncer.schedule();
     assert(debouncer.cancel() && calls === 2 && scheduled.size === 0 && !debouncer.pending,
         'cancel should discard a pending callback without running it');
+}
+
+async function testSourceJitter() {
+    equal([0, 0.25, 0.5, 0.75, 1].map(sample =>
+        getSourceJitterDelay(() => sample, 500)), [0, 125, 250, 375, 500],
+    'source jitter should stay within the configured maximum and spread samples');
+    equal(getSourceJitterDelay(() => NaN, 500), 0,
+        'invalid random samples should fail safely without delaying checks');
+    let waited = 0;
+    const manual = await applySourceJitter(true, () => 1,
+        async delay => { waited = delay; }, () => false, 500);
+    assert(manual.delayMs === 0 && waited === 0 && !manual.cancelled,
+        'manual checks should bypass jitter completely');
+    const scheduled = await applySourceJitter(false, () => 0.5,
+        async delay => { waited = delay; }, () => false, 500);
+    assert(scheduled.delayMs === 250 && waited === 250 && !scheduled.cancelled,
+        'automatic checks should wait for their randomized delay');
+    const cancelled = await applySourceJitter(false, () => 0.25,
+        async delay => { waited = delay; }, () => true, 500);
+    assert(cancelled.cancelled && cancelled.delayMs === 125,
+        'a source cancelled during its delay must not proceed to command execution');
 }
 
 async function testCheckTriggerCoalescer() {
