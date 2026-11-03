@@ -4,21 +4,10 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult, validateSourceBackup, validateConfigurationBackup, CONFIGURATION_BACKUP_SETTING_TYPES, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas, parseSourceOutputFormats, isValidSourceOutputFormat} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup, validateConfigurationBackup, CONFIGURATION_BACKUP_SETTING_TYPES, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas, parseSourceOutputFormats, isValidSourceOutputFormat, isHighImpactCommand} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {buildDiagnosticsReport} from './lib/summary.js';
-
-function isHighImpactCommand(command) {
-    const text = command.trim();
-    if (!text)
-        return false;
-
-    return /\b(?:sudo|doas|pkexec)\b/i.test(text) ||
-        /(?:>>?|2>|&>)\s*\//.test(text) ||
-        /(?:^|\s)tee(?:\s+-[a-zA-Z]+)*\s+\//.test(text) ||
-        /\b(?:rm|mkfs(?:\.[\w-]+)?|dd)\b/i.test(text);
-}
 
 const PRESET_SOURCES = [
     {
@@ -144,6 +133,14 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         securityNotifyRow.add_prefix(new Gtk.Image({icon_name: 'security-high-symbolic', pixel_size: 18}));
         settings.bind('notify-security-only', securityNotifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(securityNotifyRow);
+
+        const confirmUpdateAllRow = new Adw.SwitchRow({
+            title: 'Confirm high-impact Update all',
+            subtitle: 'Review privileged or potentially destructive commands before running them. Disable only if you accept the risk.',
+        });
+        confirmUpdateAllRow.add_prefix(new Gtk.Image({icon_name: 'dialog-warning-symbolic', pixel_size: 18}));
+        settings.bind('confirm-update-all', confirmUpdateAllRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(confirmUpdateAllRow);
 
         const showZeroRow = new Adw.SwitchRow({
             title: 'Always show icon',
