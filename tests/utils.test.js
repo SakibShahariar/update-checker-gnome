@@ -1,7 +1,7 @@
 import System from 'system';
 import GLib from 'gi://GLib';
 import {sanitizeMatugenColor} from '../lib/theming.js';
-import {setupNetworkWatch, sourceNamesForDatabasePath} from '../lib/network-watch.js';
+import {setupNetworkWatch, sourceNamesForDatabasePath, getWatchedSourceNames} from '../lib/network-watch.js';
 import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
 import {configurePerformanceCounters, incrementPerformanceCounter, recordUpdateDuration, getPerformanceCountersSnapshot} from '../lib/performance-counters.js';
 import {
@@ -31,6 +31,7 @@ import {
     runWorkerSafely,
     cancelAllShellCommands,
     getPollingIntervalMinutes,
+    getEventDrivenSourceIntervals,
     getNextSourceCheckAt,
     getSecurityNotificationDelta,
     parseSecurityAdvisories,
@@ -411,13 +412,27 @@ function testNetworkWatchLifecycle() {
         monitor_directory() {
             let changed = null;
             let cancelled = false;
+            const handlers = new Map();
             const monitor = {
-                connect(_signal, callback) {
-                    changed = callback;
-                    return nextSignalId++;
+                connect(signal, callback) {
+                    const id = nextSignalId++;
+                    handlers.set(id, {signal, callback});
+                    if (signal === 'changed')
+                        changed = callback;
+                    return id;
+                },
+                disconnect(id) {
+                    handlers.delete(id);
+                },
+                is_cancelled() {
+                    return cancelled;
                 },
                 cancel() {
                     cancelled = true;
+                    for (const entry of handlers.values()) {
+                        if (entry.signal === 'notify::cancelled')
+                            entry.callback();
+                    }
                 },
             };
             watchedFiles.push({
@@ -445,6 +460,10 @@ function testNetworkWatchLifecycle() {
             checkNow() {
                 checks++;
             },
+        },
+        _scheduleTimerCalls: 0,
+        _scheduleTimer() {
+            this._scheduleTimerCalls++;
         },
         _settings: {
             get_boolean() {
@@ -484,6 +503,11 @@ function testNetworkWatchLifecycle() {
 
     const dispose = setupNetworkWatch(extension, dependencies);
     assert(watchedFiles.length === 4, 'network setup should create each configured database watch');
+    assert(extension._activeDbWatchPaths.length === 4,
+        'only successfully created package database monitors should be marked active');
+    equal([...getWatchedSourceNames(extension._activeDbWatchPaths, parseSources(extension._settings.get_strv('sources')))].sort(),
+        ['DNF', 'Flatpak'],
+        'active database watches should cover matching DNF and Flatpak sources, not Cargo');
 
     networkMonitor.emit('network-changed');
     const firstNetworkTimer = extension._networkDebounceId;
@@ -524,11 +548,18 @@ function testNetworkWatchLifecycle() {
     connectivity = 1;
     networkMonitor.emit('network-changed');
     const staleNetworkTimer = extension._networkDebounceId;
+    const rpmWatchPath = '/var/lib/rpm';
+    const rpmMonitor = watchedFiles.find(item => item.path === rpmWatchPath).monitor;
+    rpmMonitor.cancel();
+    assert(!extension._activeDbWatchPaths.includes(rpmWatchPath) && extension._scheduleTimerCalls === 1,
+        'a cancelled database monitor should restore normal polling for its sources');
     dispose();
     assert(signalHandlers.size === 0 && watchedFiles.every(item => item.cancelled),
         'disposing network watches should disconnect signals and cancel file monitors');
     assert(tasks.size === 0 && extension._networkDebounceId === null,
         'disposing network watches should cancel pending timers');
+    assert(extension._activeDbWatchPaths.length === 0,
+        'disposing network watches should clear active database paths');
     scheduler.fireEvenIfRemoved(staleNetworkTimer);
     assert(checks === 2,
         'a stale reconnect callback must not check after network-watch disposal');
@@ -850,6 +881,21 @@ async function main() {
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}, {name: 'Flatpak'}],
         new Map([['DNF', 5], ['Flatpak', 15]])), 5,
     'scheduler cadence must honor the shortest configured source interval');
+
+    const eventDrivenSources = [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}];
+    const eventDrivenIntervals = getEventDrivenSourceIntervals(
+        60,
+        eventDrivenSources,
+        new Map([['DNF', 15], ['Flatpak', 120], ['Cargo', 30]]),
+        new Set(['DNF', 'Flatpak'])
+    );
+    equal([...eventDrivenIntervals.entries()], [['DNF', 360], ['Flatpak', 360], ['Cargo', 30]],
+        'active database watches should extend only covered sources to a six-hour fallback');
+    equal(getPollingIntervalMinutes(60, eventDrivenSources, eventDrivenIntervals), 30,
+        'unwatched sources should retain their shorter configured polling cadence');
+    equal([...getEventDrivenSourceIntervals(60, [{name: 'DNF'}], new Map(), new Set()).entries()],
+        [['DNF', 60]],
+        'sources without active database watches should retain the global polling interval');
 
     const scheduleNow = Date.parse('2026-11-02T12:00:00Z');
     const scheduleSources = [{name: 'DNF'}, {name: 'Flatpak'}];

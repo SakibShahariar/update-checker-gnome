@@ -8,8 +8,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
-import {setupNetworkWatch} from './lib/network-watch.js';
-import {parseSources, parseIntervals, getPollingIntervalMinutes, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
+import {setupNetworkWatch, getWatchedSourceNames} from './lib/network-watch.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes, getEventDrivenSourceIntervals, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
@@ -91,6 +91,12 @@ export default class UpdateCheckerExtension extends Extension {
         ];
 
         this._networkWatchCleanup = setupNetworkWatch(this);
+        this._scheduleTimer();
+        this._watchPackageDbChangedId = this._settings.connect('changed::watch-package-db', () => {
+            this._networkWatchCleanup?.();
+            this._networkWatchCleanup = setupNetworkWatch(this);
+            this._scheduleTimer();
+        });
 
         // Defer initial check until shell startup completes (or ~5–8s).
         cleanOldMatugenCache('update-checker-matugen-');
@@ -146,7 +152,9 @@ export default class UpdateCheckerExtension extends Extension {
         }
         const globalMinutes = this._settings.get_int('check-interval-minutes');
         const sources = parseSources(this._settings.get_strv('sources'));
-        const intervals = parseIntervals(this._settings.get_strv('source-intervals'));
+        const configuredIntervals = parseIntervals(this._settings.get_strv('source-intervals'));
+        const watchedSources = getWatchedSourceNames(this._activeDbWatchPaths, sources);
+        const intervals = getEventDrivenSourceIntervals(globalMinutes, sources, configuredIntervals, watchedSources);
         const minutes = getPollingIntervalMinutes(globalMinutes, sources, intervals);
         this._timeoutId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT, minutes * 60, () => {
@@ -213,6 +221,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._disabledSourcesChangedId) {
             this._settings.disconnect(this._disabledSourcesChangedId);
             this._disabledSourcesChangedId = null;
+        }
+        if (this._watchPackageDbChangedId) {
+            this._settings.disconnect(this._watchPackageDbChangedId);
+            this._watchPackageDbChangedId = null;
         }
         // Do not start a new check while the extension is tearing down.
         this._preferenceCheckDebouncer?.cancel();
