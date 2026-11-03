@@ -519,6 +519,13 @@ function testNetworkWatchLifecycle() {
         'network reconnect should use the five-second settle delay');
     assert(scheduler.fire(latestNetworkTimer) && checks === 1,
         'a stable full connection should trigger one delayed check');
+    assert(extension._indicator._lastSourcePoll.size === 0 &&
+        extension._indicator._lastSourceResults.size === 0,
+    'a network reconnect should invalidate all cached source results before checking');
+    for (const name of ['DNF', 'Flatpak', 'Cargo']) {
+        extension._indicator._lastSourcePoll.set(name, 1);
+        extension._indicator._lastSourceResults.set(name, {});
+    }
 
     const rpmWatch = watchedFiles.find(item => item.path === '/var/lib/rpm');
     rpmWatch.emit();
