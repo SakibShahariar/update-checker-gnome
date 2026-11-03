@@ -883,12 +883,11 @@ async function main() {
     equal([...getAdaptiveSourceIntervals(
         new Map([['DNF', 60], ['Flatpak', 120]]),
         stableHistory,
-        new Map([['Flatpak', 120]]),
         adaptiveNow
-    ).entries()], [['DNF', 180], ['Flatpak', 120]],
+    ).entries()], [['DNF', 180], ['Flatpak', 360]],
     'four stable weeks should gradually extend only sources without explicit interval overrides');
 
-    const adaptedIntervals = getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, new Map(), adaptiveNow);
+    const adaptedIntervals = getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow);
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}], adaptedIntervals), 60,
         'adaptive source delays must not reduce the independent security check below the global cadence');
 
@@ -896,21 +895,21 @@ async function main() {
         ...entry,
         sources: [{name: 'DNF', count: index >= 21 ? index - 20 : 0}],
     }));
-    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), activeRecentHistory, new Map(), adaptiveNow).get('DNF'),
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), activeRecentHistory, adaptiveNow).get('DNF'),
         60, 'an increase in recent weekly change frequency should reset the source to its base interval');
 
     const settlingHistory = stableHistory.map((entry, index) => ({
         ...entry,
         sources: [{name: 'DNF', count: index >= 13 && index <= 19 ? index - 12 : (index >= 20 ? 7 : 0)}],
     }));
-    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), settlingHistory, new Map(), adaptiveNow).get('DNF'),
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), settlingHistory, adaptiveNow).get('DNF'),
         90, 'one stable week after a more active week should increase the interval by one step');
 
-    equal(getAdaptiveSourceIntervals(new Map([['DNF', 600]]), stableHistory, new Map(), adaptiveNow).get('DNF'),
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 600]]), stableHistory, adaptiveNow).get('DNF'),
         1440, 'adaptive intervals must never exceed the 24-hour cap');
-    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory.slice(-7), new Map(), adaptiveNow).get('DNF'),
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory.slice(-7), adaptiveNow).get('DNF'),
         60, 'adaptive scheduling must wait for two complete weeks of history');
-    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, new Map(), adaptiveNow).get('DNF'),
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow).get('DNF'),
         180, 'stable source interval should remain deterministic for the same history');
 
     equal(getUpdatableSources(
