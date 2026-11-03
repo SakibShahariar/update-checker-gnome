@@ -1,5 +1,9 @@
 # Configuration
 
+## Finding settings
+
+Preferences uses Adw's built-in search across its General, Sources, and Advanced pages. Use the search control in the preferences header to filter settings by their row titles and descriptions. Related options remain grouped by page and preference group; advanced command and privilege settings include explanatory subtitles.
+
 All settings are available from **Update Checker → Settings** (or `gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io`). Enable **Notify on new security updates** to receive a separate alert when the security count increases; quiet hours and notification snooze apply. Press **Ctrl+Alt+U** to run Check now from anywhere. Change or disable this shortcut in General → Keyboard preferences. Panel and menu animations also respect GNOME's reduced-motion preference, including CSS hover and state transitions.
 
 ## Update all confirmation
