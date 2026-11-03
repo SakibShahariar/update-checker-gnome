@@ -156,6 +156,14 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `f822824531b1576a63f2b7b41a1c23c0b4790ad9` | fix(prefs): explicitly enable built-in settings search (#75) | green | 2026-11-03 | [CI run 41569812033](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41569812033) completed successfully. |
 | `b09e64ba6665c2767a390aa455cec3bc0005476a` | docs(prefs): document built-in settings search (#75) | green | 2026-11-03 | [CI run 41569831019](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41569831019) completed successfully. |
 
+
+| `bc7897403b6cbc84d630512b2e108ad48cd16644` | docs: record lifecycle tests and preferences search CI audit (#84) | green | 2026-11-03 | [CI run 41569925105](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41569925105) completed successfully. |
+| `13fcf76b485c5a7b8ef3649385c7709f1cf05e22` | refactor(menu): extract Update all queue controller (#21) | green | 2026-11-03 | [CI run 41570027521](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570027521) completed successfully. |
+| `0eb4ded31f57024b6430ff48ef5356e2ef7b14ce` | refactor(menu): delegate Update all queue from indicator (#21) | green | 2026-11-03 | [CI run 41570067596](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570067596) completed successfully. |
+| `8c6e36065cd1913d1608882284b8e373c2dbe01c` | fix(menu): preserve multiline Update all warning text (#21) | green | 2026-11-03 | [CI run 41570090464](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570090464) completed successfully. |
+| `391c2386ffc2297a3ff466cb0ab7d4ce40132c26` | refactor(theme): extract indicator Matugen lifecycle (#21) | green | 2026-11-03 | [CI run 41570156102](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570156102) completed successfully. |
+| `10956260c559d0def21d03a8ac8576c3b6937291` | refactor(theme): delegate Matugen lifecycle from indicator (#21) | green | 2026-11-03 | [CI run 41570186248](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41570186248) completed successfully. |
+
 ## Red-cross investigation log
 
 The initial setup used a status endpoint that did not expose push-triggered Actions runs. A later direct Actions-history audit found the red runs below; each has a later successful corrective commit/run recorded. The red results remain preserved rather than overwritten.
@@ -186,6 +194,9 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 - Remaining follow-up:
 
 ## Session history
+
+| 2026-11-03 | `76007ed9b3e1cdacd64927158cf2b6485dc4c13b` → `10956260c559d0def21d03a8ac8576c3b6937291` | Audited six commits: the previous #84 CI ledger checkpoint plus five #21 extraction commits. All six CI runs passed. Extracted Update all queue/confirmation handling into `lib/update-queue.js` and Matugen stylesheet/color/monitor lifecycle into `lib/indicator-theming.js`; reduced `lib/indicator.js` by roughly 14.4 KB and 250 lines. Updated #21 with progress; GNOME 49–51 runtime and manual smoke checks remain open. |
+
 
 | 2026-11-03 | `76007ed9b3e1cdacd64927158cf2b6485dc4c13b` → `b09e64ba6665c2767a390aa455cec3bc0005476a` | Audited fourteen commits: the previous #72 ledger checkpoint, eleven #84 lifecycle-test/refactor commits, and two #75 preferences-search commits. All fourteen push-triggered CI runs passed, including the GJS utility suite, schema validation, JavaScript syntax, metadata/license, and whitespace checks. Added deterministic network-watch debounce/disposal tests, update row/cache/stop-timeout lifecycle helpers and tests, and enabled/documented Adw's built-in preferences search. Closed #75; #84 remains open for end-to-end subprocess and GNOME Shell UI lifecycle coverage. Closed #66 as not planned because the current implementation watches fixed directories non-recursively and has no symlink traversal path. |
 
