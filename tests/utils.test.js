@@ -11,6 +11,7 @@ import {
     getSourceJitterDelay,
     applySourceJitter,
     resolveCommandExecutionPaths,
+    parseDirectArgvCommand,
     getElapsedSeconds,
     parsePackageOutputLine,
     parseSourceOutputFormats,
@@ -940,6 +941,29 @@ async function main() {
         'command execution should report a missing setsid dependency distinctly');
     equal(resolveCommandExecutionPaths(null), {shellPath: null, setsidPath: null},
         'command path resolution should fail safely without a lookup function');
+
+    equal(parseDirectArgvCommand('dnf check-update', GLib.shell_parse_argv),
+        ['dnf', 'check-update'],
+        'plain built-in source commands should be parsed into direct argv');
+    equal(parseDirectArgvCommand("printf 'two words'", GLib.shell_parse_argv),
+        ['printf', 'two words'],
+        'quoted arguments should be preserved when parsing direct argv');
+    for (const command of [
+        'dnf check-update && flatpak update',
+        'printf result | wc -l',
+        'printf result > /tmp/result',
+        'echo $HOME',
+        'dnf check-update *',
+        'dnf check-update # comment',
+        'dnf check-update\\nflatpak update',
+        'cd /tmp',
+        'export LANG=C',
+        'PATH=/custom/bin dnf check-update',
+        "printf 'unterminated",
+    ])
+        assert(parseDirectArgvCommand(command, GLib.shell_parse_argv) === null,
+            `shell syntax and shell built-ins should retain shell execution: ${command}`);
+
     equal(classifyResult({
         stdout: '', stderr: 'setsid was not found in PATH; install util-linux.',
         exitStatus: -1, spawnFailed: true, timedOut: false,
