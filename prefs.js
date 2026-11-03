@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 
-import {runShell, classifyResult, validateSourceBackup, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas, parseSourceOutputFormats, isValidSourceOutputFormat} from './lib/utils.js';
+import {runShell, classifyResult, validateSourceBackup, validateConfigurationBackup, CONFIGURATION_BACKUP_SETTING_TYPES, parseExitCodeList, parseSourceExitCodes, getHistorySourceDeltas, parseSourceOutputFormats, isValidSourceOutputFormat} from './lib/utils.js';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {buildDiagnosticsReport} from './lib/summary.js';
@@ -1285,6 +1285,174 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             chooser.show();
         });
 
+
+        const fullBackupRow = new Gtk.Box({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            spacing: 8,
+            halign: Gtk.Align.CENTER,
+            margin_top: 4,
+            margin_bottom: 4,
+        });
+        const exportConfigurationButton = new Gtk.Button({
+            label: 'Export Full Configuration',
+            icon_name: 'document-save-symbolic',
+            tooltip_text: 'Export sources and portable preferences. The file includes custom shell commands and paths; keep it private.',
+        });
+        const importConfigurationButton = new Gtk.Button({
+            label: 'Import Full Configuration',
+            icon_name: 'document-open-symbolic',
+            tooltip_text: 'Validate and restore sources and portable preferences from a configuration backup.',
+        });
+        fullBackupRow.append(exportConfigurationButton);
+        fullBackupRow.append(importConfigurationButton);
+
+        exportConfigurationButton.connect('clicked', () => {
+            const warning = new Adw.MessageDialog({
+                transient_for: window,
+                modal: true,
+                heading: 'Export custom commands and paths?',
+                body: 'The configuration file includes source commands, update commands, security and reboot commands, terminal settings, and configured script paths. These may reveal private paths or credentials embedded in commands. Review the file and keep it private.',
+            });
+            warning.add_response('cancel', 'Cancel');
+            warning.add_response('continue', 'Choose Export File');
+            warning.set_default_response('cancel');
+            warning.set_close_response('cancel');
+            warning.connect('response', (dialog, response) => {
+                dialog.close();
+                if (response !== 'continue')
+                    return;
+                const chooser = new Gtk.FileChooserNative({
+                    title: 'Export Update Checker Configuration',
+                    action: Gtk.FileChooserAction.SAVE,
+                    transient_for: window,
+                    modal: true,
+                    accept_label: 'Export',
+                    cancel_label: 'Cancel',
+                });
+                chooser.set_current_name('update-checker-configuration.json');
+                chooser.connect('response', (dlg, fileResponse) => {
+                    if (fileResponse !== Gtk.ResponseType.ACCEPT) {
+                        dlg.destroy();
+                        return;
+                    }
+                    try {
+                        const path = dlg.get_file()?.get_path();
+                        if (!path)
+                            throw new Error('Choose a local file path.');
+                        const preferences = {};
+                        for (const key of Object.keys(CONFIGURATION_BACKUP_SETTING_TYPES))
+                            preferences[key] = settings.get_value(key).deep_unpack();
+                        const sources = sourceRows.map(r => ({
+                            name: r.nameEntry.get_text().trim(),
+                            command: r.cmdEntry.get_text().trim(),
+                            updateCommand: r.updateCmdEntry.get_text().trim(),
+                            intervalMinutes: Math.round(r.intervalSpin.get_value()),
+                            timeoutSeconds: Math.round(r.timeoutSpin.get_value()),
+                            successExitCodes: r.exitCodesEntry.get_text().trim(),
+                            outputFormat: (() => {
+                                const selected = OUTPUT_FORMAT_VALUES[r.outputFormatDropDown.get_selected()] ?? 'auto';
+                                return selected === 'custom'
+                                    ? `custom:${Math.round(r.nameColumnSpin.get_value())}:${Math.round(r.versionColumnSpin.get_value())}`
+                                    : selected;
+                            })(),
+                            enabled: r.enabledCheck.get_active(),
+                        })).filter(source => source.name && source.command);
+                        const payload = {
+                            format: 'update-checker-configuration',
+                            version: 1,
+                            exportedAt: new Date().toISOString(),
+                            preferences,
+                            sources,
+                        };
+                        GLib.file_set_contents(path, JSON.stringify(payload, null, 2) + '\\n');
+                        sourceTransferStatus.set_text(`Exported full configuration with ${sources.length} source(s) and ${Object.keys(preferences).length} preferences. Keep this file private.`);
+                    } catch (error) {
+                        sourceTransferStatus.set_text('Configuration export failed: ' + String(error.message ?? error));
+                    } finally {
+                        dlg.destroy();
+                    }
+                });
+                chooser.show();
+            });
+            warning.present();
+        });
+
+        importConfigurationButton.connect('clicked', () => {
+            const chooser = new Gtk.FileChooserNative({
+                title: 'Import Update Checker Configuration',
+                action: Gtk.FileChooserAction.OPEN,
+                transient_for: window,
+                modal: true,
+                accept_label: 'Validate',
+                cancel_label: 'Cancel',
+            });
+            chooser.connect('response', (dlg, response) => {
+                if (response !== Gtk.ResponseType.ACCEPT) {
+                    dlg.destroy();
+                    return;
+                }
+                let imported;
+                try {
+                    const path = dlg.get_file()?.get_path();
+                    if (!path)
+                        throw new Error('Choose a local JSON file.');
+                    const [ok, bytes] = GLib.file_get_contents(path);
+                    if (!ok)
+                        throw new Error('Could not read the selected file.');
+                    const payload = JSON.parse(new TextDecoder().decode(bytes));
+                    imported = validateConfigurationBackup(payload, settings.get_int('check-interval-minutes'));
+                } catch (error) {
+                    sourceTransferStatus.set_text('Configuration import rejected: ' + String(error.message ?? error));
+                    dlg.destroy();
+                    return;
+                }
+                dlg.destroy();
+                const confirm = new Adw.MessageDialog({
+                    transient_for: window,
+                    modal: true,
+                    heading: 'Replace extension configuration?',
+                    body: `The validated backup contains ${imported.sources.length} source(s) and ${Object.keys(imported.preferences).length} preferences. It includes custom commands and paths. Import replaces the current source list and the preferences present in the file; runtime history, diagnostics snapshots, and notification snooze state are not imported.`,
+                });
+                confirm.add_response('cancel', 'Cancel');
+                confirm.add_response('restore', 'Restore Configuration');
+                confirm.set_default_response('cancel');
+                confirm.set_close_response('cancel');
+                confirm.set_response_appearance('restore', Adw.ResponseAppearance.DESTRUCTIVE);
+                confirm.connect('response', (dialog, selected) => {
+                    dialog.close();
+                    if (selected !== 'restore')
+                        return;
+                    try {
+                        settings.delay();
+                        for (const [key, value] of Object.entries(imported.preferences)) {
+                            const type = CONFIGURATION_BACKUP_SETTING_TYPES[key];
+                            if (type === 'boolean')
+                                settings.set_boolean(key, value);
+                            else if (type === 'interval' || type === 'hour')
+                                settings.set_int(key, value);
+                            else if (type === 'string-list')
+                                settings.set_strv(key, value);
+                            else
+                                settings.set_string(key, value);
+                        }
+                        settings.apply();
+                        for (const entry of [...sourceRows])
+                            rowsBox.remove(entry.row);
+                        sourceRows.splice(0, sourceRows.length);
+                        for (const source of imported.sources)
+                            addSourceRow(source.name, source.command, source.updateCommand, source.interval, source.enabled, source.timeoutSeconds, source.successExitCodes, source.outputFormat);
+                        saveSources();
+                        sourceTransferStatus.set_text(`Restored ${imported.sources.length} source(s) and ${Object.keys(imported.preferences).length} preferences.`);
+                    } catch (error) {
+                        settings.revert();
+                        sourceTransferStatus.set_text('Configuration restore failed: ' + String(error.message ?? error));
+                    }
+                });
+                confirm.present();
+            });
+            chooser.show();
+        });
+
         const buildPopoverContent = () => {
             const existingNames = new Set(sourceRows.map(r => r.nameEntry.get_text().trim()));
 
@@ -1364,6 +1532,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         box.append(addButton);
         box.append(detectSourcesButton);
         box.append(sourceTransferRow);
+        box.append(fullBackupRow);
         box.append(sourceTransferStatus);
         updateBannerVisibility();
 
