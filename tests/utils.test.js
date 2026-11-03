@@ -5,6 +5,7 @@ import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '
 import {
     runShell,
     createDebouncer,
+    createCheckTriggerCoalescer,
     resolveCommandExecutionPaths,
     getElapsedSeconds,
     parsePackageOutputLine,
@@ -196,6 +197,76 @@ function testDebouncer() {
     debouncer.schedule();
     assert(debouncer.cancel() && calls === 2 && scheduled.size === 0 && !debouncer.pending,
         'cancel should discard a pending callback without running it');
+}
+
+async function testCheckTriggerCoalescer() {
+    let now = 1000;
+    let nextId = 0;
+    const scheduled = new Map();
+    const calls = [];
+    const gates = [];
+    const coalescer = createCheckTriggerCoalescer({
+        schedule: callback => {
+            const id = ++nextId;
+            scheduled.set(id, callback);
+            return id;
+        },
+        cancel: id => scheduled.delete(id),
+        now: () => now,
+        windowMs: 300,
+        run: async manual => {
+            calls.push(manual);
+            const gate = gates.shift();
+            if (gate)
+                await gate.promise;
+        },
+    });
+    const makeGate = () => {
+        let resolve;
+        const promise = new Promise(done => { resolve = done; });
+        return {promise, resolve};
+    };
+
+    const firstGate = makeGate();
+    gates.push(firstGate);
+    const first = coalescer.request(false);
+    await coalescer.request(false);
+    await coalescer.request(true);
+    await coalescer.request(false);
+    assert(calls.length === 1 && coalescer.pending,
+        'overlapping triggers should queue one refresh and retain manual priority');
+    firstGate.resolve();
+    await first;
+    assert(scheduled.size === 1,
+        'one queued refresh should be scheduled after the active check completes');
+    const [queuedId, queuedCallback] = [...scheduled.entries()][0];
+    scheduled.delete(queuedId);
+    queuedCallback();
+    await Promise.resolve();
+    await Promise.resolve();
+    assert(calls.length === 2 && calls[1] === true && !coalescer.running && !coalescer.pending,
+        'the queued refresh should honor an explicit manual request exactly once');
+
+    now += 100;
+    await coalescer.request(false);
+    assert(calls.length === 2,
+        'a non-manual trigger inside the recent-check window should be coalesced');
+    await coalescer.request(true);
+    assert(calls.length === 3,
+        'an explicit manual request should bypass the recent-check window');
+
+    now += 400;
+    const thirdGate = makeGate();
+    gates.push(thirdGate);
+    const third = coalescer.request(false);
+    await coalescer.request(false);
+    thirdGate.resolve();
+    await third;
+    assert(scheduled.size === 1 && coalescer.pending,
+        'a burst during an active check should leave one pending refresh');
+    coalescer.cancel();
+    assert(scheduled.size === 0 && !coalescer.pending,
+        'cancellation during teardown should discard the queued refresh');
 }
 
 async function main() {
