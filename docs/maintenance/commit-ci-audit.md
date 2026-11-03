@@ -120,6 +120,13 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `bb563aecc86198ec19fda21ca27551a1db35328d` | docs(diagnostics): explain opt-in performance counters (#103) | green | 2026-11-03 | [CI run 41550755937](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550755937) completed successfully. |
 | `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` | docs(diagnostics): clarify performance counter scope (#103) | green | 2026-11-03 | [CI run 41550788955](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550788955) completed successfully. |
 
+
+| `a6b1f45aa41bce237cdbb7c69d2b850b52583cf6` | docs: record performance counter CI audit (#103) | green | 2026-11-03 | [CI run 41550901410](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550901410) completed successfully. |
+| `f65f28bc26fbf77e2074367208e8dd83c1968462` | feat(config): validate full configuration backups (#83) | green | 2026-11-03 | [CI run 41568285850](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41568285850) completed successfully. |
+| `82de3e7505c4e64dd956721dc73926736bef9454` | test(config): cover configuration backup validation (#83) | green | 2026-11-03 | [CI run 41568291513](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41568291513) completed successfully. |
+| `dff927c72788a1628bee8f06dbcb3ac770d18653` | feat(prefs): import and export full configuration (#83) | green | 2026-11-03 | [CI run 41568356088](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41568356088) completed successfully. |
+| `764a7dd28ce21f7aaa09b4b795135a4b63853a0f` | docs(config): explain full configuration backups (#83) | green | 2026-11-03 | [CI run 41568389213](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41568389213) completed successfully. |
+
 ## Red-cross investigation log
 
 The initial setup used a status endpoint that did not expose push-triggered Actions runs. A later direct Actions-history audit found the red runs below; each has a later successful corrective commit/run recorded. The red results remain preserved rather than overwritten.
@@ -150,6 +157,9 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 - Remaining follow-up:
 
 ## Session history
+
+| 2026-11-03 | `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` → `764a7dd28ce21f7aaa09b4b795135a4b63853a0f` | Audited five commits: the prior #103 ledger checkpoint and four #83 implementation/test/preferences/docs commits. All five push-triggered CI runs completed successfully, including GJS utility tests, schema validation, syntax, metadata/license, and whitespace checks. Added validated full-configuration import/export with a strict portable-settings allowlist, reused source validation, preserved legacy source-only imports, and excluded runtime state. Closed #83 after CI verification; live GNOME preferences interaction remains untested in this environment. |
+
 
 | Date | Reviewed range / checkpoint | Result summary |
 |---|---|---|
