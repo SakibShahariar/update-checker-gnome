@@ -56,6 +56,8 @@ const PRESET_SOURCES = [
 
 export default class UpdateCheckerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        // Keep Adw's built-in title/subtitle search available across all preference pages.
+        window.search_enabled = true;
         const settings = this.getSettings();
 
         // Page 1: General
