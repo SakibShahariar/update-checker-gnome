@@ -2,6 +2,7 @@ import System from 'system';
 import GLib from 'gi://GLib';
 import {sanitizeMatugenColor} from '../lib/theming.js';
 import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
+import {configurePerformanceCounters, incrementPerformanceCounter, recordUpdateDuration, getPerformanceCountersSnapshot} from '../lib/performance-counters.js';
 import {
     runShell,
     createDebouncer,
@@ -165,6 +166,53 @@ function testSummarySnapshot() {
 
 testDiagnosticsReport();
 testSummarySnapshot();
+
+function testPerformanceCounters() {
+    configurePerformanceCounters(true);
+    incrementPerformanceCounter('checksStarted');
+    incrementPerformanceCounter('checksCompleted');
+    incrementPerformanceCounter('commandsSpawned', 2);
+    incrementPerformanceCounter('menuRebuilds');
+    incrementPerformanceCounter('updatesStarted');
+    recordUpdateDuration(12.4);
+    recordUpdateDuration(30);
+    const snapshot = getPerformanceCountersSnapshot();
+    equal(snapshot, {
+        checksStarted: 1,
+        checksCompleted: 1,
+        commandsSpawned: 2,
+        menuRebuilds: 1,
+        updatesStarted: 1,
+        updatesCompleted: 2,
+        updateDurationLastMs: 30,
+        updateDurationTotalMs: 42,
+        updateDurationMaxMs: 30,
+    }, 'enabled performance counters should aggregate only the documented metrics');
+    configurePerformanceCounters(false);
+    incrementPerformanceCounter('checksStarted');
+    equal(getPerformanceCountersSnapshot(), snapshot,
+        'disabled performance counters should not change when instrumentation hooks are called');
+    configurePerformanceCounters(true);
+    equal(getPerformanceCountersSnapshot(), {
+        checksStarted: 0, checksCompleted: 0, commandsSpawned: 0, menuRebuilds: 0,
+        updatesStarted: 0, updatesCompleted: 0, updateDurationLastMs: 0,
+        updateDurationTotalMs: 0, updateDurationMaxMs: 0,
+    }, 're-enabling performance counters should begin a fresh session snapshot');
+    configurePerformanceCounters(false);
+    const report = buildDiagnosticsReport({
+        includePerformanceCounters: true,
+        performanceCounters: snapshot,
+    });
+    assert(report.includes('Commands spawned: 2') &&
+        report.includes('Update duration (ms): last 30; total 42; max 30'),
+        'diagnostics should include the aggregate performance counters when opted in');
+    const redacted = buildDiagnosticsReport({
+        includePerformanceCounters: false,
+        performanceCounters: snapshot,
+    });
+    assert(!redacted.includes('Performance counters'),
+        'diagnostics should omit performance counters unless explicitly enabled');
+}
 
 function testDebouncer() {
     let nextId = 0;
