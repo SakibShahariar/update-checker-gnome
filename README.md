@@ -15,7 +15,8 @@ The machine-readable `summary-json` GSettings snapshot has a versioned schema. S
 - Configurable polling intervals, notifications, quiet hours, ignored package identifiers, and package-database watches.
 - Actionable update notifications (Open / Check now) and persistent notification snooze for 4 hours or until tomorrow at 08:00.
 - Reorder sources with accessible up/down controls and switch between detailed and count-focused compact rows.
-- Local history of successful daily update totals, retained for up to 7 days without storing commands or raw output.
+- Local history of successful daily update totals, retained for up to 28 days without storing commands or raw output.
+- Optional weekly-trend adaptive polling for stable sources; security checks and manual checks retain their normal cadence.
 - Quiet hours use local time with whole-hour precision (0–23); equal start and end hours mean notifications are silenced all day. Checks and the panel indicator remain active.
 - Optional battery- and metered-network-aware polling.
 - Terminal or background update actions, plus a configurable update script.
