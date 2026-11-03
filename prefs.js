@@ -81,7 +81,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const adaptiveRow = new Adw.SwitchRow({
             title: 'Adaptive source intervals',
-            subtitle: 'Gradually check stable sources less often. Security checks keep the global interval; manual checks remain immediate.',
+            subtitle: 'Gradually check stable sources less often. Source intervals remain the baseline; turn this off to keep them fixed. Security checks keep the global interval.',
         });
         settings.bind('adaptive-check-intervals', adaptiveRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(adaptiveRow);
