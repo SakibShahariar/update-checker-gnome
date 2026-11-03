@@ -165,7 +165,7 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._settings.get_boolean('adaptive-check-intervals')) {
             try {
                 const history = JSON.parse(this._settings.get_string('history-json') || '[]');
-                intervals = getAdaptiveSourceIntervals(baseIntervals, history, configuredIntervals);
+                intervals = getAdaptiveSourceIntervals(baseIntervals, history);
             } catch (e) {
                 // Corrupt optional history must never prevent normal polling.
                 intervals = baseIntervals;
