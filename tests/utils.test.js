@@ -19,6 +19,8 @@ import {
     hasMixedPrivilegeCommand,
     isHighImpactCommand,
     getHighImpactUpdateCommands,
+    setSourceRowUpdating,
+    invalidateUpdateSourceCache,
     getSourceConfigurationState,
     parseSourceTimeouts,
     parseExitCodeList,
@@ -614,6 +616,42 @@ async function main() {
     ])
         assert(!hasMixedPrivilegeCommand(command),
             `simple or non-elevated commands should remain allowed: ${command}`);
+
+    const rowWidgets = {
+        countLabel: {visible: true},
+        runButton: {visible: true},
+        updatingLabel: {visible: false, text: '', accessible_name: '', set_text(value) { this.text = value; }},
+        stopButton: {visible: false},
+    };
+    setSourceRowUpdating(rowWidgets, true, '12s', 'background');
+    assert(!rowWidgets.countLabel.visible && !rowWidgets.runButton.visible &&
+        rowWidgets.updatingLabel.visible && rowWidgets.stopButton.visible,
+    'background update rows should hide actions and expose the stop control');
+    equal([rowWidgets.updatingLabel.text, rowWidgets.updatingLabel.accessible_name],
+        ['Updating in background · 12s', 'Update running in background mode'],
+        'background update rows should expose elapsed and accessible mode labels');
+    setSourceRowUpdating(rowWidgets, true, '', 'terminal');
+    assert(!rowWidgets.stopButton.visible && rowWidgets.updatingLabel.text === 'Updating in terminal',
+        'terminal update rows should identify terminal mode without a process-group stop control');
+    setSourceRowUpdating(rowWidgets, false);
+    assert(rowWidgets.countLabel.visible && rowWidgets.runButton.visible &&
+        !rowWidgets.updatingLabel.visible && !rowWidgets.stopButton.visible,
+    'completed update rows should restore the count and run controls');
+
+    const updateCache = {
+        _lastSourcePoll: new Map([['DNF', 1], ['Flatpak', 2]]),
+        _lastSourceResults: new Map([['DNF', {}], ['Flatpak', {}]]),
+    };
+    assert(invalidateUpdateSourceCache(updateCache, 'DNF'),
+        'source update cache invalidation should accept a configured source');
+    assert(!updateCache._lastSourcePoll.has('DNF') &&
+        updateCache._lastSourcePoll.has('Flatpak') &&
+        !updateCache._lastSourceResults.has('DNF') &&
+        updateCache._lastSourceResults.has('Flatpak'),
+    'per-source update completion should invalidate only its own cache');
+    invalidateUpdateSourceCache(updateCache, '__script__');
+    assert(updateCache._lastSourcePoll.size === 0 && updateCache._lastSourceResults.size === 0,
+        'update script completion should invalidate all source caches');
 
     equal(getHighImpactUpdateCommands([
         {name: 'DNF', command: 'doas dnf upgrade -y'},
