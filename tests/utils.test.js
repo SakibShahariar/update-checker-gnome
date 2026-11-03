@@ -37,6 +37,7 @@ import {
     getHistorySourceDeltas,
     getUpdatableSources,
     validateSourceBackup,
+    validateConfigurationBackup,
     stripAnsi,
     truncate,
     hexToRgba,
@@ -463,6 +464,42 @@ async function main() {
         let error = '';
         try { validateSourceBackup(payload); } catch (e) { error = String(e.message); }
         assert(error.includes(expected), `invalid source backup should be rejected: expected "${expected}", got "${error}"`);
+    }
+
+    const configurationBackup = validateConfigurationBackup({
+        format: 'update-checker-configuration',
+        version: 1,
+        preferences: {
+            'check-interval-minutes': 45,
+            'notify-on-new': false,
+            'quiet-hours-start': 22,
+            'ignored-packages': ['kernel', 'org.example.App'],
+        },
+        sources: [{name: 'DNF', command: 'dnf check-update', intervalMinutes: 30}],
+    });
+    equal(configurationBackup.preferences, {
+        'check-interval-minutes': 45,
+        'notify-on-new': false,
+        'quiet-hours-start': 22,
+        'ignored-packages': ['kernel', 'org.example.App'],
+    }, 'configuration backup should preserve validated portable preferences');
+    equal(configurationBackup.sources[0], {
+        name: 'DNF', command: 'dnf check-update', updateCommand: '',
+        interval: 30, timeoutSeconds: 120, successExitCodes: '',
+        outputFormat: 'auto', enabled: true,
+    }, 'configuration backup should reuse source backup normalization');
+    for (const [payload, expected] of [
+        [{format: 'update-checker-configuration', version: 2, preferences: {}, sources: []}, 'Unsupported configuration backup'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {'summary-json': '{}'}, sources: []}, 'Unsupported configuration setting'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {'notify-on-new': 'yes'}, sources: []}, 'must be a boolean'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {'check-interval-minutes': 1441}, sources: []}, 'between 5 and 1440'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {'quiet-hours-start': 24}, sources: []}, 'hour from 0 to 23'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {'ignored-packages': ['']}, sources: []}, 'non-empty strings'],
+        [{format: 'update-checker-configuration', version: 1, preferences: {}, sources: [{name: 'DNF', command: ''}]}, 'needs a name and check command'],
+    ]) {
+        let error = '';
+        try { validateConfigurationBackup(payload); } catch (e) { error = String(e.message); }
+        assert(error.includes(expected), `invalid configuration backup should be rejected: expected "${expected}", got "${error}"`);
     }
 
     const historyNow = 1_800_000_000;
