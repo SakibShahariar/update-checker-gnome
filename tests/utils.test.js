@@ -45,6 +45,7 @@ import {
     parseIntervals,
     updateDailyHistory,
     getHistorySourceDeltas,
+    getAdaptiveSourceIntervals,
     getUpdatableSources,
     validateSourceBackup,
     validateConfigurationBackup,
@@ -854,8 +855,8 @@ async function main() {
         total: index, sources: [],
     }));
     const prunedHistory = updateDailyHistory(oldHistory, historyEntry, historyNow);
-    assert(prunedHistory.length <= 7 && prunedHistory.every(item => item.timestamp >= historyNow - 7 * 24 * 60 * 60),
-        'daily history must prune entries older than seven days and remain bounded');
+    assert(prunedHistory.length <= 28 && prunedHistory.every(item => item.timestamp >= historyNow - 28 * 24 * 60 * 60),
+        'daily history must retain at most four weeks of snapshots');
 
     equal(getHistorySourceDeltas(
         [{name: 'DNF', count: 5}, {name: 'Flatpak', count: 1}, {name: 'Cargo', count: 2}],
@@ -870,6 +871,43 @@ async function main() {
         'history trends should preserve decreases as negative deltas');
     equal(getHistorySourceDeltas([{name: 'Bad', count: -1}, null], []), [],
         'history trends should ignore malformed source entries');
+
+    const adaptiveNow = historyNow;
+    const day = 24 * 60 * 60;
+    const stableHistory = Array.from({length: 28}, (_, index) => ({
+        date: new Date((adaptiveNow - (27 - index) * day) * 1000).toISOString().slice(0, 10),
+        timestamp: adaptiveNow - (27 - index) * day,
+        total: 2,
+        sources: [{name: 'DNF', count: 2}, {name: 'Flatpak', count: 1}],
+    }));
+    equal([...getAdaptiveSourceIntervals(
+        new Map([['DNF', 60], ['Flatpak', 120]]),
+        stableHistory,
+        new Map([['Flatpak', 120]]),
+        adaptiveNow
+    ).entries()], [['DNF', 180], ['Flatpak', 120]],
+    'four stable weeks should gradually extend only sources without explicit interval overrides');
+
+    const activeRecentHistory = stableHistory.map((entry, index) => ({
+        ...entry,
+        sources: [{name: 'DNF', count: index >= 21 ? index - 20 : 0}],
+    }));
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), activeRecentHistory, new Map(), adaptiveNow).get('DNF'),
+        60, 'an increase in recent weekly change frequency should reset the source to its base interval');
+
+    const settlingHistory = stableHistory.map((entry, index) => ({
+        ...entry,
+        sources: [{name: 'DNF', count: index >= 13 && index <= 19 ? index - 12 : (index >= 20 ? 7 : 0)}],
+    }));
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), settlingHistory, new Map(), adaptiveNow).get('DNF'),
+        90, 'one stable week after a more active week should increase the interval by one step');
+
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 600]]), stableHistory, new Map(), adaptiveNow).get('DNF'),
+        1440, 'adaptive intervals must never exceed the 24-hour cap');
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory.slice(-7), new Map(), adaptiveNow).get('DNF'),
+        60, 'adaptive scheduling must wait for two complete weeks of history');
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, new Map(), adaptiveNow).get('DNF'),
+        180, 'stable source interval should remain deterministic for the same history');
 
     equal(getUpdatableSources(
         [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}, {name: 'Broken'}, {name: 'Checking'}],
