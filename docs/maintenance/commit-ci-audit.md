@@ -302,3 +302,18 @@ Reviewed the two commits after the adaptive-scheduling checkpoint. Both combined
 | `d20fe878034b7f4c9d459119804130c49abb46c3` | docs(maintenance): audit issue decision commits (#22, #85) | unavailable | 2026-11-03 | Empty combined-status response; this ledger checkpoint records the decision/accessibility commits immediately before it. |
 
 | 2026-11-03 | `401fc824ade7f6022be6113b0949e5ac1fb2c96a` → `d20fe878034b7f4c9d459119804130c49abb46c3` | Reviewed the issue-decision documentation commit and the #22 accessibility correction. Both CI status responses were empty and are recorded as unavailable, not green. #22 now explicitly retains whole-hour quiet-hours controls, with the documented behavior checklist checked; a source audit removed an overwritten accessible name from the Settings button. #85 was closed as not planned after the owner chose to retain interval-based caching. Open issue count is 22. #22 remains open for runtime accessibility and normal-flow regression validation. |
+
+## 2026-11-03 lifecycle teardown follow-up audit
+
+Reviewed the ledger checkpoint and four #84 implementation/test commits, followed by the #84 triage update. All six combined-status responses were empty; no workflow/run IDs or job results were exposed. All six are **unavailable**, not green. The source changes add a shared guard against asynchronous UI updates after indicator teardown, stop the background elapsed-time timer when the indicator is destroyed, and add deterministic utility assertions. Full GJS execution, active source-check completion, actual process-group integration, and GNOME menu testing remain unverified.
+
+| Commit SHA | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `98faab6d71ad000a56ab9c0d0d0b708fc8694097` | docs(maintenance): record CI audit checkpoint | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `7153a3a57cffcaf6fa747c81755294752ee12cce` | test(lifecycle): expose destroyed indicator UI guard (#84) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `3d822226aad5d6d62b94fd2e69013360ebef7d5e` | fix(lifecycle): guard update callbacks after destroy (#84) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `ef3dc7b41a27ad1475452b70cb7586edea1572a6` | fix(lifecycle): mark indicator destroyed during teardown (#84) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `d4001ce5c89f673a202467e5f30734dd0d6d82bb` | test(lifecycle): cover destroyed indicator UI guard (#84) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `96c513e5d0cce21a0fd540cd71c8f8887d2aa5d7` | docs(maintenance): track lifecycle test progress (#84) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+
+| 2026-11-03 | `d20fe878034b7f4c9d459119804130c49abb46c3` → `96c513e5d0cce21a0fd540cd71c8f8887d2aa5d7` | Reviewed the prior ledger checkpoint, four #84 lifecycle guard/test commits, and the #84 triage update. All six combined-status responses were empty and are recorded as unavailable, not green. Added a shared UI-liveness guard, applied it to terminal/background update callbacks and the background timer, and marked the indicator destroyed during teardown. Added utility-level assertions for live/destroyed/widget-less states. #84 remains open because active-check/subprocess integration, process-group tests, and GNOME menu validation are still outstanding. |
