@@ -162,6 +162,18 @@
       <description>When enabled, the copied diagnostics report includes per-source status, counts, cache state, polling intervals, and redacted failure summaries. Source commands and raw command output are never included.</description>
     </key>
 
+    <key name="performance-counters-enabled" type="b">
+      <default>false</default>
+      <summary>Enable aggregate performance counters</summary>
+      <description>Collect opt-in counts and update timings without recording commands, paths, or raw output.</description>
+    </key>
+
+    <key name="performance-counters-json" type="s">
+      <default>'{}'</default>
+      <summary>Aggregate performance counter snapshot</summary>
+      <description>Session-local aggregate counters used by the opt-in troubleshooting report.</description>
+    </key>
+
     <key name="record-history" type="b">
       <default>true</default>
       <summary>Record local update history</summary>
