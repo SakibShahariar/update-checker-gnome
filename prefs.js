@@ -302,6 +302,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         settings.bind('diagnostics-include-source-details', diagnosticsDetailRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         diagnosticsGroup.add(diagnosticsDetailRow);
+        const performanceCountersRow = new Adw.SwitchRow({
+            title: 'Enable performance counters',
+            subtitle: 'Collect aggregate check, command, menu, and update timing metrics. Commands, paths, and raw output are never recorded.',
+        });
+        settings.bind('performance-counters-enabled', performanceCountersRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        diagnosticsGroup.add(performanceCountersRow);
         const diagnosticsRow = new Adw.ActionRow({
             title: 'Troubleshooting report',
             subtitle: 'Includes source status, intervals, and enabled policies; excludes commands and raw output.',
@@ -313,8 +319,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         });
         copyDiagnosticsButton.connect('clicked', () => {
             let summary = {};
+            let performanceCounters = {};
             try {
                 summary = JSON.parse(settings.get_string('summary-json') || '{}');
+            } catch (e) {}
+            try {
+                performanceCounters = JSON.parse(settings.get_string('performance-counters-json') || '{}');
             } catch (e) {}
             const globalInterval = settings.get_int('check-interval-minutes');
             const intervalMap = new Map();
@@ -347,9 +357,11 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                     rebootCheckEnabled: settings.get_boolean('check-reboot-required'),
                 },
                 includeSourceDetails: settings.get_boolean('diagnostics-include-source-details'),
+                includePerformanceCounters: settings.get_boolean('performance-counters-enabled'),
+                performanceCounters,
             });
             try {
-                Gdk.Display.get_default().get_clipboard().set(report.join('\n'));
+                Gdk.Display.get_default().get_clipboard().set(report);
                 diagnosticsRow.set_subtitle('Diagnostics copied. Review the report before sharing it.');
             } catch (e) {
                 diagnosticsRow.set_subtitle('Could not access the clipboard. Please try again.');
