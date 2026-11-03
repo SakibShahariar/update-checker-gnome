@@ -888,6 +888,10 @@ async function main() {
     ).entries()], [['DNF', 180], ['Flatpak', 120]],
     'four stable weeks should gradually extend only sources without explicit interval overrides');
 
+    const adaptedIntervals = getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, new Map(), adaptiveNow);
+    equal(getPollingIntervalMinutes(60, [{name: 'DNF'}], adaptedIntervals), 60,
+        'adaptive source delays must not reduce the independent security check below the global cadence');
+
     const activeRecentHistory = stableHistory.map((entry, index) => ({
         ...entry,
         sources: [{name: 'DNF', count: index >= 21 ? index - 20 : 0}],
