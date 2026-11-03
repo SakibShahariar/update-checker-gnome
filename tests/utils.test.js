@@ -531,6 +531,13 @@ function testNetworkWatchLifecycle() {
     const reenableDispose = setupNetworkWatch(extension, dependencies);
     assert(watchedFiles.length === 8 && signalHandlers.size === 2,
         'network watches should be safe to initialize again after disposal');
+    const reenabledRpmWatch = watchedFiles.filter(item => item.path === '/var/lib/rpm').at(-1);
+    reenabledRpmWatch.emit();
+    const destroyedIndicatorTimer = extension._dbDebounceId;
+    extension._indicator._destroyed = true;
+    assert(scheduler.fire(destroyedIndicatorTimer) && checks === 2,
+        'database callbacks must not check after the indicator is destroyed');
+    extension._indicator._destroyed = false;
     reenableDispose();
     assert(signalHandlers.size === 0 && watchedFiles.every(item => item.cancelled),
         'the re-enabled network watches should also dispose cleanly');
