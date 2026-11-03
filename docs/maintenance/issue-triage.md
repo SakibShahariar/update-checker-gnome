@@ -2,7 +2,7 @@
 
 _Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 25._
 
-This is a point-in-time classification of the repository's 26 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
+This is a point-in-time classification of the repository's 26 open issues using the five-category policy in the root `AGENTS.md`. It lists 25 open issues. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
 ## Category A — Fully actionable
 
