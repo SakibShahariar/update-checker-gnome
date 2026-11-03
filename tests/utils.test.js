@@ -38,6 +38,7 @@ import {
     mapPool,
     classifyResult,
     boundResultLines,
+    getNextPackageVisibleCount,
     filterIgnoredPackages,
     parseSources,
     parseUpdateCommands,
@@ -1135,6 +1136,19 @@ async function main() {
         ['firefox.x86_64', 'org.example.App']
     ), {status: 'ok', count: 1, message: '', lines: ['kernel-core.x86_64 3 4']},
     'ignored identifiers should be removed exactly and the count recalculated');
+
+    equal(getNextPackageVisibleCount(8, 200), 58,
+        'large package lists should reveal at most one 50-row page at a time');
+    equal(getNextPackageVisibleCount(58, 200), 108,
+        'show more should advance from the currently visible row count');
+    equal(getNextPackageVisibleCount(158, 160), 160,
+        'the final page should stop exactly at the available row count');
+    equal(getNextPackageVisibleCount(160, 160), 8,
+        'activating show less should restore the initial eight-row preview');
+    equal(getNextPackageVisibleCount(4, 4), 4,
+        'short lists should remain fully visible');
+    equal(getNextPackageVisibleCount(8, -1), 0,
+        'invalid package counts should fail closed');
 
     const oversizedResult = {
         status: 'ok', count: 250, message: '',
