@@ -290,3 +290,14 @@ The previous checkpoint range through `931edf790ca83bcc767996bf3db23dec439ab4b3`
 
 
 | 2026-11-03 | `931edf790ca83bcc767996bf3db23dec439ab4b3` → `401fc824ade7f6022be6113b0949e5ac1fb2c96a` | Reviewed the one post-#95 documentation commit and all 28 #88 implementation, test, settings, and documentation commits. Every combined-status response was empty and is recorded as unavailable, not green. Implemented opt-in weekly count-trend source intervals, preserved the separate security command's global cadence, retained 28 days of local history, ignored incomplete weekly windows, and made failed sources retry at their base cadence. Added GJS regression cases; isolated Node.js syntax/logic checks passed nine scenarios. GJS suite, push CI, and real GNOME validation remain unverified. #88 remains open in Category B. |
+
+## 2026-11-03 issue-decision and accessibility follow-up audit
+
+Reviewed the two commits after the adaptive-scheduling checkpoint. Both combined-status responses were empty; no workflow/run IDs or job results were exposed. They are recorded as **unavailable**, not green. The documentation commit records the owner's decisions on #22 and #85. The #22 source fix preserves the descriptive accessible name for the Settings icon button; GNOME/X11/Wayland runtime validation remains outstanding.
+
+| Commit SHA | Subject | CI result | Checked | Follow-up |
+|---|---|---|---|---|
+| `96d0b96cba8403bfca5b6d6be312fbecb9ba5d06` | docs(maintenance): record issue decisions (#22, #85) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. |
+| `beaecb1a5c04c50f5e4e552908d97127b231f877` | fix(a11y): preserve settings button name (#22) | unavailable | 2026-11-03 | Empty combined-status response; no workflow/run reference exposed. Static diff confirms the redundant accessible-name overwrite was removed; no runtime claim. |
+
+| 2026-11-03 | `401fc824ade7f6022be6113b0949e5ac1fb2c96a` → `beaecb1a5c04c50f5e4e552908d97127b231f877` | Reviewed the issue-decision documentation commit and the #22 accessibility correction. Both CI status responses were empty and are recorded as unavailable, not green. #22 now explicitly retains whole-hour quiet-hours controls, with the documented behavior checklist checked; a source audit removed an overwritten accessible name from the Settings button. #85 was closed as not planned after the owner chose to retain interval-based caching. Open issue count is 22. #22 remains open for runtime accessibility and normal-flow regression validation. |
