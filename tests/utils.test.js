@@ -220,6 +220,11 @@ async function testSourceJitter() {
         async delay => { waited = delay; }, () => true, 500);
     assert(cancelled.cancelled && cancelled.delayMs === 125,
         'a source cancelled during its delay must not proceed to command execution');
+    waited = 999;
+    const alreadyCancelled = await applySourceJitter(false, () => 1,
+        async delay => { waited = delay; }, () => true, 500);
+    assert(alreadyCancelled.cancelled && alreadyCancelled.delayMs === 0 && waited === 999,
+        'a source already cancelled before its delay should not schedule a timer');
 }
 
 async function testCheckTriggerCoalescer() {
