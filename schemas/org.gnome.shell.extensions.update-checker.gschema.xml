@@ -22,6 +22,12 @@
       <description>Show a desktop notification when the total update count goes up.</description>
     </key>
 
+    <key name="confirm-update-all" type="b">
+      <default>true</default>
+      <summary>Confirm high-impact Update all actions</summary>
+      <description>Show a review dialog before Update all when any selected command requests elevation or appears destructive. Disable only if you understand and accept the risk.</description>
+    </key>
+
     <key name="notify-security-only" type="b">
       <default>false</default>
       <summary>Notify when new security updates appear</summary>
