@@ -955,7 +955,7 @@ async function main() {
         'echo $HOME',
         'dnf check-update *',
         'dnf check-update # comment',
-        'dnf check-update\\nflatpak update',
+        'dnf check-update\nflatpak update',
         'cd /tmp',
         'export LANG=C',
         'PATH=/custom/bin dnf check-update',
