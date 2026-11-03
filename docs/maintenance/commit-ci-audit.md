@@ -24,7 +24,7 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 
 - Repository: `SakibShahariar/update-checker-gnome`
 - Default branch: `master`
-- Checkpoint SHA: `be78fd336eadab02528d274b05b7f2e284d0d203`
+- Checkpoint SHA: `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e`
 - Initialized: 2026-11-02
 - Baseline: latest branch tip queried through combined commit-status endpoint; empty status list recorded as **unavailable**, not green/red. Older history was not retroactively audited during setup.
 - Next session: review commits after this checkpoint, including this ledger-update commit; carry forward all entries marked unavailable.
@@ -107,6 +107,18 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `6acbb3022c7429dc992c120cc2e4e7900ae40421` | fix(checks): skip jitter for cancelled refreshes (#89) | green | 2026-11-03 | [CI run 41550254517](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550254517) completed successfully. |
 | `f9af6aca6e72eac51281b0d85758e2fd3fc102ae` | test(checks): cover pre-cancelled jitter requests (#89) | green | 2026-11-03 | [CI run 41550268815](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550268815) completed successfully. |
 | `be78fd336eadab02528d274b05b7f2e284d0d203` | fix(checks): discard jittered sources after config changes (#89) | green | 2026-11-03 | [CI run 41550296982](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550296982) completed successfully. |
+| `baf02a55c38054da4fb120c97c79c28d8d8b07d6` | docs: record source jitter CI audit (#89) | green | 2026-11-03 | [CI run 41550384479](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550384479) completed successfully. |
+| `abbcdcae9d2589cac0efc78f349efcc47bea3043` | feat(diagnostics): add opt-in aggregate performance counters (#103) | green | 2026-11-03 | [CI run 41550525876](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550525876) completed successfully. |
+| `bab4f35852cdbb794f0fae7dfb529b2be97fdbdb` | feat(schema): add performance counter settings (#103) | green | 2026-11-03 | [CI run 41550556038](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550556038) completed successfully. |
+| `ffbc207851b368b9217abc5616c5e7bae0c074a3` | feat(metrics): count spawned check commands (#103) | green | 2026-11-03 | [CI run 41550575116](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550575116) completed successfully. |
+| `5819771f1d7a4e0a23671d5ffa42abc15ef36a7d` | feat(metrics): count menu result rebuilds (#103) | green | 2026-11-03 | [CI run 41550587063](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550587063) completed successfully. |
+| `6667cfc5a6a7150aa3209d57d98f3c11135e6174` | feat(metrics): track update counts and durations (#103) | green | 2026-11-03 | [CI run 41550603946](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550603946) completed successfully. |
+| `b4f5b2189bc4cc8818cbc452d18ddab6681c37c9` | feat(metrics): instrument check lifecycle and opt-in toggle (#103) | green | 2026-11-03 | [CI run 41550640787](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550640787) completed successfully. |
+| `ef62ecb28260be9960674691bf9e0cddc2a30dad` | feat(diagnostics): include opt-in performance counters (#103) | green | 2026-11-03 | [CI run 41550660875](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550660875) completed successfully. |
+| `6fc1f53fe0ab4e781c4f14b6f14dc987f3b6857c` | feat(prefs): expose opt-in performance diagnostics (#103) | green | 2026-11-03 | [CI run 41550691890](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550691890) completed successfully. |
+| `85b9c5cce8e095e79bb985ba83c0e6a7e75a9895` | test(diagnostics): cover opt-in performance counters (#103) | green | 2026-11-03 | [CI run 41550720397](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550720397) completed successfully. |
+| `bb563aecc86198ec19fda21ca27551a1db35328d` | docs(diagnostics): explain opt-in performance counters (#103) | green | 2026-11-03 | [CI run 41550755937](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550755937) completed successfully. |
+| `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` | docs(diagnostics): clarify performance counter scope (#103) | green | 2026-11-03 | [CI run 41550788955](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41550788955) completed successfully. |
 
 ## Red-cross investigation log
 
@@ -152,3 +164,4 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 | 2026-11-03 | `22dab0572c20ee4898ad3c0d0f513fd686551d7b` → `f0eea532a306e07053abedc3d8e287d4c10f5704` | Audited the #102 ledger update and sixteen #67 implementation/test/docs commits. Three intermediate CI runs were red because expected fixtures had not yet caught up with new output-format behavior (backup outputFormat field, Flatpak column order, uv latest syntax); each was corrected in a subsequent fixture commit and the follow-up CI passed. All final parser, preferences, schema, and docs runs were green. Closed #67 after the final complete CI run. |
 | 2026-11-03 | `f0eea532a306e07053abedc3d8e287d4c10f5704` → `502f8bc0264a833f94404bf15694ab8991065af1` | Reviewed the #67 ledger update and three #90 implementation/test commits. All four push CI runs passed. Added a 300 ms non-manual coalescing window, one queued follow-up refresh, manual priority, and teardown cancellation; closed #90 after GJS tests and full CI passed. |
 | 2026-11-03 | `502f8bc0264a833f94404bf15694ab8991065af1` → `be78fd336eadab02528d274b05b7f2e284d0d203` | Reviewed the #90 ledger update and six #89 jitter implementation/test commits. All seven push CI runs passed. Automatic source checks now receive bounded 0–500 ms jitter, manual checks bypass it, and pending workers revalidate source configuration/cancellation before spawning. Closed #89 after CI verification. |
+| 2026-11-03 | `be78fd336eadab02528d274b05b7f2e284d0d203` → `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` | Reviewed the #89 ledger update and eleven #103 implementation/test/docs commits. All twelve push CI runs passed. Added disabled-by-default aggregate performance counters, a diagnostics toggle/report section, fixed-shape GSettings snapshots, and tests for opt-in/opt-out behavior and metric aggregation. Documented metric scope and privacy limits; closed #103 after CI. |
