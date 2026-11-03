@@ -29,7 +29,6 @@ _No Category A issues remain open after this pass._
 | [#73 — Terminal versus background mode](https://github.com/SakibShahariar/update-checker-gnome/issues/73) | Verify both modes, labels, authentication behavior, and lifecycle in GNOME. |
 | [#78 — Reduced-motion consistency](https://github.com/SakibShahariar/update-checker-gnome/issues/78) | Verify toggling reduced motion while the extension is running. |
 | [#84 — Lifecycle, cancellation, and UI regression tests](https://github.com/SakibShahariar/update-checker-gnome/issues/84) | Finish destroyed-state checks during active source checks, actual subprocess completion, process-group integration, and menu state tests. |
-| [#85 — Command-aware result caching](https://github.com/SakibShahariar/update-checker-gnome/issues/85) | Implementation can be tested, but cache-key correctness and invalidation need validation against real package sources and arbitrary/custom command inputs to avoid stale update counts. |
 | [#86 — Event-driven scheduling](https://github.com/SakibShahariar/update-checker-gnome/issues/86) | Verify watcher failure/recovery, package database changes, network events, and long fallback polling on supported runtime environments. |
 | [#92 — Batch package-manager checks](https://github.com/SakibShahariar/update-checker-gnome/issues/92) | Unit-test batching and failure isolation, then validate command output, privilege boundaries, and behavior on supported package-manager environments. |
 | [#93 — D-Bus APIs where available](https://github.com/SakibShahariar/update-checker-gnome/issues/93) | Implement with CLI fallback; validate D-Bus availability, permissions, sandboxing, and equivalent results on supported distributions. |
@@ -54,6 +53,7 @@ _No current issue classified here._ Reclassify when a named upstream, third-part
 | Issue | Question needed |
 |---|---|
 | [#66 — Symlink-cycle protection](https://github.com/SakibShahariar/update-checker-gnome/issues/66) | Is recursive filesystem scanning/watch expansion a planned feature? The current extension watches fixed directories non-recursively, so there is no traversal path for cycle protection to guard yet. |
+| [#85 — Command-aware result caching](https://github.com/SakibShahariar/update-checker-gnome/issues/85) | Should command-aware caching apply only to known DNF/Flatpak sources with reliable package-database watches, while arbitrary/custom commands keep interval-based caching to avoid stale results from hidden inputs? |
 | [#87 — Persistent checker daemon with D-Bus](https://github.com/SakibShahariar/update-checker-gnome/issues/87) | Do you want to pursue a separate user-level checker service, accepting the extra packaging, lifecycle, permission, and migration complexity? |
 | [#88 — Weekly trend-based adaptive check delay](https://github.com/SakibShahariar/update-checker-gnome/issues/88) | For security-update sources, should adaptive scheduling exclude them entirely or allow a conservative maximum delay? This affects how quickly security updates are discovered. |
 
