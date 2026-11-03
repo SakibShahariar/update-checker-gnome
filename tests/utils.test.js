@@ -21,6 +21,8 @@ import {
     getHighImpactUpdateCommands,
     setSourceRowUpdating,
     invalidateUpdateSourceCache,
+    requestTrackedStop,
+    clearTrackedStopTimeout,
     getSourceConfigurationState,
     parseSourceTimeouts,
     parseExitCodeList,
@@ -652,6 +654,47 @@ async function main() {
     invalidateUpdateSourceCache(updateCache, '__script__');
     assert(updateCache._lastSourcePoll.size === 0 && updateCache._lastSourceResults.size === 0,
         'update script completion should invalidate all source caches');
+
+    const stopSignals = [];
+    const stopTimers = new Map();
+    let stopTimerId = 1;
+    const stopEntry = {};
+    const scheduleStop = (delay, callback) => {
+        const id = stopTimerId++;
+        stopTimers.set(id, {delay, callback});
+        return id;
+    };
+    assert(requestTrackedStop(stopEntry, scheduleStop, () => true,
+        signal => stopSignals.push(signal)), 'the first stop request should schedule termination');
+    assert(!requestTrackedStop(stopEntry, scheduleStop, () => true,
+        signal => stopSignals.push(signal)), 'duplicate stop requests should not schedule duplicate signals');
+    equal(stopSignals, ['TERM'], 'stop should send TERM before waiting for the grace period');
+    const stopTimer = stopEntry.stopTimeoutId;
+    assert(stopTimers.get(stopTimer)?.delay === 2000,
+        'stop should allow a two-second graceful termination window');
+    stopTimers.get(stopTimer).callback();
+    equal(stopSignals, ['TERM', 'KILL'],
+        'the stop timeout should force termination only if the tracked entry is still current');
+    assert(stopEntry.stopTimeoutId === null,
+        'the stop timeout should clear its tracked source ID after firing');
+
+    const staleStopSignals = [];
+    const staleStopEntry = {};
+    requestTrackedStop(staleStopEntry, scheduleStop, () => false,
+        signal => staleStopSignals.push(signal));
+    stopTimers.get(staleStopEntry.stopTimeoutId).callback();
+    equal(staleStopSignals, ['TERM'],
+        'a completed/replaced process entry must not receive a delayed KILL signal');
+
+    const clearedStopEntry = {};
+    requestTrackedStop(clearedStopEntry, scheduleStop, () => true, () => {});
+    const clearedTimer = clearedStopEntry.stopTimeoutId;
+    assert(clearTrackedStopTimeout(clearedStopEntry, id => stopTimers.delete(id)),
+        'process completion should cancel its pending stop timeout');
+    assert(clearedStopEntry.stopTimeoutId === null && !stopTimers.has(clearedTimer),
+        'clearing a stop timeout should release the timer and reset the entry');
+    assert(!clearTrackedStopTimeout(clearedStopEntry, id => stopTimers.delete(id)),
+        'clearing an already-finished stop timeout should be a no-op');
 
     equal(getHighImpactUpdateCommands([
         {name: 'DNF', command: 'doas dnf upgrade -y'},
