@@ -79,6 +79,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('check-interval-minutes', intervalRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(intervalRow);
 
+        const adaptiveRow = new Adw.SwitchRow({
+            title: 'Adaptive source intervals',
+            subtitle: 'Gradually check stable sources less often. Security checks keep the global interval; manual checks remain immediate.',
+        });
+        settings.bind('adaptive-check-intervals', adaptiveRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(adaptiveRow);
+
         const shortcutGroup = new Adw.PreferencesGroup({
             title: 'Keyboard',
             description: 'Trigger a full update check without opening the menu.',
