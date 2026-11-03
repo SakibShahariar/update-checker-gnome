@@ -1,14 +1,18 @@
 # Open Issue Triage
 
-_Last reviewed: 2026-11-03. Default branch: `master`._
+_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 25._
 
 This is a point-in-time classification of the repository's 26 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
 ## Category A — Fully actionable
 
-| Issue | Assessment |
+_No Category A issues remain open after this pass._
+
+### Completed in this pass
+
+| Issue | Result |
 |---|---|
-| [#91 — Direct argv execution where safe](https://github.com/SakibShahariar/update-checker-gnome/issues/91) | A conservative argv path can be unit-tested in CI; shell operators, expansions, assignments, and shell built-ins retain the existing shell path. Implementation committed as `7cde73c`; CI result is being checked before marking complete. |
+| [#91 — Direct argv execution where safe](https://github.com/SakibShahariar/update-checker-gnome/issues/91) | Implemented conservative direct argv execution with shell fallback and process-group preservation. GJS regression tests and CI passed; closed after verification. Commits: `7cde73c`, `5009c17`, `8c906c8`. |
 
 ## Category B — Implementation ready, validation pending
 
