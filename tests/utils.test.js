@@ -20,6 +20,7 @@ import {
     hasMixedPrivilegeCommand,
     isHighImpactCommand,
     getHighImpactUpdateCommands,
+    canUpdateIndicatorUi,
     setSourceRowUpdating,
     invalidateUpdateSourceCache,
     requestTrackedStop,
@@ -660,6 +661,17 @@ async function main() {
     ])
         assert(!hasMixedPrivilegeCommand(command),
             `simple or non-elevated commands should remain allowed: ${command}`);
+
+    const liveIndicator = {_destroyed: false, _sourceRowWidgets: new Map()};
+    assert(canUpdateIndicatorUi(liveIndicator),
+        'live indicators with row widgets should allow update UI callbacks');
+    liveIndicator._destroyed = true;
+    assert(!canUpdateIndicatorUi(liveIndicator),
+        'destroyed indicators must reject asynchronous update UI callbacks');
+    liveIndicator._destroyed = false;
+    liveIndicator._sourceRowWidgets = null;
+    assert(!canUpdateIndicatorUi(liveIndicator),
+        'indicators without row widgets must reject asynchronous update UI callbacks');
 
     const rowWidgets = {
         countLabel: {visible: true},
