@@ -1,8 +1,8 @@
 # Open Issue Triage
 
-_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 23._
+_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 22._
 
-This is a point-in-time classification of the repository's 23 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
+This is a point-in-time classification of the repository's 22 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
 ## Category A — Fully actionable
 
@@ -18,6 +18,7 @@ _No Category A issues remain open after this pass._
 
 | Issue | Remaining validation / reason |
 |---|---|
+| [#22 — Quiet-hours precision and icon-only accessibility](https://github.com/SakibShahariar/update-checker-gnome/issues/22) | Whole-hour quiet-hours behavior is documented and the owner confirmed no minute-level controls; complete the remaining icon-only accessibility audit and X11/Wayland runtime verification. |
 | [#21 — Further split `lib/indicator.js`](https://github.com/SakibShahariar/update-checker-gnome/issues/21) | Complete functional regression and GNOME 49–51 extension/menu smoke tests. |
 | [#31 — Keyboard navigation](https://github.com/SakibShahariar/update-checker-gnome/issues/31) | Implement keyboard focus/activation and verify the real popup's focus order, focus ring, and pointer behavior. |
 | [#59 — Per-worker error boundaries](https://github.com/SakibShahariar/update-checker-gnome/issues/59) | Automated worker-isolation coverage exists; verify UI recovery in a GNOME session. |
@@ -50,15 +51,13 @@ _No current issue classified here._ Reclassify when a named upstream, third-part
 
 ## Category E — Needs the owner's decision or information
 
-| Issue | Question needed |
-|---|---|
-| [#22 — Quiet-hours precision and accessibility](https://github.com/SakibShahariar/update-checker-gnome/issues/22) | Do you want minute-level local start/end times (`HH:MM`) for quiet hours, or should the current hour-only controls remain with clearer documentation? |
-| [#85 — Command-aware result caching](https://github.com/SakibShahariar/update-checker-gnome/issues/85) | Should command-aware caching apply only to known DNF/Flatpak sources with reliable package-database watches, while arbitrary/custom commands keep interval-based caching to avoid stale results from hidden inputs? |
+_No current issue needs an owner decision._
 
 ## Closed as not planned
 
 - [#66 — Symlink-cycle protection](https://github.com/SakibShahariar/update-checker-gnome/issues/66): no recursive scanner or symlink traversal exists, so there is no current behavior to protect.
 - [#87 — Persistent checker daemon with D-Bus](https://github.com/SakibShahariar/update-checker-gnome/issues/87): the owner chose to keep package checks in the extension and avoid a separate daemon's operational complexity.
+- [#85 — Command-aware result caching](https://github.com/SakibShahariar/update-checker-gnome/issues/85): the owner chose to retain interval-based caching; command-aware invalidation adds complexity without demonstrated performance benefit and risks stale update counts.
 
 ## Triage rules
 
