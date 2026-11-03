@@ -1,6 +1,7 @@
 import System from 'system';
 import GLib from 'gi://GLib';
 import {sanitizeMatugenColor} from '../lib/theming.js';
+import {setupNetworkWatch, sourceNamesForDatabasePath} from '../lib/network-watch.js';
 import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
 import {configurePerformanceCounters, incrementPerformanceCounter, recordUpdateDuration, getPerformanceCountersSnapshot} from '../lib/performance-counters.js';
 import {
@@ -348,7 +349,195 @@ async function testCheckTriggerCoalescer() {
         'cancellation during teardown should discard the queued refresh');
 }
 
+
+function testNetworkWatchLifecycle() {
+    let nextId = 1;
+    const tasks = new Map();
+    const history = new Map();
+    const scheduler = {
+        add(_priority, seconds, callback) {
+            const id = nextId++;
+            const task = {seconds, callback};
+            tasks.set(id, task);
+            history.set(id, task);
+            return id;
+        },
+        remove(id) {
+            tasks.delete(id);
+        },
+        fire(id) {
+            const task = tasks.get(id);
+            if (!task)
+                return false;
+            tasks.delete(id);
+            task.callback();
+            return true;
+        },
+        fireEvenIfRemoved(id) {
+            history.get(id)?.callback();
+        },
+    };
+
+    let connectivity = 1;
+    let nextSignalId = 1;
+    const signalHandlers = new Map();
+    const networkMonitor = {
+        connect(signal, callback) {
+            const id = nextSignalId++;
+            signalHandlers.set(id, {signal, callback});
+            return id;
+        },
+        disconnect(id) {
+            signalHandlers.delete(id);
+        },
+        get_connectivity() {
+            return connectivity;
+        },
+        emit(signal) {
+            for (const entry of signalHandlers.values()) {
+                if (entry.signal === signal)
+                    entry.callback();
+            }
+        },
+    };
+
+    const watchedFiles = [];
+    const fileForPath = path => ({
+        monitor_directory() {
+            let changed = null;
+            let cancelled = false;
+            const monitor = {
+                connect(_signal, callback) {
+                    changed = callback;
+                    return nextSignalId++;
+                },
+                cancel() {
+                    cancelled = true;
+                },
+            };
+            watchedFiles.push({
+                path,
+                monitor,
+                emit() {
+                    if (!cancelled)
+                        changed?.();
+                },
+                get cancelled() {
+                    return cancelled;
+                },
+            });
+            return monitor;
+        },
+    });
+
+    let checks = 0;
+    const extension = {
+        _indicator: {
+            _destroyed: false,
+            _updatingSources: new Set(),
+            _lastSourcePoll: new Map([['DNF', 1], ['Flatpak', 1], ['Cargo', 1]]),
+            _lastSourceResults: new Map([['DNF', {}], ['Flatpak', {}], ['Cargo', {}]]),
+            checkNow() {
+                checks++;
+            },
+        },
+        _settings: {
+            get_boolean() {
+                return true;
+            },
+            get_strv() {
+                return [
+                    'DNF|dnf check-update',
+                    'Flatpak|flatpak remote-ls --updates',
+                    'Cargo|cargo install-update -l',
+                ];
+            },
+        },
+    };
+    const dependencies = {
+        networkMonitor,
+        buildFilenamev: parts => parts.join('/'),
+        getHomeDir: () => '/home/test',
+        fileForPath,
+        monitorFlags: 0,
+        timeoutAddSeconds: scheduler.add,
+        sourceRemove: scheduler.remove,
+        priorityDefault: 0,
+        sourceRemoveReturn: 0,
+        connectivityFull: 1,
+    };
+
+    equal(sourceNamesForDatabasePath('/var/lib/rpm', [
+        {name: 'DNF', command: 'dnf check-update'},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
+        {name: 'Cargo', command: 'cargo install-update -l'},
+    ]), ['DNF'], 'RPM database watches should target package-manager sources only');
+    equal(sourceNamesForDatabasePath('/var/lib/flatpak', [
+        {name: 'DNF', command: 'dnf check-update'},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates'},
+    ]), ['Flatpak'], 'Flatpak database watches should target Flatpak sources');
+
+    const dispose = setupNetworkWatch(extension, dependencies);
+    assert(watchedFiles.length === 4, 'network setup should create each configured database watch');
+
+    networkMonitor.emit('network-changed');
+    const firstNetworkTimer = extension._networkDebounceId;
+    networkMonitor.emit('notify::connectivity');
+    const latestNetworkTimer = extension._networkDebounceId;
+    assert(firstNetworkTimer !== latestNetworkTimer && !tasks.has(firstNetworkTimer),
+        'reconnect notifications should replace the previous debounce timer');
+    assert(tasks.get(latestNetworkTimer)?.seconds === 5,
+        'network reconnect should use the five-second settle delay');
+    assert(scheduler.fire(latestNetworkTimer) && checks === 1,
+        'a stable full connection should trigger one delayed check');
+
+    const rpmWatch = watchedFiles.find(item => item.path === '/var/lib/rpm');
+    rpmWatch.emit();
+    const firstDbTimer = extension._dbDebounceId;
+    rpmWatch.emit();
+    const latestDbTimer = extension._dbDebounceId;
+    assert(firstDbTimer !== latestDbTimer && !tasks.has(firstDbTimer),
+        'repeated package database changes should replace the pending debounce');
+    assert(tasks.get(latestDbTimer)?.seconds === 4,
+        'package database changes should use the four-second debounce');
+    assert(scheduler.fire(latestDbTimer) && checks === 2,
+        'a stable database change should trigger a check');
+    assert(!extension._indicator._lastSourcePoll.has('DNF') &&
+        !extension._indicator._lastSourceResults.has('DNF'),
+    'RPM database changes should invalidate the matching DNF cache');
+    assert(extension._indicator._lastSourcePoll.has('Flatpak') &&
+        extension._indicator._lastSourcePoll.has('Cargo'),
+    'RPM database changes should preserve unrelated source caches');
+
+    rpmWatch.emit();
+    const offlineDbTimer = extension._dbDebounceId;
+    connectivity = 0;
+    networkMonitor.emit('network-changed');
+    assert(!tasks.has(offlineDbTimer) && extension._dbDebounceId === null,
+        'going offline should cancel a pending package database refresh');
+
+    connectivity = 1;
+    networkMonitor.emit('network-changed');
+    const staleNetworkTimer = extension._networkDebounceId;
+    dispose();
+    assert(signalHandlers.size === 0 && watchedFiles.every(item => item.cancelled),
+        'disposing network watches should disconnect signals and cancel file monitors');
+    assert(tasks.size === 0 && extension._networkDebounceId === null,
+        'disposing network watches should cancel pending timers');
+    scheduler.fireEvenIfRemoved(staleNetworkTimer);
+    assert(checks === 2,
+        'a stale reconnect callback must not check after network-watch disposal');
+
+    const reenableDispose = setupNetworkWatch(extension, dependencies);
+    assert(watchedFiles.length === 8 && signalHandlers.size === 2,
+        'network watches should be safe to initialize again after disposal');
+    reenableDispose();
+    assert(signalHandlers.size === 0 && watchedFiles.every(item => item.cancelled),
+        'the re-enabled network watches should also dispose cleanly');
+}
+
 async function main() {
+    testNetworkWatchLifecycle();
     equal(getElapsedSeconds(1000000, 1500000), 1,
         'elapsed display should round monotonic microseconds to seconds');
     equal(getElapsedSeconds(1000000, 3500000), 3,
