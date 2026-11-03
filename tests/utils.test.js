@@ -885,7 +885,7 @@ async function main() {
         stableHistory,
         adaptiveNow
     ).entries()], [['DNF', 180], ['Flatpak', 360]],
-    'four stable weeks should gradually extend only sources without explicit interval overrides');
+    'four stable weeks should gradually extend each source from its configured baseline');
 
     const adaptedIntervals = getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow);
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}], adaptedIntervals), 60,
@@ -909,6 +909,10 @@ async function main() {
         1440, 'adaptive intervals must never exceed the 24-hour cap');
     equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory.slice(-7), adaptiveNow).get('DNF'),
         60, 'adaptive scheduling must wait for two complete weeks of history');
+
+    const sparseHistory = stableHistory.filter((entry, index) => index !== 23);
+    equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), sparseHistory, adaptiveNow).get('DNF'),
+        60, 'a missing daily observation must not be mistaken for a stable week');
     equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow).get('DNF'),
         180, 'stable source interval should remain deterministic for the same history');
 
