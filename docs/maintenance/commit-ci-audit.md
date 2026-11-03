@@ -24,7 +24,7 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 
 - Repository: `SakibShahariar/update-checker-gnome`
 - Default branch: `master`
-- Checkpoint SHA: `d4c40a0573514a582c03bcfdb579b26d10c98f86`
+- Checkpoint SHA: `56f0718eb8bdb75d0e4804a67b759f9c50f5346a`
 - Initialized: 2026-11-02
 - Baseline: latest branch tip queried through combined commit-status endpoint; empty status list recorded as **unavailable**, not green/red. Older history was not retroactively audited during setup.
 - Next session: review commits after this checkpoint, including this ledger-update commit; carry forward all entries marked unavailable.
@@ -174,6 +174,11 @@ Persistent repository-specific record of commit-level CI checks and red-cross in
 | `8c906c87a73a80c6c8da2e3348079afd7ad65f40` | test(checks): cover default command execution modes (#91) | green | 2026-11-03 | [CI run 41575140572](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575140572) completed successfully, including GJS utility tests and whitespace checks. |
 | `d4c40a0573514a582c03bcfdb579b26d10c98f86` | docs: record completed argv issue (#91) | green | 2026-11-03 | [CI run 41575272242](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575272242) completed successfully. |
 
+| `8b9f8713d47b889b24ee9188f95aa92155aa922c` | docs: audit argv and issue triage CI (#91) | green | 2026-11-03 | [CI run 41575370637](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575370637) completed successfully. |
+| `eb194f1680dbba2cecb9e90ce591ebf394abcf94` | docs: clarify caching owner decision (#85) | green | 2026-11-03 | [CI run 41575545855](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575545855) completed successfully. |
+| `c471aa52ed8244606641df7415e901bc6a2ede54` | perf(scheduler): use package watches with long fallback (#86) | green | 2026-11-03 | [CI run 41575876909](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41575876909) completed successfully, including GJS utility tests. |
+| `56f0718eb8bdb75d0e4804a67b759f9c50f5346a` | fix(network): refresh cached sources after reconnect (#86) | green | 2026-11-03 | [CI run 41576058629](https://github.com/SakibShahariar/update-checker-gnome/actions/runs/41576058629) completed successfully, including reconnect cache-invalidation coverage. |
+
 ## Red-cross investigation log
 
 The initial setup used a status endpoint that did not expose push-triggered Actions runs. A later direct Actions-history audit found the red runs below; each has a later successful corrective commit/run recorded. The red results remain preserved rather than overwritten.
@@ -210,6 +215,8 @@ The initial setup used a status endpoint that did not expose push-triggered Acti
 - Remaining follow-up:
 
 ## Session history
+
+| 2026-11-03 | `d4c40a0573514a582c03bcfdb579b26d10c98f86` → `56f0718eb8bdb75d0e4804a67b759f9c50f5346a` | Reviewed four commits after the previous checkpoint; all four CI runs completed green. Added the event-driven scheduler policy: six-hour fallback only for sources covered by active package-database monitors, configured cadence for uncovered sources, fallback restoration after monitor cancellation, and full source-cache invalidation on network reconnect. GJS tests and CI passed. #86 remains open for live GNOME/Fedora/Flatpak watcher validation. #85 was reclassified to Category E because caching arbitrary commands requires the owner's policy decision. |
 
 | 2026-11-03 | `80d5c3c47e8a50c2b3f5228d5eb0df5c69262d1e` → `d4c40a0573514a582c03bcfdb579b26d10c98f86` | Audited the complete 45-commit range after the previous checkpoint. The 36 already-recorded commits were retained; added the nine missing commit records here. Six new records were green and three were red: one #91 test-fixture regression plus two documentation commits inheriting that failure. Corrected the fixture, verified the follow-up GJS/CI runs, documented the 25-open-issue triage, and closed #91 after its direct-argv implementation and regression suite passed. The three Category E decisions remain open for the owner. |\n
 
