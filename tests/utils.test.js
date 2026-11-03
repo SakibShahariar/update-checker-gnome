@@ -16,6 +16,8 @@ import {
     isValidSourceOutputFormat,
     classifySubprocessExit,
     hasMixedPrivilegeCommand,
+    isHighImpactCommand,
+    getHighImpactUpdateCommands,
     getSourceConfigurationState,
     parseSourceTimeouts,
     parseExitCodeList,
@@ -416,6 +418,24 @@ async function main() {
     ])
         assert(!hasMixedPrivilegeCommand(command),
             `simple or non-elevated commands should remain allowed: ${command}`);
+
+    equal(getHighImpactUpdateCommands([
+        {name: 'DNF', command: 'doas dnf upgrade -y'},
+        {name: 'Flatpak', command: 'flatpak update -y'},
+        {name: 'Cleanup', command: 'rm -rf /tmp/old-cache'},
+        {name: 'Log', command: 'printf done'},
+    ]), [
+        {name: 'DNF', command: 'doas dnf upgrade -y'},
+        {name: 'Cleanup', command: 'rm -rf /tmp/old-cache'},
+    ], 'Update all risk review should include privileged and destructive commands only');
+
+    for (const command of ['sudo dnf upgrade', 'doas fwupdmgr update', 'pkexec apt upgrade',
+        'echo x > /etc/example.conf', 'tee /etc/example.conf', 'rm -rf /tmp/cache',
+        'mkfs.ext4 /dev/example', 'dd if=/dev/zero of=/dev/example'])
+        assert(isHighImpactCommand(command), `high-impact command should be recognized: ${command}`);
+    for (const command of ['flatpak update -y', 'cargo install-update -a', 'echo sudo',
+        'printf "rm -rf"', ''])
+        assert(!isHighImpactCommand(command), `ordinary command should not be flagged: ${command}`);
 
     equal(parseSources([
         ' DNF | dnf check-update ',
