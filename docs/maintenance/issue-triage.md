@@ -1,8 +1,8 @@
 # Open Issue Triage
 
-_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 25._
+_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 23._
 
-This is a point-in-time classification of the repository's 26 open issues using the five-category policy in the root `AGENTS.md`. It lists 25 open issues. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
+This is a point-in-time classification of the repository's 23 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
 ## Category A — Fully actionable
 
@@ -29,6 +29,7 @@ _No Category A issues remain open after this pass._
 | [#78 — Reduced-motion consistency](https://github.com/SakibShahariar/update-checker-gnome/issues/78) | Verify toggling reduced motion while the extension is running. |
 | [#84 — Lifecycle, cancellation, and UI regression tests](https://github.com/SakibShahariar/update-checker-gnome/issues/84) | Finish destroyed-state checks during active source checks, actual subprocess completion, process-group integration, and menu state tests. |
 | [#86 — Event-driven scheduling](https://github.com/SakibShahariar/update-checker-gnome/issues/86) | Implemented a six-hour fallback for sources covered by active package-database monitors, retained normal polling for uncovered sources, restored normal polling on monitor cancellation, and invalidated caches on reconnect. GJS/CI passed; live Fedora/GNOME/Flatpak watcher reliability remains to be checked. Commits: `c471aa5`, `56f0718`. |
+| [#88 — Weekly trend-based adaptive check delay](https://github.com/SakibShahariar/update-checker-gnome/issues/88) | Implemented opt-in weekly count-trend intervals, disabled by default; separate security checks retain the global cadence, explicit per-source intervals are respected, and manual checks bypass adaptation. Automated tests/CI and live GNOME validation remain. |
 | [#92 — Batch package-manager checks](https://github.com/SakibShahariar/update-checker-gnome/issues/92) | Unit-test batching and failure isolation, then validate command output, privilege boundaries, and behavior on supported package-manager environments. |
 | [#93 — D-Bus APIs where available](https://github.com/SakibShahariar/update-checker-gnome/issues/93) | Implement with CLI fallback; validate D-Bus availability, permissions, sandboxing, and equivalent results on supported distributions. |
 | [#94 — Targeted menu-row updates](https://github.com/SakibShahariar/update-checker-gnome/issues/94) | Implement row-field updates and automated state tests; verify row lifecycle, theme changes, and accessibility in GNOME. |
@@ -51,11 +52,13 @@ _No current issue classified here._ Reclassify when a named upstream, third-part
 
 | Issue | Question needed |
 |---|---|
-| [#66 — Symlink-cycle protection](https://github.com/SakibShahariar/update-checker-gnome/issues/66) | Is recursive filesystem scanning/watch expansion a planned feature? The current extension watches fixed directories non-recursively, so there is no traversal path for cycle protection to guard yet. |
 | [#22 — Quiet-hours precision and accessibility](https://github.com/SakibShahariar/update-checker-gnome/issues/22) | Do you want minute-level local start/end times (`HH:MM`) for quiet hours, or should the current hour-only controls remain with clearer documentation? |
 | [#85 — Command-aware result caching](https://github.com/SakibShahariar/update-checker-gnome/issues/85) | Should command-aware caching apply only to known DNF/Flatpak sources with reliable package-database watches, while arbitrary/custom commands keep interval-based caching to avoid stale results from hidden inputs? |
-| [#87 — Persistent checker daemon with D-Bus](https://github.com/SakibShahariar/update-checker-gnome/issues/87) | Do you want to pursue a separate user-level checker service, accepting the extra packaging, lifecycle, permission, and migration complexity? |
-| [#88 — Weekly trend-based adaptive check delay](https://github.com/SakibShahariar/update-checker-gnome/issues/88) | For security-update sources, should adaptive scheduling exclude them entirely or allow a conservative maximum delay? This affects how quickly security updates are discovered. |
+
+## Closed as not planned
+
+- [#66 — Symlink-cycle protection](https://github.com/SakibShahariar/update-checker-gnome/issues/66): no recursive scanner or symlink traversal exists, so there is no current behavior to protect.
+- [#87 — Persistent checker daemon with D-Bus](https://github.com/SakibShahariar/update-checker-gnome/issues/87): the owner chose to keep package checks in the extension and avoid a separate daemon's operational complexity.
 
 ## Triage rules
 
