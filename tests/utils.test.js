@@ -222,7 +222,7 @@ async function main() {
     equal(parsePackageOutputLine('serde serde 1.0.200 1.0.210 library', 'cargo'),
         {name: 'serde', version: '1.0.210'},
         'Cargo outdated parser should select the latest version column');
-    equal(parsePackageOutputLine('black v24.3.0 (latest: v24.4.2)', 'uv'),
+    equal(parsePackageOutputLine('black v24.3.0 [latest: v24.4.2]', 'uv'),
         {name: 'black', version: 'v24.4.2'},
         'uv parser should select the explicit latest version');
     equal(parsePackageOutputLine('1.2.3 stable org.example.app', 'custom:3:1'),
