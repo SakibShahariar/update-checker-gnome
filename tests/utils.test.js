@@ -945,6 +945,17 @@ async function main() {
     equal(parseDirectArgvCommand('dnf check-update', GLib.shell_parse_argv),
         ['dnf', 'check-update'],
         'plain built-in source commands should be parsed into direct argv');
+    equal(parseDirectArgvCommand('flatpak remote-ls --updates', GLib.shell_parse_argv),
+        ['flatpak', 'remote-ls', '--updates'],
+        'the default Flatpak check command should use direct argv');
+    assert(parseDirectArgvCommand(
+        "dnf check-update -q --refresh --color=never | grep -E '^\\\\S+\\\\.\\\\S+\\\\s'",
+        GLib.shell_parse_argv
+    ) === null, 'the default DNF pipeline should retain shell execution');
+    assert(parseDirectArgvCommand(
+        'doas dnf update --refresh -y && doas dnf autoremove -y',
+        GLib.shell_parse_argv
+    ) === null, 'composed update commands should retain shell execution');
     equal(parseDirectArgvCommand("printf 'two words'", GLib.shell_parse_argv),
         ['printf', 'two words'],
         'quoted arguments should be preserved when parsing direct argv');
