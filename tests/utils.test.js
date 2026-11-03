@@ -46,6 +46,7 @@ import {
     updateDailyHistory,
     getHistorySourceDeltas,
     getAdaptiveSourceIntervals,
+    getSourceCheckInterval,
     getUpdatableSources,
     validateSourceBackup,
     validateConfigurationBackup,
@@ -888,6 +889,10 @@ async function main() {
     'four stable weeks should gradually extend each source from its configured baseline');
 
     const adaptedIntervals = getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow);
+    equal(getSourceCheckInterval('DNF', new Map([['DNF', 60]]), adaptedIntervals, {status: 'ok'}), 180,
+        'successful cached sources should use their adaptive interval');
+    equal(getSourceCheckInterval('DNF', new Map([['DNF', 60]]), adaptedIntervals, {status: 'error'}), 60,
+        'failed sources should retry at their configured base interval');
     equal(getPollingIntervalMinutes(60, [{name: 'DNF'}], adaptedIntervals), 60,
         'adaptive source delays must not reduce the independent security check below the global cadence');
 
