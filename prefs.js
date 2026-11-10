@@ -9,6 +9,12 @@ import {runShell, classifyResult, validateSourceBackup, validateConfigurationBac
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {buildDiagnosticsReport} from './lib/summary.js';
 
+// GTK 4.24 removed the accessible-name property and set_accessible_name().
+// Use the Gtk.Accessible API so these labels work on current GNOME releases.
+function setAccessibleName(widget, name) {
+    widget.update_property([Gtk.AccessibleProperty.LABEL], [name]);
+}
+
 const PRESET_SOURCES = [
     {
         name: 'DNF',
@@ -66,6 +72,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             icon_name: 'preferences-system-symbolic',
         });
         window.add(generalPage);
+
+        // Add this page to the window after Sources, while allowing the
+        // maintenance groups below to be built outside the General page.
+        const advancedPage = new Adw.PreferencesPage({
+            title: 'Advanced',
+            icon_name: 'applications-system-symbolic',
+        });
 
         const generalGroup = new Adw.PreferencesGroup({title: 'Updates', description: 'How often to check and notify.'});
         generalPage.add(generalGroup);
@@ -213,7 +226,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'DNF metadata access',
             description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
         });
-        generalPage.add(permGroup);
+        advancedPage.add(permGroup);
 
         const dnfPath = '/usr/lib/sysimage/libdnf5';
         let permSubtitle = 'Path not present (OK on non-DNF systems)';
@@ -287,7 +300,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         quietGroup.add(quietEndRow);
 
         const watchGroup = new Adw.PreferencesGroup({title: 'Instant Refresh', description: 'Watch system package DBs for changes.'});
-        generalPage.add(watchGroup);
+        advancedPage.add(watchGroup);
 
         const watchRow = new Adw.SwitchRow({
             title: 'Watch package databases',
@@ -301,7 +314,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Diagnostics',
             description: 'Copy a redacted report for bug reports. Source commands and raw command output are never included.',
         });
-        generalPage.add(diagnosticsGroup);
+        advancedPage.add(diagnosticsGroup);
         const diagnosticsDetailRow = new Adw.SwitchRow({
             title: 'Include per-source details',
             subtitle: 'Add source status, update counts, cache state, intervals, and redacted failure summaries to the report.',
@@ -380,7 +393,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Recent Update History',
             description: 'Optional successful daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
         });
-        generalPage.add(historyGroup);
+        advancedPage.add(historyGroup);
         const recordHistoryRow = new Adw.SwitchRow({
             title: 'Record local history',
             subtitle: 'Keep successful daily totals on this device for up to 7 days',
@@ -505,7 +518,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Checks run as your user via /bin/sh -c. Background updates may run elevated through pkexec; only add commands you trust. The default DNF update command uses doas; switch it to sudo if doas is unavailable. Each check prints one line per update. Names must be unique and cannot contain |.',
+            description: 'Each source checks for pending updates and can optionally run an update command. Changes save automatically. Use only commands you trust.',
         });
         sourcesPage.add(sourcesGroup);
 
@@ -651,8 +664,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 const name = entry.nameEntry.get_text().trim() || 'new source';
                 entry.moveUpButton.set_sensitive(index > 0);
                 entry.moveDownButton.set_sensitive(index < sourceRows.length - 1);
-                entry.moveUpButton.set_accessible_name(`Move ${name} up`);
-                entry.moveDownButton.set_accessible_name(`Move ${name} down`);
+                setAccessibleName(entry.moveUpButton, `Move ${name} up`);
+                setAccessibleName(entry.moveDownButton, `Move ${name} down`);
             });
         };
 
@@ -690,42 +703,67 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const icon = new Gtk.Image({
                 icon_name: iconName,
                 pixel_size: 22,
-                valign: Gtk.Align.CENTER,
+                valign: Gtk.Align.START,
                 css_classes: ['dim-label'],
             });
+            const nameField = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                spacing: 4,
+                valign: Gtk.Align.START,
+            });
+            nameField.append(new Gtk.Label({
+                label: 'Source name',
+                xalign: 0,
+                css_classes: ['dim-label', 'caption'],
+            }));
             const nameEntry = new Gtk.Entry({
-                placeholder_text: 'Name  •  e.g. DNF',
+                placeholder_text: 'e.g. DNF',
                 text: name,
                 width_chars: 11,
                 hexpand: false,
                 css_classes: ['heading'],
             });
             nameEntry.set_tooltip_text('Source name - must be unique');
+            setAccessibleName(nameEntry, 'Source name');
+            nameField.append(nameEntry);
+            const commandField = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                spacing: 4,
+                valign: Gtk.Align.START,
+                hexpand: true,
+            });
+            commandField.append(new Gtk.Label({
+                label: 'Check command',
+                xalign: 0,
+                css_classes: ['dim-label', 'caption'],
+            }));
             const cmdEntry = new Gtk.Entry({
-                placeholder_text: 'Check  •  e.g. flatpak remote-ls --updates',
+                placeholder_text: 'e.g. flatpak remote-ls --updates',
                 text: command,
                 hexpand: true,
                 css_classes: ['monospace'],
             });
             cmdEntry.set_tooltip_text('Prints one line per pending update');
+            setAccessibleName(cmdEntry, 'Check command');
+            commandField.append(cmdEntry);
             const removeButton = new Gtk.Button({
                 icon_name: 'user-trash-symbolic',
-                accessible_name: 'Remove source: ' + (name || 'new source'),
                 tooltip_text: 'Remove this source',
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat', 'circular'],
             });
+            setAccessibleName(removeButton, 'Remove source: ' + (name || 'new source'));
             topRow.append(icon);
             const enabledCheck = new Gtk.CheckButton({
                 active: enabled ?? !settings.get_strv('disabled-sources').includes(name),
                 tooltip_text: 'Include this source in automatic and manual checks',
-                valign: Gtk.Align.CENTER,
+                valign: Gtk.Align.START,
             });
-            enabledCheck.set_accessible_name('Enable source: ' + (name || 'new source'));
+            setAccessibleName(enabledCheck, 'Enable source: ' + (name || 'new source'));
             enabledCheck.connect('toggled', () => saveSources());
             topRow.append(enabledCheck);
-            topRow.append(nameEntry);
-            topRow.append(cmdEntry);
+            topRow.append(nameField);
+            topRow.append(commandField);
             topRow.append(removeButton);
 
             // live icon update when name changes
@@ -733,8 +771,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             nameEntry.connect('changed', () => {
                 updateIcon();
                 const currentName = nameEntry.get_text().trim() || 'new source';
-                enabledCheck.set_accessible_name('Enable source: ' + currentName);
-                removeButton.set_accessible_name('Remove source: ' + currentName);
+                setAccessibleName(enabledCheck, 'Enable source: ' + currentName);
+                setAccessibleName(removeButton, 'Remove source: ' + currentName);
                 updateSourceOrderControls();
             });
 
@@ -752,7 +790,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 tooltip_text: 'Runs when you click the source',
             });
             const updateCmdEntry = new Gtk.Entry({
-                placeholder_text: 'On click →  e.g. flatpak update -y',
+                placeholder_text: 'Optional command, e.g. flatpak update -y',
                 text: updateCommand,
                 hexpand: true,
                 css_classes: ['monospace'],
@@ -760,6 +798,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             updateCmdEntry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, 'media-playback-start-symbolic');
             updateCmdEntry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, 'Runs on click');
             updateCmdEntry.set_tooltip_text('Optional: command to run when you click this source');
+            setAccessibleName(updateCmdEntry, 'Update command run when this source is clicked');
             // dim when empty, normal when filled
             const syncUpdateStyle = () => {
                 if (updateCmdEntry.get_text().trim())
@@ -784,6 +823,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
                 css_classes: ['flat'],
             });
+            setAccessibleName(testButton, 'Test check command');
             const testResultLabel = new Gtk.Label({
                 label: 'Not tested',
                 xalign: 0,
@@ -893,6 +933,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
             });
             intervalSpin.set_tooltip_text('Minutes for this source (overrides global)');
+            setAccessibleName(intervalSpin, 'Check interval in minutes');
             const intervalSuffix = new Gtk.Label({
                 label: 'min',
                 css_classes: ['dim-label', 'caption'],
@@ -923,6 +964,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
             });
             timeoutSpin.set_tooltip_text('Maximum check duration for this source (5–600 seconds; default 120)');
+            setAccessibleName(timeoutSpin, 'Check timeout in seconds');
             const timeoutSuffix = new Gtk.Label({
                 label: 'sec',
                 css_classes: ['dim-label', 'caption'],
@@ -946,6 +988,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             const outputFormatDropDown = Gtk.DropDown.new_from_strings(OUTPUT_FORMAT_LABELS);
             outputFormatDropDown.set_selected(Math.max(0, OUTPUT_FORMAT_VALUES.indexOf(selectedOutputFormat)));
             outputFormatDropDown.set_tooltip_text('Choose the parser for this source. Auto preserves the original first-token behavior.');
+            setAccessibleName(outputFormatDropDown, 'Command output format');
             const customColumnsRow = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL, spacing: 6,
                 valign: Gtk.Align.CENTER,
@@ -997,6 +1040,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 css_classes: ['monospace'],
             });
             exitCodesEntry.set_tooltip_text('Optional comma-separated success codes (0–255). Exit 0 always succeeds; DNF status 100 is the default when this is empty.');
+            setAccessibleName(exitCodesEntry, 'Additional successful exit codes');
             exitCodeRow.append(exitCodeLabel);
             exitCodeRow.append(exitCodesEntry);
 
@@ -1021,8 +1065,8 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             for (const w of [nameEntry, cmdEntry, updateCmdEntry, exitCodesEntry]) {
                 w.connect('activate', saveSources);
                 w.connect('notify::has-focus', widget => {
-                    // Moving from the candidate command to Test must not save it.
-                    if (!widget.has_focus && widget !== cmdEntry) saveSources();
+                    if (!widget.has_focus)
+                        saveSources();
                 });
                 w.connect('changed', updateBannerVisibility);
             }
@@ -1545,10 +1589,6 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         sourcesGroup.add(box);
 
         // Page 3: Advanced
-        const advancedPage = new Adw.PreferencesPage({
-            title: 'Advanced',
-            icon_name: 'applications-system-symbolic',
-        });
         window.add(advancedPage);
 
         const rebootGroup = new Adw.PreferencesGroup({title: 'Reboot Required', description: 'Separate icon when reboot is needed.'});
@@ -1615,10 +1655,10 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const browseButton = new Gtk.Button({
             icon_name: 'document-open-symbolic',
-            accessible_name: 'Browse for update script',
             valign: Gtk.Align.CENTER,
             tooltip_text: 'Browse for update script',
         });
+        setAccessibleName(browseButton, 'Browse for update script');
         browseButton.connect('clicked', () => {
             const chooser = new Gtk.FileChooserNative({
                 title: 'Select script',
