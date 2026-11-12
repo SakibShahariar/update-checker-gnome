@@ -1,26 +1,22 @@
 .update-checker-box {
-    spacing: 4px;
+    spacing: 6px;
 }
 
 .update-checker-label {
-    margin-left: 4px;
     font-weight: bold;
 }
 
 .update-checker-reboot-icon {
-    padding-left: 0px;
     opacity: 0.9;
     color: #bfc7d5; /* primary — matches theme accent */
 }
 
 .update-checker-offline-icon {
-    padding-left: 0px;
     opacity: 0.9;
     color: #bdc7dc; /* secondary */
 }
 
 .update-checker-security-icon {
-    padding-left: 0px;
     opacity: 0.9;
     color: #ffb4ab; /* error */
 }
