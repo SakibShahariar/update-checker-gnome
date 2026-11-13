@@ -67,7 +67,7 @@
     </key>
 
     <key name="watch-package-db" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Watch package databases for changes</summary>
       <description>Watches DNF's and Flatpak's state directories directly and triggers a fresh check a few seconds after they change - catching updates run any way at all (your own terminal, another tool, this extension), not just the scheduled timer. Harmless if a given path doesn't exist on your system (e.g. no Flatpak installed); that watch simply does nothing.</description>
     </key>
