@@ -507,6 +507,13 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         bgGroup.add(backgroundRow);
 
+        const bypassRow = new Adw.SwitchRow({
+            title: 'Bypass mixed privilege command check',
+            subtitle: 'Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&&, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.',
+        });
+        settings.bind('bypass-mixed-privilege-command', bypassRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        bgGroup.add(bypassRow);
+
         const SOURCE_ICONS = {
             'DNF': 'system-software-install-symbolic',
             'Flatpak': 'application-x-flatpak-symbolic',
