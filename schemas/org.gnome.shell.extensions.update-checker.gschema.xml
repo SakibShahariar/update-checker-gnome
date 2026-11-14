@@ -111,7 +111,7 @@
     <key name="bypass-mixed-privilege-command" type="b">
       <default>false</default>
       <summary>Bypass mixed privilege command check</summary>
-      <description>Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&&, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.</description>
+      <description>Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&amp;&amp;, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.</description>
     </key>
 
     <key name="check-security-updates" type="b">
