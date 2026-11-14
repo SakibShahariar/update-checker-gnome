@@ -509,7 +509,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const bypassRow = new Adw.SwitchRow({
             title: 'Bypass mixed privilege command check',
-            subtitle: 'Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&&, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.',
+            subtitle: 'Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&amp;&amp;, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.',
         });
         settings.bind('bypass-mixed-privilege-command', bypassRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         bgGroup.add(bypassRow);
@@ -1616,7 +1616,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const rebootHintRow = new Adw.ActionRow({
             title: 'Ubuntu/Debian',
-            subtitle: 'test -f /var/run/reboot-required && echo "Reboot required"',
+            subtitle: 'test -f /var/run/reboot-required &amp;&amp; echo "Reboot required"',
         });
         rebootHintRow.add_prefix(new Gtk.Image({icon_name: 'help-about-symbolic', pixel_size: 16}));
         rebootGroup.add(rebootHintRow);
