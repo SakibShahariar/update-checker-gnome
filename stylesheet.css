@@ -236,6 +236,7 @@
    list container and the rest of the Matugen-driven palette. */
 .update-checker-menu {
     min-width: 480px;
+    max-width: 480px;
     background-color: rgba(31, 32, 33, 0.55);
 }
 
