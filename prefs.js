@@ -94,7 +94,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const adaptiveRow = new Adw.SwitchRow({
             title: 'Adaptive source intervals',
-            subtitle: 'Gradually check stable sources less often. Source intervals remain the baseline; turn this off to keep them fixed. Security checks keep the global interval.',
+            subtitle: 'Check stable sources less often over time. Security checks keep the global interval.',
         });
         settings.bind('adaptive-check-intervals', adaptiveRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(adaptiveRow);
@@ -150,7 +150,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const securityNotifyRow = new Adw.SwitchRow({
             title: 'Notify on new security updates',
-            subtitle: 'Only when the security update count increases; respects quiet hours and snooze.',
+            subtitle: 'Only when the security count increases; respects quiet hours and snooze.',
         });
         securityNotifyRow.add_prefix(new Gtk.Image({icon_name: 'security-high-symbolic', pixel_size: 18}));
         settings.bind('notify-security-only', securityNotifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -158,7 +158,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const confirmUpdateAllRow = new Adw.SwitchRow({
             title: 'Confirm high-impact Update all',
-            subtitle: 'Review privileged or potentially destructive commands before running them. Disable only if you accept the risk.',
+            subtitle: 'Review privileged or destructive commands before running them.',
         });
         confirmUpdateAllRow.add_prefix(new Gtk.Image({icon_name: 'dialog-warning-symbolic', pixel_size: 18}));
         settings.bind('confirm-update-all', confirmUpdateAllRow, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -174,7 +174,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const compactRows = new Adw.SwitchRow({
             title: 'Compact source rows',
-            subtitle: 'Focus on counts; hide secondary freshness and progress labels',
+            subtitle: 'Hide freshness and progress labels; show counts only.',
         });
         compactRows.add_prefix(new Gtk.Image({icon_name: 'view-list-symbolic', pixel_size: 18}));
         settings.bind('compact-source-rows', compactRows, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -182,7 +182,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const ignoredPackagesRow = new Adw.ActionRow({
             title: 'Ignored packages / apps',
-            subtitle: 'Comma-separated exact identifiers. Ignored updates are excluded from counts; this can hide security fixes.',
+            subtitle: 'Comma-separated exact identifiers. Ignored updates are excluded from counts and can hide security fixes.',
         });
         const ignoredPackagesEntry = new Gtk.Entry({
             text: settings.get_strv('ignored-packages').join(', '),
@@ -216,7 +216,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const meteredRow = new Adw.SwitchRow({
             title: 'Pause background checks on metered networks',
-            subtitle: 'Uses NetworkManager metered-state detection; manual Check now still runs',
+            subtitle: 'Uses NetworkManager detection; manual Check now still runs.',
         });
         meteredRow.add_prefix(new Gtk.Image({icon_name: 'network-cellular-signal-excellent-symbolic', pixel_size: 18}));
         settings.bind('skip-on-metered', meteredRow, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -224,7 +224,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const permGroup = new Adw.PreferencesGroup({
             title: 'DNF metadata access',
-            description: 'If DNF checks fail with Permission denied on libdnf5, fix directory readability.',
+            description: 'Fix directory readability if DNF checks fail with Permission denied on libdnf5.',
         });
         advancedPage.add(permGroup);
 
@@ -270,7 +270,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         }
         permGroup.add(permRow);
 
-        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Uses your local clock in whole-hour increments. The start hour is included and the end hour is excluded; equal values mean all day. Notifications are silenced, but the icon and update checks stay active.'});
+        const quietGroup = new Adw.PreferencesGroup({title: 'Quiet Hours', description: 'Local clock, whole hours. Start is included, end is excluded; equal values mean all day. Icon and checks stay active; only notifications are silenced.'});
         generalPage.add(quietGroup);
 
         const quietEnabledRow = new Adw.SwitchRow({
@@ -312,18 +312,18 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const diagnosticsGroup = new Adw.PreferencesGroup({
             title: 'Diagnostics',
-            description: 'Copy a redacted report for bug reports. Source commands and raw command output are never included.',
+            description: 'Copy a redacted report for bug reports. Source commands and raw output are never included.',
         });
         advancedPage.add(diagnosticsGroup);
         const diagnosticsDetailRow = new Adw.SwitchRow({
             title: 'Include per-source details',
-            subtitle: 'Add source status, update counts, cache state, intervals, and redacted failure summaries to the report.',
+            subtitle: 'Add source status, counts, cache state, and redacted failure summaries to the report.',
         });
         settings.bind('diagnostics-include-source-details', diagnosticsDetailRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         diagnosticsGroup.add(diagnosticsDetailRow);
         const performanceCountersRow = new Adw.SwitchRow({
             title: 'Enable performance counters',
-            subtitle: 'Collect aggregate check, command, menu, and update timing metrics. Commands, paths, and raw output are never recorded.',
+            subtitle: 'Collect aggregate timing metrics. Commands, paths, and raw output are never recorded.',
         });
         settings.bind('performance-counters-enabled', performanceCountersRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         diagnosticsGroup.add(performanceCountersRow);
@@ -391,12 +391,12 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const historyGroup = new Adw.PreferencesGroup({
             title: 'Recent Update History',
-            description: 'Optional successful daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
+            description: 'Optional daily totals stored locally for up to 7 days. Commands and raw output are never stored.',
         });
         advancedPage.add(historyGroup);
         const recordHistoryRow = new Adw.SwitchRow({
             title: 'Record local history',
-            subtitle: 'Keep successful daily totals on this device for up to 7 days',
+            subtitle: 'Keep successful daily totals on this device for up to 7 days.',
         });
         settings.bind('record-history', recordHistoryRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         historyGroup.add(recordHistoryRow);
@@ -501,7 +501,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const backgroundRow = new Adw.SwitchRow({
             title: 'Run in background',
-            subtitle: 'When enabled, runs without a terminal; privileged commands use graphical PolicyKit authentication. When disabled, updates run in the configured terminal. Mixed privileged and user-scoped command chains are rejected in background mode.',
+            subtitle: 'No terminal; privileged commands use graphical PolicyKit auth. Disabled runs updates in the configured terminal. Mixed privilege/user command chains are rejected in background mode.',
         });
         backgroundRow.add_prefix(new Gtk.Image({icon_name: 'system-run-symbolic', pixel_size: 18}));
         settings.bind('background-updates', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -509,7 +509,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const bypassRow = new Adw.SwitchRow({
             title: 'Bypass mixed privilege command check',
-            subtitle: 'Allow background mode to run commands mixing elevation (doas/sudo/pkexec) with shell operators (&amp;&amp;, ||, ;). Disabling this (the default) maintains the safety check that prevents partial root elevation vulnerabilities.',
+            subtitle: 'Allow background mode to mix elevation (doas/sudo/pkexec) with shell operators (&amp;&amp;, ||, ;). Disabling keeps the safety check that prevents partial root elevation.',
         });
         settings.bind('bypass-mixed-privilege-command', bypassRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         bgGroup.add(bypassRow);
@@ -525,7 +525,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const sourcesGroup = new Adw.PreferencesGroup({
             title: 'Update Sources',
-            description: 'Each source checks for pending updates and can optionally run an update command. Changes save automatically. Use only commands you trust.',
+            description: 'Each source checks for pending updates and can optionally run an update command. Use only commands you trust.',
         });
         sourcesPage.add(sourcesGroup);
 
