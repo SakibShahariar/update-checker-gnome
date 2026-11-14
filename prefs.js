@@ -168,7 +168,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Always show icon',
             subtitle: 'Even when 0 updates',
         });
-        showZeroRow.add_prefix(new Gtk.Image({icon_name: 'view-visible-symbolic', pixel_size: 18}));
+        showZeroRow.add_prefix(new Gtk.Image({icon_name: 'view-reveal-symbolic', pixel_size: 18}));
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
 
@@ -176,7 +176,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
             title: 'Compact source rows',
             subtitle: 'Focus on counts; hide secondary freshness and progress labels',
         });
-        compactRows.add_prefix(new Gtk.Image({icon_name: 'view-compact-symbolic', pixel_size: 18}));
+        compactRows.add_prefix(new Gtk.Image({icon_name: 'view-list-symbolic', pixel_size: 18}));
         settings.bind('compact-source-rows', compactRows, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(compactRows);
 
@@ -1653,7 +1653,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         advancedPage.add(scriptGroup);
 
         const scriptRow = new Adw.EntryRow({title: 'Script path'});
-        scriptRow.add_prefix(new Gtk.Image({icon_name: 'text-x-script-symbolic', pixel_size: 16}));
+        scriptRow.add_prefix(new Gtk.Image({icon_name: 'text-x-generic-symbolic', pixel_size: 16}));
         scriptRow.set_text(settings.get_string('update-script-path'));
         scriptRow.connect('notify::text', () => {
             settings.set_string('update-script-path', scriptRow.get_text());
