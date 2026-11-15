@@ -25,8 +25,8 @@ const PRESET_SOURCES = [
     },
     {
         name: 'Flatpak',
-        command: 'flatpak remote-ls --updates',
-        updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
+        command: "flatpak update --no-deploy --noninteractive --system 2>/dev/null | grep -E '^[[:space:]]*[0-9]+\\.'",
+        updateCommand: 'flatpak update -y --system && flatpak uninstall --unused -y --system',
         interval: 120,
         blurb: 'Flathub · every 120 min',
     },
@@ -745,7 +745,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
                 css_classes: ['dim-label', 'caption'],
             }));
             const cmdEntry = new Gtk.Entry({
-                placeholder_text: 'e.g. flatpak remote-ls --updates',
+                placeholder_text: 'e.g. flatpak update --no-deploy --noninteractive --system | grep -E "^[[:space:]]*[0-9]+"',
                 text: command,
                 hexpand: true,
                 css_classes: ['monospace'],

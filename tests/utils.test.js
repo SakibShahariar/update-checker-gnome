@@ -608,7 +608,10 @@ async function main() {
         'DNF parser should select the package and available version columns');
     equal(parsePackageOutputLine('vokoscreenNG com.github.vkohaupt.vokoscreenNG 4.4.5 stable x86_64', 'flatpak'),
         {name: 'com.github.vkohaupt.vokoscreenNG', version: '4.4.5'},
-        'Flatpak parser should select the application ID and version columns');
+        'Flatpak remote-ls parser should select the application ID and version columns');
+    equal(parsePackageOutputLine('1.  org.freedesktop.Platform.codecs-extra 25.08-extra i flathub < 14.6 MB', 'flatpak'),
+        {name: 'org.freedesktop.Platform.codecs-extra', version: '25.08-extra'},
+        'Flatpak update numbered-list parser should select the application ID and version columns');
     equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
         {name: 'vite', version: '6.0.1'},
         'npm outdated parser should select the latest version column');
@@ -1061,9 +1064,9 @@ async function main() {
     equal(parseDirectArgvCommand('dnf check-update', GLib.shell_parse_argv),
         ['dnf', 'check-update'],
         'plain built-in source commands should be parsed into direct argv');
-    equal(parseDirectArgvCommand('flatpak remote-ls --updates', GLib.shell_parse_argv),
-        ['flatpak', 'remote-ls', '--updates'],
-        'the default Flatpak check command should use direct argv');
+    equal(parseDirectArgvCommand("flatpak update --no-deploy --noninteractive --system 2>/dev/null | grep -E '^[[:space:]]*[0-9]+\\.'", GLib.shell_parse_argv),
+        null,
+        'the default Flatpak check command pipes through grep, so it must use the shell');
     assert(parseDirectArgvCommand(
         "dnf check-update -q --refresh --color=never | grep -E '^\\\\S+\\\\.\\\\S+\\\\s'",
         GLib.shell_parse_argv

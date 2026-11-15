@@ -79,7 +79,7 @@
     </key>
 
     <key name="sources" type="as">
-      <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak remote-ls --updates']</default>
+      <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak update --no-deploy --noninteractive --system 2&gt;/dev/null | grep -E \'^[[:space:]]*[0-9]+\\.\'']</default>
       <summary>Update sources</summary>
       <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
     </key>
@@ -97,7 +97,7 @@
     </key>
 
     <key name="source-update-commands" type="as">
-      <default>['DNF|doas dnf update --refresh -y &amp;&amp; doas dnf autoremove -y', 'Flatpak|flatpak update -y &amp;&amp; flatpak uninstall --unused -y']</default>
+      <default>['DNF|doas dnf update --refresh -y &amp;&amp; doas dnf autoremove -y', 'Flatpak|flatpak update -y --system &amp;&amp; flatpak uninstall --unused -y --system']</default>
       <summary>Per-source update commands</summary>
       <description>List of "Name|shell command" entries, matched by name against the "sources" list. When a source has updates AND a matching entry here, clicking it in the panel menu opens a terminal (or, with "background-updates" enabled, runs it via pkexec with no terminal) and runs this command - so you can update just that one thing instead of everything. Optional per source; a source with no matching entry just shows its count with no click action. In background mode, doas/sudo/pkexec command prefixes are stripped and the *entire* line is re-run through pkexec; other elevation tools such as su -c are not rewritten. This elevates every command in the line, so avoid combining privileged and unprivileged tools in one command.</description>
     </key>

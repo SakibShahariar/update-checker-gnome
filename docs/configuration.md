@@ -25,7 +25,7 @@ Each source has a name and a shell check command. The extension resolves `sh` fr
 Each source has an **Output format** selector in Preferences → Sources. **Auto (legacy)** is the default and preserves the previous behavior: the first whitespace-delimited token is the package name and the second/third token is shown as the version. Choose a preset when the command emits a known layout:
 
 - **DNF:** package name, then available version.
-- **Flatpak:** application ID and version from the standard `Name Application ID Version Branch Arch` table.
+- **Flatpak:** application ID and version. Works with both the `flatpak remote-ls` table (`Name Application ID Version Branch Arch`) and the numbered list emitted by `flatpak update` (index, application ID, version, remote).
 - **npm outdated** and **Cargo outdated:** package name and the latest-version column.
 - **uv tool list:** package name and the version marked `[latest: ...]`, falling back to the installed version.
 
