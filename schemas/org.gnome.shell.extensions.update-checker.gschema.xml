@@ -78,6 +78,12 @@
       <description>By default the icon only appears in the panel when there's at least one update pending. Enable this to keep it visible (with a "0") even when everything is up to date.</description>
     </key>
 
+    <key name="show-zero-sources" type="b">
+      <default>false</default>
+      <summary>Show source rows in the menu even when they have no updates</summary>
+      <description>When enabled, every configured source keeps its row in the panel menu after a successful check, including sources reporting zero updates. When disabled, sources reporting zero updates are hidden in the menu; the panel icon itself is controlled separately by "show-zero".</description>
+    </key>
+
     <key name="sources" type="as">
       <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak update --no-deploy --noninteractive --system 2&gt;/dev/null | grep -E \'^[[:space:]]*[0-9]+\\.\'']</default>
       <summary>Update sources</summary>

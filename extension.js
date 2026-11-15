@@ -67,6 +67,15 @@ export default class UpdateCheckerExtension extends Extension {
         this._showZeroChangedId = this._settings.connect(
             'changed::show-zero', () => this._indicator._updateVisibility()
         );
+        this._showZeroSourcesChangedId = this._settings.connect(
+            'changed::show-zero-sources', () => {
+                if (this._indicator?._lastRenderSources)
+                    this._indicator._rebuildResultsSection(
+                        this._indicator._lastRenderSources,
+                        this._indicator._lastRenderResults,
+                        this._indicator._lastRenderUpdateCommands);
+            }
+        );
         // Coalesce rapid source/command edits into one refresh after the user
         // pauses editing. The callback reads the final settings state.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
@@ -213,6 +222,10 @@ export default class UpdateCheckerExtension extends Extension {
         if (this._showZeroChangedId) {
             this._settings.disconnect(this._showZeroChangedId);
             this._showZeroChangedId = null;
+        }
+        if (this._showZeroSourcesChangedId) {
+            this._settings.disconnect(this._showZeroSourcesChangedId);
+            this._showZeroSourcesChangedId = null;
         }
         if (this._sourceIntervalsChangedId) {
             this._settings.disconnect(this._sourceIntervalsChangedId);

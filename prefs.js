@@ -166,11 +166,19 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
 
         const showZeroRow = new Adw.SwitchRow({
             title: 'Always show icon',
-            subtitle: 'Even when 0 updates',
+            subtitle: 'Keep the panel icon visible even when 0 updates',
         });
         showZeroRow.add_prefix(new Gtk.Image({icon_name: 'view-reveal-symbolic', pixel_size: 18}));
         settings.bind('show-zero', showZeroRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         generalGroup.add(showZeroRow);
+
+        const showZeroSourcesRow = new Adw.SwitchRow({
+            title: 'Always show sources',
+            subtitle: 'Keep source rows in the menu even when they report 0 updates',
+        });
+        showZeroSourcesRow.add_prefix(new Gtk.Image({icon_name: 'view-list-symbolic', pixel_size: 18}));
+        settings.bind('show-zero-sources', showZeroSourcesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        generalGroup.add(showZeroSourcesRow);
 
         const compactRows = new Adw.SwitchRow({
             title: 'Compact source rows',
