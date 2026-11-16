@@ -71,6 +71,13 @@
     color: rgba(219, 227, 241, 0.85); /* on_primary_container @ 85% — Matugen */
 }
 
+/* Second-line subtitle: smaller, more muted secondary context.
+   Hidden when there is nothing to show (e.g. checking, no cached/next info). */
+.update-checker-header-subtitle-2 {
+    font-size: 0.8em;
+    color: rgba(219, 227, 241, 0.6); /* on_primary_container @ 60% — Matugen */
+}
+
 .update-checker-refresh-button {
     border-radius: 18px;
     padding: 9px;
