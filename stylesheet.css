@@ -264,6 +264,14 @@
     background-color: rgba(42, 42, 43, 0.85); /* surface_container_high @ 85% — Matugen */
 }
 
+/* Info/status rows get no hover highlight — they're labels, not actions.
+   Keeps the popup from stacking three adjacent highlight boxes when those
+   rows are visible together (Update all / Security updates / Notifications). */
+.update-checker-menu .update-checker-info-row:hover,
+.update-checker-menu .update-checker-info-row:focus {
+    background-color: transparent;
+}
+
 /* Keep keyboard focus distinct from the ordinary hover fill. The inset ring
    remains visible on icon-only buttons as well as stock popup-menu actions. */
 .update-checker-menu .popup-menu-item:focus,
