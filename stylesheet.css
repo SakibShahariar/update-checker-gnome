@@ -266,7 +266,14 @@
 
 /* Info/status rows get no hover highlight — they're labels, not actions.
    Keeps the popup from stacking three adjacent highlight boxes when those
-   rows are visible together (Update all / Security updates / Notifications). */
+   rows are visible together (Update all / Security updates). Explicitly
+   preserve the same margin/padding as the stock .popup-menu-item rule so
+   their content stays aligned with the rest of the menu. */
+.update-checker-menu .update-checker-info-row {
+    margin: 1px 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
 .update-checker-menu .update-checker-info-row:hover,
 .update-checker-menu .update-checker-info-row:focus {
     background-color: transparent;
