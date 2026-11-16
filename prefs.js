@@ -307,6 +307,24 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('quiet-hours-end', quietEndRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         quietGroup.add(quietEndRow);
 
+        // Notification snooze controls — moved from popup menu for cleaner UI.
+        const notifyGroup = new Adw.PreferencesGroup({title: 'Notifications', description: 'Control when update notifications appear.'});
+        generalPage.add(notifyGroup);
+        const snoozeHintRow = new Adw.ActionRow({
+            title: 'Snooze reminders',
+            subtitle: 'Use the notification popover to snooze for 4 hours or until tomorrow morning. Resumes automatically at the next check.',
+        });
+        snoozeHintRow.add_prefix(new Gtk.Image({icon_name: 'preferences-system-notifications-symbolic', pixel_size: 18}));
+        notifyGroup.add(snoozeHintRow);
+        const snoozeUntilRow = new Adw.SpinRow({
+            title: 'Next resume time',
+            subtitle: 'Unix epoch seconds; set to 0 to resume immediately.',
+            adjustment: new Gtk.Adjustment({lower: 0, upper: 2147483647, step_increment: 60}),
+        });
+        snoozeUntilRow.add_prefix(new Gtk.Image({icon_name: 'alarm-symbolic', pixel_size: 18}));
+        settings.bind('notification-snooze-until', snoozeUntilRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        notifyGroup.add(snoozeUntilRow);
+
         const watchGroup = new Adw.PreferencesGroup({title: 'Instant Refresh', description: 'Watch system package DBs for changes.'});
         advancedPage.add(watchGroup);
 
