@@ -48,6 +48,7 @@ export default class UpdateCheckerExtension extends Extension {
         this._scheduleTimer();
         this._sourceIntervalsChangedId = this._settings.connect(
             'changed::source-intervals', () => {
+                this._indicator?._clearAdaptiveIntervalsCache?.();
                 this._scheduleTimer();
                 this._preferenceCheckDebouncer.schedule();
             }
@@ -60,6 +61,7 @@ export default class UpdateCheckerExtension extends Extension {
         );
         this._adaptiveCheckChangedId = this._settings.connect(
             'changed::adaptive-check-intervals', () => {
+                this._indicator?._clearAdaptiveIntervalsCache?.();
                 this._scheduleTimer();
                 this._preferenceCheckDebouncer.schedule();
             }
@@ -79,6 +81,7 @@ export default class UpdateCheckerExtension extends Extension {
         // Coalesce rapid source/command edits into one refresh after the user
         // pauses editing. The callback reads the final settings state.
         this._sourcesChangedId = this._settings.connect('changed::sources', () => {
+            this._indicator?._clearAdaptiveIntervalsCache?.();
             this._scheduleTimer();
             this._preferenceCheckDebouncer.schedule();
         });
@@ -170,16 +173,7 @@ export default class UpdateCheckerExtension extends Extension {
         const configuredIntervals = parseIntervals(this._settings.get_strv('source-intervals'));
         const watchedSources = getWatchedSourceNames(this._activeDbWatchPaths, sources);
         const baseIntervals = getEventDrivenSourceIntervals(globalMinutes, sources, configuredIntervals, watchedSources);
-        let intervals = baseIntervals;
-        if (this._settings.get_boolean('adaptive-check-intervals')) {
-            try {
-                const history = JSON.parse(this._settings.get_string('history-json') || '[]');
-                intervals = getAdaptiveSourceIntervals(baseIntervals, history);
-            } catch (e) {
-                // Corrupt optional history must never prevent normal polling.
-                intervals = baseIntervals;
-            }
-        }
+        const intervals = this._indicator?._getAdaptiveIntervals?.(globalMinutes, sources, configuredIntervals, watchedSources) ?? baseIntervals;
         const minutes = getPollingIntervalMinutes(globalMinutes, sources, intervals);
         this._timeoutId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT, minutes * 60, () => {
