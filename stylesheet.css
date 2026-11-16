@@ -104,6 +104,13 @@
     min-height: 30px;
 }
 
+/* Thin timing/cached subtitle below each source row — rendered as a separate
+   invisible menu item so it stacks without stealing hover focus from the
+   action row above it. */
+.update-checker-subtitle {
+    padding: 1px 4px;
+}
+
 .update-checker-accent {
     width: 4px;
     border-radius: 2px;
