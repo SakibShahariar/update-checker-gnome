@@ -1,6 +1,6 @@
 # Open Issue Triage
 
-_Last reviewed: 2026-11-03. Default branch: `master`. Current open issues: 22._
+_Last reviewed: 2026-11-17. Default branch: `master`. Current open issues: 23._
 
 This is a point-in-time classification of the repository's 22 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
@@ -40,6 +40,7 @@ _No Category A issues remain open after this pass._
 | [#99 — Throttle update progress ticks](https://github.com/SakibShahariar/update-checker-gnome/issues/99) | Implementation and CI are complete; verify animation, cancellation/completion, and reduced-motion changes in a GNOME session. |
 | [#100 — Reuse menu row widgets](https://github.com/SakibShahariar/update-checker-gnome/issues/100) | Implement keyed row reuse and lifecycle tests; verify source add/remove/rename, errors, themes, and menu lifecycle in GNOME. |
 | [#104 — Performance profiling workflow](https://github.com/SakibShahariar/update-checker-gnome/issues/104) | Documentation is complete; run repeatable measurements on a real GNOME desktop and confirm tooling/commands on supported Fedora environments. |
+| [#105 — Show package changelogs and update explanations](https://github.com/SakibShahariar/update-checker-gnome/issues/105) | Feature request filed after the last triage pass. Implementation (capability audit, on-demand bounded metadata lookup with exact version matching, accessible details UI) can be built and unit-tested locally, but final acceptance needs live Fedora validation of DNF/Flatpak metadata availability and accessibility across GNOME sessions. All acceptance criteria remain unchecked. |
 
 ## Category C — Environment-dependent
 

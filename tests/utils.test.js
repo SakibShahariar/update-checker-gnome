@@ -48,6 +48,7 @@ import {
     getHistorySourceDeltas,
     getAdaptiveSourceIntervals,
     getAdaptiveIntervalsCacheKey,
+    createKeyedCache,
     getSourceCheckInterval,
     getUpdatableSources,
     validateSourceBackup,
@@ -961,6 +962,26 @@ async function main() {
     }))
         assert(getAdaptiveIntervalsCacheKey({...keyInputs, [field]: value}) !== baseKey,
             `changing ${field} must invalidate the adaptive interval cache`);
+
+    // Rapid repeated settings signals (e.g. editing sources fires both
+    // "sources" and "source-intervals") must not reparse history when the
+    // effective inputs are unchanged. Count compute calls directly.
+    const keyedCache = createKeyedCache();
+    let parseCount = 0;
+    const parse = () => ({intervals: ++parseCount});
+    const stableKey = () => getAdaptiveIntervalsCacheKey(keyInputs);
+    equal(keyedCache.get(stableKey(), parse), {intervals: 1},
+        'first cache access should compute once');
+    for (let toggle = 0; toggle < 10; toggle++)
+        keyedCache.get(stableKey(), parse);
+    assert(parseCount === 1,
+        `rapid setting toggles with unchanged inputs must not reparse history (parsed ${parseCount} times)`);
+    keyedCache.get(getAdaptiveIntervalsCacheKey({...keyInputs, globalMinutes: 15}), parse);
+    assert(parseCount === 2,
+        'a real input change must trigger exactly one recomputation');
+    keyedCache.clear();
+    keyedCache.get(stableKey(), parse);
+    assert(parseCount === 3, 'clearing the cache must force a recomputation');
 
     equal(getUpdatableSources(
         [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}, {name: 'Broken'}, {name: 'Checking'}],
