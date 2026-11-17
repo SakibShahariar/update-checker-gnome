@@ -25,8 +25,8 @@ const PRESET_SOURCES = [
     },
     {
         name: 'Flatpak',
-        command: "flatpak update --no-deploy --noninteractive --system 2>/dev/null | grep -E '^[[:space:]]*[0-9]+\\.'",
-        updateCommand: 'flatpak update -y --system && flatpak uninstall --unused -y --system',
+        command: "flatpak update --no-deploy --noninteractive 2>/dev/null | grep '^Updating '",
+        updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
         interval: 120,
         blurb: 'Flathub · every 120 min',
     },

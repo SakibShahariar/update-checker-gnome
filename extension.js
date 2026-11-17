@@ -9,14 +9,15 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {cleanOldMatugenCache} from './lib/theming.js';
 import {Indicator} from './lib/indicator.js';
 import {setupNetworkWatch, getWatchedSourceNames} from './lib/network-watch.js';
-import {parseSources, parseIntervals, getPollingIntervalMinutes, getEventDrivenSourceIntervals, getAdaptiveSourceIntervals, cancelAllShellCommands, createDebouncer} from './lib/utils.js';
+import {parseSources, parseIntervals, getPollingIntervalMinutes, getEventDrivenSourceIntervals, getAdaptiveSourceIntervals, cancelAllShellCommands, createDebouncer, migrateLegacyFlatpakCommands} from './lib/utils.js';
 
 export default class UpdateCheckerExtension extends Extension {
     enable() {
+        this._settings = this.getSettings();
+        migrateLegacyFlatpakCommands(this._settings);
         this._indicator = new Indicator(this);
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
-        this._settings = this.getSettings();
         this._preferenceCheckDebouncer = createDebouncer(
             (delay, callback) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
                 callback();

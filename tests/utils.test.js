@@ -33,6 +33,8 @@ import {
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
+    parseFlatpakUpdatingLine,
+    migrateLegacyFlatpakCommands,
     getNextSourceCheckAt,
     getSecurityNotificationDelta,
     parseSecurityAdvisories,
@@ -616,6 +618,38 @@ async function main() {
     equal(parsePackageOutputLine('1.  org.freedesktop.Platform.codecs-extra 25.08-extra i flathub < 14.6 MB', 'flatpak'),
         {name: 'org.freedesktop.Platform.codecs-extra', version: '25.08-extra'},
         'Flatpak update numbered-list parser should select the application ID and version columns');
+    const updatingLine = 'Updating runtime/org.freedesktop.Platform.codecs-extra/x86_64/25.08-extra';
+    equal(parseFlatpakUpdatingLine(updatingLine),
+        {name: 'org.freedesktop.Platform.codecs-extra', version: '25.08-extra'},
+        'Flatpak 1.14+ Updating ref should parse the app ID and branch');
+    equal(parseFlatpakUpdatingLine('Updating app/io.github.nolight132.sonora/x86_64/stable'),
+        {name: 'io.github.nolight132.sonora', version: 'stable'},
+        'Flatpak Updating app ref should parse the app ID and branch');
+    equal(parsePackageOutputLine(updatingLine, 'auto'),
+        {name: 'org.freedesktop.Platform.codecs-extra', version: '25.08-extra'},
+        'auto mode must parse Flatpak Updating refs (default saved config uses auto)');
+    equal(parsePackageOutputLine(updatingLine, 'flatpak'),
+        {name: 'org.freedesktop.Platform.codecs-extra', version: '25.08-extra'},
+        'flatpak mode must parse Updating refs');
+    assert(parseFlatpakUpdatingLine('1.  some.app 1.2.3 i flathub') === null,
+        'non-Updating lines must not match the Flatpak ref parser');
+
+    // #migration: old saved Flatpak commands must be upgraded in place.
+    const migrated = {
+        sources: ["DNF|dnf check-update", "Flatpak|flatpak update --no-deploy --noninteractive --system 2>/dev/null | grep -E '^[[:space:]]*[0-9]+\\.'"],
+        'source-update-commands': ['Flatpak|flatpak update -y --system && flatpak uninstall --unused -y --system'],
+        set_strv(key, values) { this[key] = values; },
+        get_strv(key) { return this[key]; },
+    };
+    migrateLegacyFlatpakCommands(migrated);
+    equal(migrated.sources[1],
+        "Flatpak|flatpak update --no-deploy --noninteractive 2>/dev/null | grep '^Updating '",
+        'legacy Flatpak check command must be migrated to the Updating-ref command');
+    equal(migrated['source-update-commands'][0],
+        'Flatpak|flatpak update -y && flatpak uninstall --unused -y',
+        'legacy Flatpak update command must drop --system scoping');
+    equal(migrated.sources[0], 'DNF|dnf check-update',
+        'non-Flatpak sources must be left untouched by the migration');
     equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
         {name: 'vite', version: '6.0.1'},
         'npm outdated parser should select the latest version column');
