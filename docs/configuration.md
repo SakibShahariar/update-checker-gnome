@@ -25,7 +25,7 @@ Each source has a name and a shell check command. The extension resolves `sh` fr
 Each source has an **Output format** selector in Preferences → Sources. **Auto (legacy)** is the default and preserves the previous behavior: the first whitespace-delimited token is the package name and the second/third token is shown as the version. Choose a preset when the command emits a known layout:
 
 - **DNF:** package name, then available version.
-- **Flatpak:** application ID and branch/version. Works with the `flatpak remote-ls` table (`Name Application ID Version Branch Arch`), the numbered list emitted by older `flatpak update`, and the `Updating <type>/<app-id>/<arch>/<branch>` ref lines emitted by Flatpak 1.14+. The default check uses `flatpak update --no-deploy --noninteractive` so it covers both system- and user-installed Flatpaks.
+- **Flatpak:** application ID and branch/version. Works with the `flatpak remote-ls` table (`Name Application ID Version Branch Arch`), the numbered list emitted by older `flatpak update`, and the `Updating <type>/<app-id>/<arch>/<branch>` ref lines emitted by Flatpak 1.14+. The default check refreshes remote metadata with `flatpak update --no-deploy --noninteractive` and then lists pending updates with `flatpak remote-ls --updates`, emitting clean `AppID version` lines covering both system- and user-installed Flatpaks with their real available versions.
 - **npm outdated** and **Cargo outdated:** package name and the latest-version column.
 - **uv tool list:** package name and the version marked `[latest: ...]`, falling back to the installed version.
 

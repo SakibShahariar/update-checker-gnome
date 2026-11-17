@@ -643,7 +643,7 @@ async function main() {
     };
     migrateLegacyFlatpakCommands(migrated);
     equal(migrated.sources[1],
-        "Flatpak|flatpak update --no-deploy --noninteractive 2>/dev/null | grep '^Updating '",
+        "Flatpak|flatpak update --no-deploy --noninteractive >/dev/null 2>&1; flatpak remote-ls --updates 2>/dev/null | awk -F '\\t' 'NF>=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&&v!=\"\")print $2, v}'",
         'legacy Flatpak check command must be migrated to the Updating-ref command');
     equal(migrated['source-update-commands'][0],
         'Flatpak|flatpak update -y && flatpak uninstall --unused -y',

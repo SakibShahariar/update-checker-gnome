@@ -85,7 +85,7 @@
     </key>
 
     <key name="sources" type="as">
-      <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak update --no-deploy --noninteractive 2&gt;/dev/null | grep \'^Updating \'']</default>
+      <default>['DNF|dnf check-update -q --refresh --color=never | grep -E \'^\\S+\\.\\S+\\s\'', 'Flatpak|flatpak update --no-deploy --noninteractive &gt;/dev/null 2&gt;&amp;1; flatpak remote-ls --updates 2&gt;/dev/null | awk -F \'\\t\' \'NF&gt;=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&amp;&amp;v!=\"\")print $2, v}\'']</default>
       <summary>Update sources</summary>
       <description>List of "Name|shell command" entries, editable from the preferences window. Each command runs through /bin/sh -c and its stdout is captured; the number of non-empty lines printed is treated as that source's update count. Add one entry per package manager you want tracked (cargo, npm, pipx, uv, etc.) - see the README for ready-made command snippets.</description>
     </key>

@@ -25,7 +25,7 @@ const PRESET_SOURCES = [
     },
     {
         name: 'Flatpak',
-        command: "flatpak update --no-deploy --noninteractive 2>/dev/null | grep '^Updating '",
+        command: "flatpak update --no-deploy --noninteractive >/dev/null 2>&1; flatpak remote-ls --updates 2>/dev/null | awk -F '\\t' 'NF>=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&&v!=\"\")print $2, v}'",
         updateCommand: 'flatpak update -y && flatpak uninstall --unused -y',
         interval: 120,
         blurb: 'Flathub · every 120 min',
