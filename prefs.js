@@ -312,7 +312,7 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         generalPage.add(notifyGroup);
         const snoozeHintRow = new Adw.ActionRow({
             title: 'Snooze reminders',
-            subtitle: 'Use the notification popover to snooze for 4 hours or until tomorrow morning. Resumes automatically at the next check.',
+            subtitle: 'Set a future Unix timestamp to silence update alerts until then, or 0 to resume immediately. Expired snoozes reset automatically.',
         });
         snoozeHintRow.add_prefix(new Gtk.Image({icon_name: 'preferences-system-notifications-symbolic', pixel_size: 18}));
         notifyGroup.add(snoozeHintRow);
