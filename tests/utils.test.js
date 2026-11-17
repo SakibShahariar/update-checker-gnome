@@ -33,7 +33,6 @@ import {
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
-    planCheckBatches,
     getNextSourceCheckAt,
     getSecurityNotificationDelta,
     parseSecurityAdvisories,
@@ -49,6 +48,8 @@ import {
     getHistorySourceDeltas,
     getAdaptiveSourceIntervals,
     getAdaptiveIntervalsCacheKey,
+    planCheckBatches,
+    fanOutBatchResult,
     createKeyedCache,
     getSourceCheckInterval,
     getUpdatableSources,
@@ -980,6 +981,30 @@ async function main() {
         [['DNF-a'], ['DNF-b'], ['Flatpak']],
         'different output formats must prevent batching');
     equal(planCheckBatches([], true), [], 'empty source list yields no batches');
+
+    // Fan-out failure isolation: one shared result reaches every member with
+    // its own name, and a failed result is not suppressed. Cancelled results
+    // must not refresh the poll/result caches.
+    const members = [{name: 'DNF-a'}, {name: 'DNF-b'}];
+    const batchFailed = {status: 'error', count: 0, message: 'boom', lines: []};
+    const polls = new Map();
+    const cache = new Map();
+    const records = fanOutBatchResult(members, batchFailed, {nowMs: 1000, pollTimes: polls, resultCache: cache});
+    equal(records.map(r => r.name), ['DNF-a', 'DNF-b'],
+        'a failed batch result must still be delivered to every member');
+    assert(records.every(r => r.status === 'error' && r.message === 'boom'),
+        'all members must receive the same failure result (no suppression)');
+    assert(polls.get('DNF-a') === 1000 && polls.get('DNF-b') === 1000,
+        'a completed (even failed) batch must refresh each member poll time');
+    assert(cache.get('DNF-a') === batchFailed && cache.get('DNF-b') === batchFailed,
+        'a failed batch must be cached per member');
+    const cancelledPolls = new Map();
+    const cancelledCache = new Map();
+    const cancelledRecords = fanOutBatchResult(members,
+        {status: 'cancelled', count: 0, message: 'Check cancelled', lines: []},
+        {nowMs: 2000, pollTimes: cancelledPolls, resultCache: cancelledCache});
+    assert(cancelledRecords.length === 2 && cancelledPolls.size === 0 && cancelledCache.size === 0,
+        'cancelled batch results must not refresh poll/result caches');
     for (const [field, value] of Object.entries({
         history: '[{"timestamp":1}]', globalMinutes: 15, adaptive: false,
         sources: [{name: 'DNF', command: 'dnf check-update -q'}],
