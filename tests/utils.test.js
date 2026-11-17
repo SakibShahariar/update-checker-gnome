@@ -1,6 +1,6 @@
 import System from 'system';
 import GLib from 'gi://GLib';
-import {sanitizeMatugenColor} from '../lib/theming.js';
+import {sanitizeMatugenColor, buildMatugenCss} from '../lib/theming.js';
 import {setupNetworkWatch, sourceNamesForDatabasePath, getWatchedSourceNames} from '../lib/network-watch.js';
 import {buildSummarySnapshot, buildDiagnosticsReport, redactSummaryError} from '../lib/summary.js';
 import {configurePerformanceCounters, incrementPerformanceCounter, recordUpdateDuration, getPerformanceCountersSnapshot} from '../lib/performance-counters.js';
@@ -1333,6 +1333,45 @@ async function main() {
     ])
         assert(sanitizeMatugenColor(invalid, '#112233') === '#112233',
             'invalid Matugen color should use the safe fallback');
+
+    // #96: every palette-derived color used by menu widgets must be provided
+    // by a generated CSS class, so widget code does not need inline set_style
+    // overrides that shadow CSS pseudo-class states.
+    const themedSelectors = [
+        '.update-checker-header-card', '.update-checker-header-icon-box',
+        '.update-checker-header-icon', '.update-checker-header-title',
+        '.update-checker-header-subtitle', '.update-checker-header-subtitle-2',
+        '.update-checker-refresh-button',
+        '.update-checker-accent', '.update-checker-section-title',
+        '.update-checker-section-icon', '.update-checker-badge',
+        '.update-checker-update-button', '.update-checker-container',
+        '.update-checker-container-empty', '.update-checker-package-row:hover',
+        '.update-checker-package-name', '.update-checker-package-version',
+        '.update-checker-subtitle-label', '.update-checker-hint-label',
+        '.update-checker-security-icon', '.update-checker-warning-icon',
+        '.update-checker-stop-icon', '.update-checker-updating-label',
+        '.update-checker-syncing-icon', '.update-checker-expand-button',
+    ];
+    const palette = {
+        primary: '#111111', primary_container: '#222222', secondary: '#333333',
+        secondary_container: '#444444', surface_container: '#555555',
+        surface_container_high: '#666666', outline_variant: '#777777',
+        error: '#888888', on_primary: '#999999', on_primary_container: '#aaaaaa',
+        on_secondary_container: '#bbbbbb', on_surface: '#cccccc',
+        on_surface_variant: '#dddddd',
+    };
+    const generated = buildMatugenCss(palette);
+    for (const selector of themedSelectors)
+        assert(generated.includes(selector),
+            `generated Matugen CSS must define ${selector} (inline styles shadow CSS states)`);
+    assert(generated.includes(palette.primary) && generated.includes(palette.error),
+        'generated Matugen CSS must use the supplied palette values');
+    const staticCss = GLib.file_get_contents(
+        GLib.build_filenamev([GLib.get_current_dir(), 'stylesheet.css']))[1];
+    const staticText = new TextDecoder().decode(staticCss);
+    for (const selector of themedSelectors)
+        assert(staticText.includes(selector),
+            `stylesheet.css must define ${selector} for the default theme`);
 
     const isolatedResults = await mapPool(['ok-1', 'fails', 'ok-2'], 2, async name => {
         return await runWorkerSafely(async () => {

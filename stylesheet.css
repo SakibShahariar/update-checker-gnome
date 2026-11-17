@@ -111,6 +111,18 @@
     padding: 1px 4px;
 }
 
+/* Muted secondary text inside a thin subtitle row (timing/cached state,
+   "checks are automatic" hint, retained-output notice). */
+.update-checker-subtitle-label {
+    font-size: 0.85em;
+    color: #e4e2e6; /* on_surface_variant — Matugen */
+}
+
+.update-checker-hint-label {
+    font-size: 0.85em;
+    color: rgba(228, 226, 230, 0.8); /* on_surface_variant @ 80% — Matugen */
+}
+
 .update-checker-accent {
     width: 4px;
     border-radius: 2px;
@@ -129,7 +141,7 @@
 .update-checker-badge {
     border-radius: 8px;
     padding: 1px 8px;
-    background-color: rgba(66, 71, 78, 0.85); /* secondary_container @ 85% — Matugen */
+    background-color: #42474e; /* secondary_container — Matugen */
     border: none;
     color: #dfe2eb; /* on_secondary_container — Matugen */
     font-size: 0.85em;
