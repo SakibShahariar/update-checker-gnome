@@ -2,7 +2,7 @@
 
 _Last reviewed: 2026-11-17. Default branch: `master`. Current open issues: 23._
 
-This is a point-in-time classification of the repository's 22 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
+This is a point-in-time classification of the repository's 23 open issues using the five-category policy in the root `AGENTS.md`. Categories describe what can be done and verified without the owner's laptop; they are not priority or severity labels.
 
 ## Category A — Fully actionable
 
@@ -31,8 +31,7 @@ _No Category A issues remain open after this pass._
 | [#84 — Lifecycle, cancellation, and UI regression tests](https://github.com/SakibShahariar/update-checker-gnome/issues/84) | Added a shared destroyed-indicator UI guard, teardown state marking, and utility tests; finish active-check/subprocess integration, real process-group behavior, and GNOME menu state tests. CI responses for the new commits are unavailable. |
 | [#86 — Event-driven scheduling](https://github.com/SakibShahariar/update-checker-gnome/issues/86) | Implemented a six-hour fallback for sources covered by active package-database monitors, retained normal polling for uncovered sources, restored normal polling on monitor cancellation, and invalidated caches on reconnect. GJS/CI passed; live Fedora/GNOME/Flatpak watcher reliability remains to be checked. Commits: `c471aa5`, `56f0718`. |
 | [#88 — Weekly trend-based adaptive check delay](https://github.com/SakibShahariar/update-checker-gnome/issues/88) | Implemented opt-in weekly count-trend intervals, disabled by default; separate security checks retain the global cadence, per-source intervals remain the baseline, and the global opt-out restores fixed intervals. Automated tests/CI and live GNOME validation remain. |
-| [#92 — Batch package-manager checks](https://github.com/SakibShahariar/update-checker-gnome/issues/92) | Unit-test batching and failure isolation, then validate command output, privilege boundaries, and behavior on supported package-manager environments. |
-| [#93 — D-Bus APIs where available](https://github.com/SakibShahariar/update-checker-gnome/issues/93) | Implement with CLI fallback; validate D-Bus availability, permissions, sandboxing, and equivalent results on supported distributions. |
+| [#92 — Batch package-manager checks](https://github.com/SakibShahariar/update-checker-gnome/issues/92) | Opt-in batching of identical checks plus unit tests (planner, fan-out failure isolation) implemented and CI-green (commits `d4f32a0`, `7f0d74f`). Remaining: live Fedora validation of a genuinely batched setup before the final acceptance box can be checked. |
 | [#94 — Targeted menu-row updates](https://github.com/SakibShahariar/update-checker-gnome/issues/94) | Implement row-field updates and automated state tests; verify row lifecycle, theme changes, and accessibility in GNOME. |
 | [#95 — Incremental package-list rendering](https://github.com/SakibShahariar/update-checker-gnome/issues/95) | Implemented an eight-row preview with a dedicated Show more control that adds up to 50 rows per activation, plus Show less to collapse. GJS paging tests and CI runs 41576891388 and 41577117652 passed; also fixed stale expansion-map cleanup. Live validation of large lists, scrolling, keyboard focus, screen readers, and themes remains. Commits: `0469f7e`, `fa8b8a3`. |
 | [#96 — CSS-class theming](https://github.com/SakibShahariar/update-checker-gnome/issues/96) | Implement stylesheet-based classes and automated checks; visually validate default/dark/light/Matugen/high-contrast/RTL themes. |
@@ -44,7 +43,9 @@ _No Category A issues remain open after this pass._
 
 ## Category C — Environment-dependent
 
-_No current issue classified here._ Reclassify an issue as C if the implementation itself cannot be completed or meaningfully verified without a specific unavailable device, operating system, hardware, or runtime—not merely because final desktop validation is pending.
+| Issue | Reason / missing environment |
+|---|---|
+| [#93 — D-Bus APIs where available](https://github.com/SakibShahariar/update-checker-gnome/issues/93) | Reclassified from B after a live Fedora 45 audit (2026-11-17, recorded on the issue): no candidate package-manager D-Bus service exposes a simple, reliable, non-blocking update-query path in this environment. `org.rpm.dnf.v0` (dnf5daemon) is activatable but uses connection-affine sessions; fwupd 2.1.9 exposes no query object; PackageKit is not running; Flatpak D-Bus is absent. A usable D-Bus path requires a distro/setup that actually exposes such an API; the CLI fallback remains the only working path here. |
 
 ## Category D — Blocked by external dependencies
 
