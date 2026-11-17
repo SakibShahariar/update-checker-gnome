@@ -47,6 +47,7 @@ import {
     updateDailyHistory,
     getHistorySourceDeltas,
     getAdaptiveSourceIntervals,
+    getAdaptiveIntervalsCacheKey,
     getSourceCheckInterval,
     getUpdatableSources,
     validateSourceBackup,
@@ -935,6 +936,31 @@ async function main() {
         60, 'a missing daily observation must not be mistaken for a stable week');
     equal(getAdaptiveSourceIntervals(new Map([['DNF', 60]]), stableHistory, adaptiveNow).get('DNF'),
         180, 'stable source interval should remain deterministic for the same history');
+
+    // The adaptive-interval cache key must change whenever any input that
+    // affects the result changes — not just history-json.
+    const keyInputs = {
+        history: '[]', globalMinutes: 60, adaptive: true,
+        sources: [{name: 'DNF', command: 'dnf check-update'}],
+        configuredIntervals: new Map([['DNF', 30]]),
+        watchedSources: new Set(['DNF', 'Flatpak']),
+    };
+    const baseKey = getAdaptiveIntervalsCacheKey(keyInputs);
+    assert(Number.isSafeInteger(baseKey), 'adaptive cache key should be a safe integer');
+    equal(baseKey, getAdaptiveIntervalsCacheKey(keyInputs),
+        'the same inputs must produce the same adaptive cache key');
+    equal(baseKey, getAdaptiveIntervalsCacheKey({
+        ...keyInputs,
+        watchedSources: new Set(['Flatpak', 'DNF']),
+    }), 'watched-source ordering must not change the adaptive cache key');
+    for (const [field, value] of Object.entries({
+        history: '[{"timestamp":1}]', globalMinutes: 15, adaptive: false,
+        sources: [{name: 'DNF', command: 'dnf check-update -q'}],
+        configuredIntervals: new Map([['DNF', 45]]),
+        watchedSources: new Set(),
+    }))
+        assert(getAdaptiveIntervalsCacheKey({...keyInputs, [field]: value}) !== baseKey,
+            `changing ${field} must invalidate the adaptive interval cache`);
 
     equal(getUpdatableSources(
         [{name: 'DNF'}, {name: 'Flatpak'}, {name: 'Cargo'}, {name: 'Broken'}, {name: 'Checking'}],
