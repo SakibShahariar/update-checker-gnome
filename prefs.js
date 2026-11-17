@@ -336,6 +336,16 @@ export default class UpdateCheckerPreferences extends ExtensionPreferences {
         settings.bind('watch-package-db', watchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         watchGroup.add(watchRow);
 
+        const batchGroup = new Adw.PreferencesGroup({title: 'Check batching', description: 'Combine identical source checks into one command.'});
+        advancedPage.add(batchGroup);
+        const batchRow = new Adw.SwitchRow({
+            title: 'Batch identical checks',
+            subtitle: 'Sources with the same command and settings share one check. Off by default.',
+        });
+        batchRow.add_prefix(new Gtk.Image({icon_name: 'view-list-symbolic', pixel_size: 18}));
+        settings.bind('batch-identical-checks', batchRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        batchGroup.add(batchRow);
+
         const diagnosticsGroup = new Adw.PreferencesGroup({
             title: 'Diagnostics',
             description: 'Copy a redacted report for bug reports. Source commands and raw output are never included.',

@@ -216,6 +216,12 @@
       <description>Hide secondary freshness and progress labels while keeping counts, errors, expand, update, and stop controls available.</description>
     </key>
 
+    <key name="batch-identical-checks" type="b">
+      <default>false</default>
+      <summary>Batch identical source checks</summary>
+      <description>When enabled, sources that share the same check command and the same timeout, success-exit codes, output format, and ignored-package list are checked with a single command and the result is applied to each source. Disabled by default so existing per-source commands are unchanged.</description>
+    </key>
+
     <key name="preferences-target-page" type="s">
       <default>''</default>
       <summary>Requested preferences page</summary>

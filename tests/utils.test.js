@@ -33,6 +33,7 @@ import {
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
+    planCheckBatches,
     getNextSourceCheckAt,
     getSecurityNotificationDelta,
     parseSecurityAdvisories,
@@ -954,6 +955,31 @@ async function main() {
         ...keyInputs,
         watchedSources: new Set(['Flatpak', 'DNF']),
     }), 'watched-source ordering must not change the adaptive cache key');
+
+    // #92: batching is opt-in and only groups sources whose command and every
+    // result-affecting setting are identical, so fan-out is lossless.
+    const batchSources = [
+        {name: 'DNF-a', command: 'dnf check-update'},
+        {name: 'DNF-b', command: 'dnf check-update'},
+        {name: 'Flatpak', command: 'flatpak update'},
+    ];
+    equal(planCheckBatches(batchSources, false).map(b => b.sources.map(s => s.name)),
+        [['DNF-a'], ['DNF-b'], ['Flatpak']],
+        'disabled batching must keep one batch per source in order');
+    equal(planCheckBatches(batchSources, true).map(b => b.sources.map(s => s.name)),
+        [['DNF-a', 'DNF-b'], ['Flatpak']],
+        'identical-command sources must share one batch when enabled');
+    equal(planCheckBatches(batchSources, true, {
+        timeouts: new Map([['DNF-a', 30], ['DNF-b', 120]]),
+    }).map(b => b.sources.map(s => s.name)),
+        [['DNF-a'], ['DNF-b'], ['Flatpak']],
+        'different timeouts must prevent batching');
+    equal(planCheckBatches(batchSources, true, {
+        outputFormats: new Map([['DNF-a', 'dnf'], ['DNF-b', 'auto']]),
+    }).map(b => b.sources.map(s => s.name)),
+        [['DNF-a'], ['DNF-b'], ['Flatpak']],
+        'different output formats must prevent batching');
+    equal(planCheckBatches([], true), [], 'empty source list yields no batches');
     for (const [field, value] of Object.entries({
         history: '[{"timestamp":1}]', globalMinutes: 15, adaptive: false,
         sources: [{name: 'DNF', command: 'dnf check-update -q'}],
