@@ -136,10 +136,6 @@
 
 .update-checker-section-icon {
     color: #c3c7cf; /* secondary — Matugen */
-    /* Symbolic icons render taller than the title's cap-height and sit
-       top-anchored in the row regardless of y_align (no vertical slack for
-       Clutter to act on), so the icon hangs visibly below "DNF". Nudge it up. */
-    margin-top: -3px;
 }
 
 .update-checker-badge {
