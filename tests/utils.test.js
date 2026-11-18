@@ -33,6 +33,7 @@ import {
     cancelAllShellCommands,
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
+    extractUpdateErrorDetail,
     parseFlatpakUpdatingLine,
     migrateLegacyFlatpakCommands,
     getNextSourceCheckAt,
@@ -1015,6 +1016,28 @@ async function main() {
         [['DNF-a'], ['DNF-b'], ['Flatpak']],
         'different output formats must prevent batching');
     equal(planCheckBatches([], true), [], 'empty source list yields no batches');
+
+    // #error-detail: a failed DNF update must surface the real reason, not the
+    // "Updating and loading repositories:" progress banner.
+    const dnfFailure = [
+        'Updating and loading repositories:',
+        ' Fedora 45 - x86_64 - Updates           100% |   1.2 KiB/s |   4.9 KiB |  00m04s',
+        'Repositories loaded.',
+        'Failed to resolve the transaction:',
+        'Problem 1: cannot install the best update candidate for package ffmpeg-libs-9.0.2-3.fc45.x86_64',
+        '  - nothing provides liboapv.so.11()(64bit) needed by ffmpeg-libs-9.0.2-4.fc45.x86_64',
+        'You can try to add to command line:',
+        '  --no-best to not limit the transaction to the best candidates',
+    ].join('\n');
+    const detail = extractUpdateErrorDetail(dnfFailure);
+    assert(detail.includes('cannot install the best update candidate'),
+        'error detail must include the real transaction failure');
+    assert(detail.includes('nothing provides liboapv.so.11'),
+        'error detail must include the missing dependency');
+    assert(!detail.includes('Updating and loading repositories') &&
+           !detail.includes('KiB/s') && !detail.includes('You can try'),
+        'error detail must drop progress banners and suggestion tails');
+    equal(extractUpdateErrorDetail(''), '', 'empty error yields empty detail');
 
     // Fan-out failure isolation: one shared result reaches every member with
     // its own name, and a failed result is not suppressed. Cancelled results
