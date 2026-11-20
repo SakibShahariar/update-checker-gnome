@@ -26,6 +26,7 @@ import {
     requestTrackedStop,
     clearTrackedStopTimeout,
     teardownTrackedUpdates,
+    finalizeUpdateCompletion,
     getSourceConfigurationState,
     parseSourceTimeouts,
     parseExitCodeList,
@@ -840,6 +841,38 @@ async function main() {
     assert(tornDown.size === 0, 'teardown clears the updating-sources map');
     assert(teardownTrackedUpdates(null, {}) === 0,
         'teardown with no entries is a safe no-op');
+
+    // #84: finalizeUpdateCompletion guards destroyed + stale entries and
+    // invalidates the cache atomically (covers background and terminal paths).
+    const makeCompletionIndicator = () => ({
+        _destroyed: false,
+        _updatingSources: new Map([['DNF', {proc: 'x'}]]),
+        _lastSourcePoll: new Map([['DNF', 123]]),
+        _lastSourceResults: new Map([['DNF', {status: 'ok', count: 1}]]),
+    });
+    let invalidated = 0;
+    const fin = makeCompletionIndicator();
+    const entry = fin._updatingSources.get('DNF');
+    assert(finalizeUpdateCompletion(fin, 'DNF', entry, {
+        invalidate: ind => { invalidated++; invalidateUpdateSourceCache(ind, 'DNF'); },
+    }), 'completion finalizes for the current entry');
+    assert(invalidated === 1, 'completion invalidates the source cache exactly once');
+    assert(!fin._updatingSources.has('DNF') && !fin._lastSourcePoll.has('DNF'),
+        'completion removes the tracked entry and cached poll');
+    // Stale entry: map now holds a different entry for the same label.
+    const stale = makeCompletionIndicator();
+    const oldEntry = {proc: 'old'};
+    assert(!finalizeUpdateCompletion(stale, 'DNF', oldEntry, {invalidate: () => { invalidated++; }}),
+        'a stale entry must not finalize (regression guard)');
+    assert(stale._updatingSources.get('DNF') !== oldEntry && invalidated === 1,
+        'stale completion must not remove the current entry or invalidate cache');
+    // Destroyed indicator: no finalization.
+    const dead = makeCompletionIndicator();
+    dead._destroyed = true;
+    assert(!finalizeUpdateCompletion(dead, 'DNF', dead._updatingSources.get('DNF'),
+        {invalidate: () => { invalidated++; }}),
+        'destroyed indicator rejects completion finalization');
+    assert(invalidated === 1, 'destroyed completion must not invalidate cache');
 
     equal(getHighImpactUpdateCommands([
         {name: 'DNF', command: 'doas dnf upgrade -y'},
