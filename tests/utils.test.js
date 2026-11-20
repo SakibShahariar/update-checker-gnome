@@ -674,6 +674,14 @@ async function main() {
     equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
         {name: 'vite', version: '6.0.1'},
         'npm outdated parser should select the latest version column');
+    // #preset-display: npm --parseable and uv --outdated outputs must parse in
+    // auto mode (the default preset config) so the popup shows clean names.
+    equal(parsePackageOutputLine('/home/u/.npm-global/lib/node_modules/@deepseek-ai/dsh:@deepseek-ai/dsh@0.2.2-rc.5:@deepseek-ai/dsh@0.2.2-rc.1:@deepseek-ai/dsh@0.2.2-rc.5:global', 'auto'),
+        {name: '@deepseek-ai/dsh', version: '0.2.2-rc.5'},
+        'npm --parseable should yield the package name and latest version');
+    equal(parsePackageOutputLine('free-claude-code v6.19.6 [latest: 6.19.41]', 'auto'),
+        {name: 'free-claude-code', version: '6.19.41'},
+        'uv --outdated should yield the tool name and latest version');
     equal(parsePackageOutputLine('serde serde 1.0.200 1.0.210 library', 'cargo'),
         {name: 'serde', version: '1.0.210'},
         'Cargo outdated parser should select the latest version column');
