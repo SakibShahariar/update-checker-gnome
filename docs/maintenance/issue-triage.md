@@ -39,13 +39,13 @@ _No Category A issues remain open after this pass._
 | [#99 — Throttle update progress ticks](https://github.com/SakibShahariar/update-checker-gnome/issues/99) | Implementation and CI are complete; verify animation, cancellation/completion, and reduced-motion changes in a GNOME session. |
 | [#100 — Reuse menu row widgets](https://github.com/SakibShahariar/update-checker-gnome/issues/100) | Implement keyed row reuse and lifecycle tests; verify source add/remove/rename, errors, themes, and menu lifecycle in GNOME. |
 | [#104 — Performance profiling workflow](https://github.com/SakibShahariar/update-checker-gnome/issues/104) | Documentation is complete; run repeatable measurements on a real GNOME desktop and confirm tooling/commands on supported Fedora environments. |
-| [#105 — Show package changelogs and update explanations](https://github.com/SakibShahariar/update-checker-gnome/issues/105) | Feature request filed after the last triage pass. Implementation (capability audit, on-demand bounded metadata lookup with exact version matching, accessible details UI) can be built and unit-tested locally, but final acceptance needs live Fedora validation of DNF/Flatpak metadata availability and accessibility across GNOME sessions. All acceptance criteria remain unchecked. |
 
 ## Category C — Environment-dependent
 
 | Issue | Reason / missing environment |
 |---|---|
 | [#93 — D-Bus APIs where available](https://github.com/SakibShahariar/update-checker-gnome/issues/93) | Reclassified from B after a live Fedora 45 audit (2026-11-17, recorded on the issue): no candidate package-manager D-Bus service exposes a simple, reliable, non-blocking update-query path in this environment. `org.rpm.dnf.v0` (dnf5daemon) is activatable but uses connection-affine sessions; fwupd 2.1.9 exposes no query object; PackageKit is not running; Flatpak D-Bus is absent. A usable D-Bus path requires a distro/setup that actually exposes such an API; the CLI fallback remains the only working path here. |
+| [#105 — Show package changelogs and update explanations](https://github.com/SakibShahariar/update-checker-gnome/issues/105) | Reclassified from B after a Stage-1 capability audit (2026-11-20, recorded on the issue): no supported source offers a cheap, on-demand, version-matched metadata path that satisfies the 'no full refresh / no redundant requests' non-goals. DNF's `changelog --upgrades` is trustworthy and version-matched but forces a multi-repo network refresh every call (~30s+) with no usable cache-only path; Flatpak AppStream notes need multi-installation disambiguation and parsing; fwupd has no clear release-description CLI. Implementation needs a viable low-cost metadata source (or local cache strategy) chosen first; all 8 acceptance boxes remain unchecked. |
 
 ## Category D — Blocked by external dependencies
 
