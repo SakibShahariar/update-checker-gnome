@@ -1225,6 +1225,34 @@ async function main() {
         {nowMs: 2000, pollTimes: cancelledPolls, resultCache: cancelledCache});
     assert(cancelledRecords.length === 2 && cancelledPolls.size === 0 && cancelledCache.size === 0,
         'cancelled batch results must not refresh poll/result caches');
+
+    // Criterion 3: independent batches — a failed batch must not suppress or
+    // misreport the successful batch's members when both fan out results.
+    // Give the two groups distinct commands to form two independent batches.
+    const twoBatches = planCheckBatches([
+        {name: 'fail-a', command: 'cmd-X'}, {name: 'fail-b', command: 'cmd-X'},
+        {name: 'ok-a', command: 'cmd-Y'},
+    ], true);
+    equal(twoBatches.length, 2, 'distinct commands produce independent batches');
+    const allResults = [];
+    const sharedPolls = new Map();
+    const sharedCache = new Map();
+    for (const batch of twoBatches) {
+        const fails = batch.sources[0].command === 'cmd-X';
+        const res = fails
+            ? {status: 'error', count: 0, message: 'boom', lines: []}
+            : {status: 'ok', count: 3, lines: ['a', 'b', 'c'], outputFormat: 'auto'};
+        allResults.push(...fanOutBatchResult(batch.sources, res, {
+            nowMs: 1000, pollTimes: sharedPolls, resultCache: sharedCache,
+        }));
+    }
+    const okRecord = allResults.find(r => r.name === 'ok-a');
+    assert(okRecord && okRecord.status === 'ok' && okRecord.count === 3,
+        'a failed batch must not suppress or misreport a successful batch');
+    assert(allResults.filter(r => r.name.startsWith('fail')).every(r => r.status === 'error'),
+        'failed batch members each retain their own failure');
+    assert(sharedCache.get('ok-a')?.status === 'ok' && sharedCache.get('fail-a')?.status === 'error',
+        'per-member caches keep independent success/failure results');
     for (const [field, value] of Object.entries({
         history: '[{"timestamp":1}]', globalMinutes: 15, adaptive: false,
         sources: [{name: 'DNF', command: 'dnf check-update -q'}],

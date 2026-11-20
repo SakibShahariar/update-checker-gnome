@@ -45,6 +45,12 @@ Each source can also define an optional update command and a polling interval. A
 
 Review custom commands before saving them. When a source check or per-source update command is changed, Preferences shows a non-blocking warning for commands containing elevation (`sudo`, `doas`, `pkexec`), redirection or `tee` to an absolute path, or potentially destructive tools such as `rm`, `mkfs`, and `dd`. The warning does not block saving and is not a shell sanitizer; commands remain trusted user input. Commands run as the logged-in user unless the command requests elevation.
 
+### Check batching (opt-in)
+
+By default every source runs its own check command. The **Batch identical checks** option (Preferences → Advanced) is off by default; when enabled, sources are combined into fewer subprocesses where it is provably safe. Two or more sources share one command only when **all** of the following are identical: the check command, per-source timeout, success exit codes, ignored-package list, and output format. This guarantees the single command's result can be applied to every member without changing any source's count, filtering, or parsing — so batching changes only how many processes are spawned, not the reported results.
+
+Batches run with the same concurrency limit (three at a time) and each is independent: a failure, timeout, or cancellation in one batch is recorded for that batch's members only and never suppresses or misreports another batch's results. Each member's poll timestamp and cached result are updated from the shared result, and cancelled results do not refresh the cache. Disabling the option restores one command per source in the original order. Batching is most useful when you have several sources with the same command (for example, multiple repositories checked with the same tool); unrelated sources with different commands never batch.
+
 ## Automatic polling
 
 - **Battery-aware polling:** optionally pause automatic checks while UPower reports that the machine is on battery.
