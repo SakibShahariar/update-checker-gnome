@@ -35,6 +35,8 @@ import {
     getEventDrivenSourceIntervals,
     extractUpdateErrorDetail,
     getResultsSignature,
+    getRowDisplayState,
+    updateSourceRowDisplay,
     selectStaleFlatpakCaches,
     cleanStaleFlatpakCaches,
     isFlatpakCacheFailure,
@@ -1064,6 +1066,42 @@ async function main() {
     assert(sig === getResultsSignature(sigSources,
         [{...sigResults[0], cacheReason: 'different text'}], sigPalette),
         'cosmetic cacheReason must not change the signature');
+
+    // #94: row display state is shared by the rebuild and in-place updater.
+    const clock = sec => `C${sec}`;
+    const dateTime = sec => `DT${sec}`;
+    const rowOk = getRowDisplayState('DNF', {status: 'ok', count: 3}, {
+        lastPoll: 1000, nowMs: 1060, formatClock: clock, formatDateTime: dateTime,
+    });
+    equal(rowOk, {
+        badgeText: '3', accessibleName: 'DNF: 3 pending updates', badgeTooltip: null,
+        subtitleText: 'Checked · just now',
+        subtitleTooltip: 'Last checked at DT1. Next check at C3601.', hasSubtitle: true,
+    }, 'row display state computes badge/subtitle/tooltip fields consistently');
+    equal(getRowDisplayState('DNF', {status: 'error', count: 0}, {}).badgeText, '!',
+        'error rows show a ! badge');
+    assert(getRowDisplayState('DNF', {status: 'ok', count: 0, cached: true}, {}).subtitleText.includes('Cached'),
+        'cached rows include Cached in the subtitle');
+    assert(!getRowDisplayState('DNF', {status: 'ok', count: 0}, {compactRows: true}).hasSubtitle,
+        'compact rows have no subtitle');
+
+    // In-place updater mutates existing widgets without recreating them.
+    const fakeCount = {text: '', accessible_name: '', tooltip_text: null, set_text(v) { this.text = v; }};
+    const fakeSubtitle = {text: '', tooltip_text: null, set_text(v) { this.text = v; }};
+    const fakeSubItem = {visible: true};
+    const fakeNow = Date.now();
+    const fakeIndicator = {
+        _sourceRowWidgets: new Map([['DNF', {countLabel: fakeCount, subtitleLabel: fakeSubtitle, subtitleItem: fakeSubItem}]]),
+        _lastRenderResults: [{name: 'DNF', status: 'ok', count: 7, cached: true, cacheReason: 'timer'}],
+        _lastSourcePoll: new Map([['DNF', fakeNow - 1000]]),
+        _settings: {
+            get_boolean: () => false, get_int: () => 60, get_strv: () => [],
+        },
+    };
+    assert(updateSourceRowDisplay(fakeIndicator, 'DNF'), 'in-place updater should succeed with widgets present');
+    equal(fakeCount.text, '7', 'badge text updated in place');
+    equal(fakeSubtitle.text, 'Checked · just now · Cached', 'subtitle updated in place');
+    assert(!updateSourceRowDisplay(fakeIndicator, 'Missing'), 'missing result returns false');
 
     // #flatpak-selfheal: only abandoned Flatpak temp caches are eligible for
     // cleanup; active pulls and unrelated dirs must never be touched.
