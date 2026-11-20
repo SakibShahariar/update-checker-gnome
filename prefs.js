@@ -47,7 +47,7 @@ const PRESET_SOURCES = [
     {
         name: 'npm (global)',
         command: 'npm outdated -g --parseable',
-        updateCommand: 'doas npm update -g',
+        updateCommand: 'npm update -g',
         interval: 360,
         blurb: 'Global npm packages · every 6h',
     },
