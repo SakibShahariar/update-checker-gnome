@@ -34,6 +34,7 @@ import {
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
     extractUpdateErrorDetail,
+    getResultsSignature,
     selectStaleFlatpakCaches,
     cleanStaleFlatpakCaches,
     isFlatpakCacheFailure,
@@ -1041,6 +1042,28 @@ async function main() {
            !detail.includes('KiB/s') && !detail.includes('You can try'),
         'error detail must drop progress banners and suggestion tails');
     equal(extractUpdateErrorDetail(''), '', 'empty error yields empty detail');
+
+    // #94: a results signature must be stable across identical inputs and change
+    // on any rendering-relevant difference, so rebuild-on-open can be skipped
+    // safely. Cosmetic cacheReason text must not force a rebuild.
+    const sigSources = [{name: 'DNF', command: 'dnf check-update'}];
+    const sigResults = [{name: 'DNF', status: 'ok', count: 3, lines: ['a 1', 'b 2', 'c 3']}];
+    const sigPalette = {primary: '#111'};
+    const sig = getResultsSignature(sigSources, sigResults, sigPalette);
+    equal(sig, getResultsSignature(sigSources, sigResults, sigPalette),
+        'identical inputs must produce an identical results signature');
+    assert(sig !== getResultsSignature(sigSources,
+        [{...sigResults[0], count: 4}], sigPalette),
+        'a changed count must change the signature');
+    assert(sig !== getResultsSignature(sigSources, sigResults, {primary: '#222'}),
+        'a changed palette must change the signature');
+    assert(sig !== getResultsSignature(
+        [{name: 'DNF', command: 'dnf check-update'}, {name: 'Flatpak', command: 'fp'}],
+        sigResults, sigPalette),
+        'a changed source set must change the signature');
+    assert(sig === getResultsSignature(sigSources,
+        [{...sigResults[0], cacheReason: 'different text'}], sigPalette),
+        'cosmetic cacheReason must not change the signature');
 
     // #flatpak-selfheal: only abandoned Flatpak temp caches are eligible for
     // cleanup; active pulls and unrelated dirs must never be touched.
