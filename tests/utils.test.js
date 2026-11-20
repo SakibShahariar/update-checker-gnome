@@ -651,15 +651,26 @@ async function main() {
         set_strv(key, values) { this[key] = values; },
         get_strv(key) { return this[key]; },
     };
+    const nonblockCheck = "Flatpak|( exec </dev/null >/dev/null 2>&1; flock -n 9 || exit 0; flatpak update --no-deploy --noninteractive ) 9>/tmp/update-checker-flatpak-refresh.lock & flatpak remote-ls --updates 2>/dev/null | awk -F '\\t' 'NF>=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&&v!=\"\")print $2, v}'";
+    const blockingCheck = "Flatpak|flatpak update --no-deploy --noninteractive >/dev/null 2>&1; flatpak remote-ls --updates 2>/dev/null | awk -F '\\t' 'NF>=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&&v!=\"\")print $2, v}'";
     migrateLegacyFlatpakCommands(migrated);
-    equal(migrated.sources[1],
-        "Flatpak|flatpak update --no-deploy --noninteractive >/dev/null 2>&1; flatpak remote-ls --updates 2>/dev/null | awk -F '\\t' 'NF>=4{v=$3; if(v==\"\")v=$4; if($2!=\"\"&&v!=\"\")print $2, v}'",
-        'legacy Flatpak check command must be migrated to the Updating-ref command');
+    equal(migrated.sources[1], nonblockCheck,
+        'legacy Flatpak check command must be migrated to the non-blocking refresh');
     equal(migrated['source-update-commands'][0],
         'Flatpak|flatpak update -y && flatpak uninstall --unused -y',
         'legacy Flatpak update command must drop --system scoping');
     equal(migrated.sources[0], 'DNF|dnf check-update',
         'non-Flatpak sources must be left untouched by the migration');
+    // The earlier blocking-refresh command must also upgrade to non-blocking.
+    const blocking = {
+        sources: [blockingCheck],
+        'source-update-commands': [],
+        set_strv(key, values) { this[key] = values; },
+        get_strv(key) { return this[key]; },
+    };
+    migrateLegacyFlatpakCommands(blocking);
+    equal(blocking.sources[0], nonblockCheck,
+        'blocking Flatpak refresh must be upgraded to non-blocking single-flight');
     equal(parsePackageOutputLine('vite 5.4.10 5.4.11 6.0.1 node_modules/vite', 'npm'),
         {name: 'vite', version: '6.0.1'},
         'npm outdated parser should select the latest version column');
