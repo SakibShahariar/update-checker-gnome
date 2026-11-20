@@ -34,6 +34,9 @@ import {
     getPollingIntervalMinutes,
     getEventDrivenSourceIntervals,
     extractUpdateErrorDetail,
+    selectStaleFlatpakCaches,
+    cleanStaleFlatpakCaches,
+    isFlatpakCacheFailure,
     parseFlatpakUpdatingLine,
     migrateLegacyFlatpakCommands,
     getNextSourceCheckAt,
@@ -1038,6 +1041,35 @@ async function main() {
            !detail.includes('KiB/s') && !detail.includes('You can try'),
         'error detail must drop progress banners and suggestion tails');
     equal(extractUpdateErrorDetail(''), '', 'empty error yields empty detail');
+
+    // #flatpak-selfheal: only abandoned Flatpak temp caches are eligible for
+    // cleanup; active pulls and unrelated dirs must never be touched.
+    const now = 1_000_000_000;
+    const maxAge = 30 * 60 * 1000;
+    equal(selectStaleFlatpakCaches([
+        {name: 'flatpak-cache-OLD', mtimeMs: now - maxAge - 1000},
+        {name: 'flatpak-cache-FRESH', mtimeMs: now - 1000},
+        {name: 'rpm-tmp-ABC', mtimeMs: now - maxAge - 1000},
+        {name: 'flatpak-cache-NOTIME', mtimeMs: 'x'},
+    ], now, maxAge), ['flatpak-cache-OLD'],
+        'only old flatpak-cache-* dirs with numeric mtimes are stale');
+    assert(isFlatpakCacheFailure("Couldn't find file object '5246ef'", {}),
+        'missing content object should trigger self-heal');
+    assert(isFlatpakCacheFailure('', {timedOut: true}),
+        'a Flatpak check timeout should trigger self-heal');
+    assert(!isFlatpakCacheFailure('error: not authorized', {}),
+        'unrelated Flatpak errors must not trigger self-heal');
+    const removed = [];
+    cleanStaleFlatpakCaches({
+        nowMs: now, maxAgeMs: maxAge,
+        listEntries: () => [
+            {name: 'flatpak-cache-OLD', mtimeMs: now - maxAge - 1},
+            {name: 'flatpak-cache-FRESH', mtimeMs: now - 1},
+        ],
+        removeTree: (base, name) => removed.push(name),
+    });
+    equal(removed, ['flatpak-cache-OLD'],
+        'cleanup should remove only the stale cache via injected removeTree');
 
     // Fan-out failure isolation: one shared result reaches every member with
     // its own name, and a failed result is not suppressed. Cancelled results
