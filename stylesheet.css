@@ -42,7 +42,7 @@
 .update-checker-header-card {
     border-radius: 12px;
     border: none;
-    background-color: rgba(63, 71, 83, 0.85); /* primary_container @ 85% — Matugen */
+    background-color: #3f4753; /* primary_container — Matugen */
     padding: 12px 12px;
     margin: 4px 0px 8px 0px;
     transition-duration: 200ms;
