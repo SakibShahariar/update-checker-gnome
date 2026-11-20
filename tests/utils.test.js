@@ -25,6 +25,7 @@ import {
     invalidateUpdateSourceCache,
     requestTrackedStop,
     clearTrackedStopTimeout,
+    teardownTrackedUpdates,
     getSourceConfigurationState,
     parseSourceTimeouts,
     parseExitCodeList,
@@ -819,6 +820,26 @@ async function main() {
         'clearing a stop timeout should release the timer and reset the entry');
     assert(!clearTrackedStopTimeout(clearedStopEntry, id => stopTimers.delete(id)),
         'clearing an already-finished stop timeout should be a no-op');
+
+    // #84: teardown on destruction cancels timers, signals processes, and
+    // clears tracked entries. All side effects injected for determinism.
+    const tornDown = new Map([
+        ['DNF', {tickId: 11, stopTimeoutId: 22, proc: {get_identifier: () => '111'}}],
+        ['Flatpak', {tickId: 33, stopTimeoutId: null, proc: {get_identifier: () => '222'}}],
+    ]);
+    const tornCancelled = [];
+    const signalled = [];
+    assert(teardownTrackedUpdates(tornDown, {
+        cancelTimeout: id => tornCancelled.push(id),
+        signalEntry: entry => signalled.push(entry.proc.get_identifier()),
+    }) === 2, 'teardown should report the number of entries cleaned up');
+    equal(tornCancelled, [11, 22, 33],
+        'teardown cancels elapsed ticks and pending stop timeouts, skipping null');
+    equal(signalled, ['111', '222'],
+        'teardown signals every tracked update process group');
+    assert(tornDown.size === 0, 'teardown clears the updating-sources map');
+    assert(teardownTrackedUpdates(null, {}) === 0,
+        'teardown with no entries is a safe no-op');
 
     equal(getHighImpactUpdateCommands([
         {name: 'DNF', command: 'doas dnf upgrade -y'},
