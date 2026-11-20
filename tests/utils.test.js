@@ -37,6 +37,7 @@ import {
     getResultsSignature,
     getRowDisplayState,
     updateSourceRowDisplay,
+    updateAllSourceRowDisplays,
     selectStaleFlatpakCaches,
     cleanStaleFlatpakCaches,
     isFlatpakCacheFailure,
@@ -1102,6 +1103,20 @@ async function main() {
     equal(fakeCount.text, '7', 'badge text updated in place');
     equal(fakeSubtitle.text, 'Checked · just now · Cached', 'subtitle updated in place');
     assert(!updateSourceRowDisplay(fakeIndicator, 'Missing'), 'missing result returns false');
+
+    const allFi = {
+        _lastRenderSources: [{name: 'DNF'}],
+        _sourceRowWidgets: fakeIndicator._sourceRowWidgets,
+        _lastRenderResults: fakeIndicator._lastRenderResults,
+        _lastSourcePoll: fakeIndicator._lastSourcePoll,
+        _settings: fakeIndicator._settings,
+    };
+    assert(updateAllSourceRowDisplays(allFi), 'all-row updater succeeds when all rows exist');
+    const missingFi = {...allFi, _lastRenderSources: [{name: 'DNF'}, {name: 'Flatpak'}]};
+    assert(!updateAllSourceRowDisplays(missingFi),
+        'all-row updater returns false when any row widget is missing (triggers rebuild fallback)');
+    assert(!updateAllSourceRowDisplays({_lastRenderSources: []}),
+        'all-row updater returns false with no sources');
 
     // #flatpak-selfheal: only abandoned Flatpak temp caches are eligible for
     // cleanup; active pulls and unrelated dirs must never be touched.
