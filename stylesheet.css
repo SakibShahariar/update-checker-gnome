@@ -263,7 +263,8 @@
 .update-checker-menu {
     min-width: 480px;
     max-width: 480px;
-    background-color: rgba(31, 32, 33, 0.55);
+    /* No background: inherit the shell theme's solid popup background, matching
+       github-notifier. The old translucent fill made the whole menu see-through. */
 }
 
 /* Stock popup items (security/reboot/status/footer) — match themed surfaces with
