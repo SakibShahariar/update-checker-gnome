@@ -850,7 +850,7 @@ async function main() {
         ],
     }, 60), [
         {name: 'DNF', command: 'dnf check-update', updateCommand: 'dnf upgrade', interval: 30, timeoutSeconds: 240, successExitCodes: '0,100', outputFormat: 'custom:3:1', enabled: false},
-        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 120, successExitCodes: '', outputFormat: 'auto', enabled: true},
+        {name: 'Flatpak', command: 'flatpak remote-ls --updates', updateCommand: '', interval: 60, timeoutSeconds: 300, successExitCodes: '', outputFormat: 'auto', enabled: true},
     ], 'source backup validation should normalize fields and preserve per-source options');
 
     for (const [payload, expected] of [
@@ -887,7 +887,7 @@ async function main() {
     }, 'configuration backup should preserve validated portable preferences');
     equal(configurationBackup.sources[0], {
         name: 'DNF', command: 'dnf check-update', updateCommand: '',
-        interval: 30, timeoutSeconds: 120, successExitCodes: '',
+        interval: 30, timeoutSeconds: 300, successExitCodes: '',
         outputFormat: 'auto', enabled: true,
     }, 'configuration backup should reuse source backup normalization');
     for (const [payload, expected] of [
@@ -1047,6 +1047,13 @@ async function main() {
            !detail.includes('KiB/s') && !detail.includes('You can try'),
         'error detail must drop progress banners and suggestion tails');
     equal(extractUpdateErrorDetail(''), '', 'empty error yields empty detail');
+
+    // The default check timeout must leave headroom for slow sources such as a
+    // Flatpak metadata refresh over a slow mirror (single pull measured ~110s).
+    assert(parseSourceTimeouts([]).get('Flatpak') === undefined,
+        'no per-source timeout override means the runtime default applies');
+    equal(parseSourceTimeouts(['Flatpak|300']).get('Flatpak'), 300,
+        'per-source timeouts remain configurable up to the 600s cap');
 
     // #94: a results signature must be stable across identical inputs and change
     // on any rendering-relevant difference, so rebuild-on-open can be skipped
