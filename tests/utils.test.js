@@ -35,6 +35,8 @@ import {
     getEventDrivenSourceIntervals,
     extractUpdateErrorDetail,
     getResultsSignature,
+    getRowContainerKey,
+    containersUnchanged,
     getRowDisplayState,
     updateSourceRowDisplay,
     updateAllSourceRowDisplays,
@@ -1067,6 +1069,33 @@ async function main() {
     assert(sig === getResultsSignature(sigSources,
         [{...sigResults[0], cacheReason: 'different text'}], sigPalette),
         'cosmetic cacheReason must not change the signature');
+
+    // #94: container keys must change on any structural difference (checking
+    // state, run-button presence, package lines, error text) so the final
+    // rebuild is skipped only when container widgets are truly still valid.
+    const ckResult = {status: 'ok', count: 3, lines: ['a 1', 'b 2', 'c 3']};
+    const ck = getRowContainerKey('DNF', ckResult, 8, true);
+    equal(ck, getRowContainerKey('DNF', ckResult, 8, true),
+        'container key stable for identical structure');
+    assert(ck !== getRowContainerKey('DNF', {...ckResult, checking: true}, 8, true),
+        'checking state changes the container key (run button hidden)');
+    assert(ck !== getRowContainerKey('DNF', ckResult, 8, false),
+        'run-button presence changes the container key');
+    assert(ck !== getRowContainerKey('DNF', {...ckResult, lines: ['a 1', 'b 2']}, 8, true),
+        'changed package lines change the container key');
+    assert(ck !== getRowContainerKey('DNF', ckResult, 50, true),
+        'paging state changes the container key');
+    const ckSources = [{name: 'DNF'}];
+    const ckKeys = new Map([['DNF', ck]]);
+    assert(containersUnchanged(ckSources, [{name: 'DNF', ...ckResult}], ckKeys,
+        () => 8, new Map([['DNF', 'cmd']])),
+        'containers unchanged when all keys match');
+    assert(!containersUnchanged(ckSources, [{name: 'DNF', ...ckResult}], null,
+        () => 8, new Map()),
+        'no previous keys forces a rebuild');
+    assert(!containersUnchanged(ckSources, [{name: 'DNF', ...ckResult, count: 9}], ckKeys,
+        () => 8, new Map([['DNF', 'cmd']])),
+        'changed result count forces a rebuild');
 
     // #94: row display state is shared by the rebuild and in-place updater.
     const clock = sec => `C${sec}`;
