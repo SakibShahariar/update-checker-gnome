@@ -1635,8 +1635,10 @@ async function main() {
     for (const selector of themedSelectors)
         assert(generated.includes(selector),
             `generated Matugen CSS must define ${selector} (inline styles shadow CSS states)`);
-    assert(generated.includes(palette.primary) && generated.includes(palette.error),
-        'generated Matugen CSS must use the supplied palette values');
+    assert(generated.includes(palette.primary),
+        'generated Matugen CSS must use the supplied primary palette value');
+    assert(generated.includes('.update-checker-security-icon, .update-checker-warning-icon, .update-checker-stop-icon { color: #111111; }'),
+        'warning/security/stop icons must use the primary color, not error');
     const staticCss = GLib.file_get_contents(
         GLib.build_filenamev([GLib.get_current_dir(), 'stylesheet.css']))[1];
     const staticText = new TextDecoder().decode(staticCss);

@@ -18,7 +18,7 @@
 
 .update-checker-security-icon {
     opacity: 0.9;
-    color: #ffb4ab; /* error */
+    color: #bfc7d5; /* primary */
 }
  
 .update-checker-urgent-icon {
@@ -214,7 +214,7 @@
 }
 
 .update-checker-warning-icon {
-    color: #ffb4ab; /* error — Matugen */
+    color: #bfc7d5; /* primary — Matugen */
     padding-left: 12px;
 }
 
@@ -227,7 +227,7 @@
 .update-checker-stop-icon {
     padding-left: 8px;
     opacity: 0.9;
-    color: #ffb4ab; /* error */
+    color: #bfc7d5; /* primary */
 }
 
 /* — Scroll container — one capped scroll region for all sources' results.
