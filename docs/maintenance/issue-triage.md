@@ -24,7 +24,6 @@ _No Category A issues remain open after this pass._
 | [#59 — Per-worker error boundaries](https://github.com/SakibShahariar/update-checker-gnome/issues/59) | Automated worker-isolation coverage exists; verify UI recovery in a GNOME session. |
 | [#60 — Terminal update lifecycle](https://github.com/SakibShahariar/update-checker-gnome/issues/60) | Verify GNOME Terminal `--wait` and configured third-party terminal launchers in a real desktop session. |
 | [#68 — Expandable error output and copy](https://github.com/SakibShahariar/update-checker-gnome/issues/68) | Verify expanded layout and clipboard behavior in GNOME Shell. |
-| [#69 — Global Check now discoverability](https://github.com/SakibShahariar/update-checker-gnome/issues/69) | Verify keybinding registration, shortcut conflicts, and interaction in GNOME. |
 | [#71 — Empty/disabled-source guidance](https://github.com/SakibShahariar/update-checker-gnome/issues/71) | Verify opening Sources preferences from the warning with Preferences both closed and already open. |
 | [#73 — Terminal versus background mode](https://github.com/SakibShahariar/update-checker-gnome/issues/73) | Verify both modes, labels, authentication behavior, and lifecycle in GNOME. |
 | [#78 — Reduced-motion consistency](https://github.com/SakibShahariar/update-checker-gnome/issues/78) | Verify toggling reduced motion while the extension is running. |

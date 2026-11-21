@@ -56,7 +56,7 @@ gnome-extensions prefs update-checker-fedora@SakibShahariar.github.io
 
 ## Getting started
 
-The panel indicator displays the combined update count. Open it to inspect individual sources and their reported updates. **Check now** starts an immediate check; **Ctrl+Alt+U** is the default global shortcut and can be changed in preferences.
+The panel indicator displays the combined update count. Open it to inspect individual sources and their reported updates. **Check now** starts an immediate check.
 
 Each source check command should print one non-empty line per pending update. Configure sources and their output formats in preferences. See the **[configuration guide](docs/configuration.md)** for command setup, polling, security checks, and update privileges.
 
